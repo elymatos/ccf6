@@ -1,0 +1,14 @@
+# The Cognitive runtime. Python and numpy, and nothing else: the runtime has no
+# database dependency and no Laravel dependency, so it stays testable on its own.
+FROM python:3.12-alpine
+
+RUN apk add --no-cache build-base
+
+WORKDIR /runtime
+COPY ccf6-runtime/pyproject.toml ./
+COPY ccf6-runtime/src ./src
+RUN pip install --no-cache-dir -e .
+
+WORKDIR /www
+ENV CCF6_ARTIFACT_ROOT=/www/artifacts
+CMD ["python", "-m", "ccf6.serve"]

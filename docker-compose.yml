@@ -1,0 +1,54 @@
+services:
+    caddy:
+        image: caddy
+        restart: unless-stopped
+        volumes:
+            - ./Caddyfile:/etc/caddy/Caddyfile
+            - .:/www
+        ports:
+            - '${FORWARD_PHP_PORT}:80'
+        depends_on:
+            - php
+    php: &laravel
+        build:
+            context: .
+            args:
+                WWWUSER: '${WWWUSER:-1000}'
+                WWWGROUP: '${WWWGROUP:-1000}'
+        extra_hosts:
+            - 'host.docker.internal:host-gateway'
+        volumes:
+            - '.:/www'
+        user: 'sail'
+        environment:
+            - 'PHP_IDE_CONFIG=${PHP_IDE_CONFIG}'
+            - 'CCF6_RUNTIME_URL=http://runtime:8931'
+            - 'CCF6_ARTIFACT_ROOT=/www/artifacts'
+    queue:
+        <<: *laravel
+        command: 'php artisan queue:work'
+    schedule:
+        <<: *laravel
+        command: 'php artisan schedule:work'
+    runtime:
+        build:
+            context: .
+            dockerfile: Dockerfile.runtime
+        volumes:
+            - '.:/www'
+            # The package is installed editable from /runtime/src, which the image
+            # copied at build time. Mounting the source over it makes an edit live on
+            # restart rather than needing an image rebuild.
+            - './ccf6-runtime/src:/runtime/src'
+        # Runs write artifacts into the bind mount, so they must be owned by the
+        # developer rather than by root.
+        user: '${WWWUSER:-1000}:${WWWGROUP:-1000}'
+        environment:
+            - 'CCF6_PORT=8931'
+            - 'CCF6_ARTIFACT_ROOT=/www/artifacts'
+        ports:
+            - '${FORWARD_RUNTIME_PORT}:8931'
+    redis:
+        image: redis:7.2-alpine
+        ports:
+            - '${FORWARD_REDIS_PORT}:6379'
