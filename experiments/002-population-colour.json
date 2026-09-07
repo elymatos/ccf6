@@ -1,0 +1,19 @@
+{
+  "number": "002",
+  "name": "Colour selectivity baseline \u2014 population colour code",
+  "kind": "colour_selectivity_baseline",
+  "question": "Does the colour pathway collapse because the colour Area (8 Columns) is smaller than the sparse fan-in (12), so every top Column samples all of it?",
+  "ticks": 250,
+  "colour_encoder": "population_colour",
+  "architecture": {
+    "world_size": 8,
+    "n_colours": 8,
+    "levels": 3,
+    "local_levels": 2,
+    "pooling": 4,
+    "fanin": 12,
+    "hub_levels": 2,
+    "seed": 20260907
+  },
+  "parameters": {}
+}

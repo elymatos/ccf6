@@ -1,0 +1,19 @@
+{
+  "number": "001",
+  "name": "Colour selectivity baseline",
+  "kind": "colour_selectivity_baseline",
+  "question": "With no learning and arbitrary connectivity, how colour-selective does any Column become? This is the null a learning rule must beat.",
+  "ticks": 250,
+  "colour_encoder": "localist_colour",
+  "architecture": {
+    "world_size": 8,
+    "n_colours": 8,
+    "levels": 3,
+    "local_levels": 2,
+    "pooling": 4,
+    "fanin": 12,
+    "hub_levels": 2,
+    "seed": 20260907
+  },
+  "parameters": {}
+}
