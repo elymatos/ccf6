@@ -14,10 +14,40 @@ derived blind of CCF7 by design — see [ADR-0001](docs/adr/0001-ccf6-is-a-blind
 - [`docs/adr/`](docs/adr) — why each hard-to-reverse decision went the way it did.
 - [`docs/journal/`](docs/journal) — what happened in each working session.
 
+## First run
+
+A fresh clone needs three things before the stack will come up. Skipping any of
+them leaves containers that start and then exit.
+
+```bash
+cp .env.example .env                            # if you don't have one yet
+composer install
+touch database/database.sqlite                  # DB_CONNECTION=sqlite; the file is not in the repo
+docker compose run --rm --no-deps php php artisan key:generate
+docker compose run --rm --no-deps php php artisan migrate
+```
+
+The last two run inside the php container so they don't depend on the host PHP
+having every extension the project needs (`ext-iconv`, in particular).
+
+Why each matters: `QUEUE_CONNECTION` and `CACHE_STORE` are both `database`, so
+without the sqlite file the `queue` container exits 1 on boot. Without `APP_KEY`
+every request 500s — and the error renderer then throws `Cannot modify header
+information`, which is what you'll see at the end of the log; that second error
+is noise, the missing key is the cause.
+
 ## Running
 
 ```bash
 docker compose up -d                 # workbench :8002, runtime :8933, redis :6380
+docker compose ps                    # all six services should read "Up"
+```
+
+Health checks:
+
+```bash
+curl -s http://localhost:8933/health # {"status": "ok", ...}
+curl -sI http://localhost:8002/      # 200
 ```
 
 Run an experiment, on the host:
