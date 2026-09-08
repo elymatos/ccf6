@@ -34,4 +34,4 @@ being looked at, not for speed.
 
 Grid position becomes mechanical rather than decorative, since lateral competition is
 defined over neighbourhood. Each Level has three drawable fields rather than one. State
-per Area is three floats per Column, which is negligible.
+per Space is three floats per Column, which is negligible.

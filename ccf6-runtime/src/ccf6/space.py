@@ -1,8 +1,9 @@
-"""Areas, Levels, and the Column circuit.
+"""Spaces, Levels, and the Column circuit.
 
-A Column holds three private activations. A Level is a Grid of Columns. An Area is a
-stack of Levels. Connections between Columns are dense matrices: the grids are small
-enough that sparsity would cost readability and buy nothing.
+A Column holds three private activations. A Level is a Grid of Columns. A Space is a
+stack of Levels over one conceptual dimension, sited in a Cortical Area and carrying a
+Modality. Connections between Columns are dense matrices: the grids are small enough
+that sparsity would cost readability and buy nothing.
 
 The circuit, per ADR-0002:
 
@@ -144,8 +145,23 @@ def global_inhibition(shape: tuple[int, int]) -> np.ndarray:
     return weights / max(n - 1, 1)
 
 
-class Area:
-    """A stack of Levels sharing one functional specialization."""
+#: The channels through which content can reach a Space. A Hub has none: it is fed by
+#: other Spaces rather than by the World, so no channel is its own.
+MODALITIES = ("visual", "auditory", "tactile", "motor", "affective")
+
+#: Where a Space sits. An anatomical claim and nothing else — it never says what job the
+#: Space does; the Space's dimension says that.
+CORTICAL_AREAS = ("frontal", "parietal", "temporal")
+
+
+class Space:
+    """A stack of Levels over one conceptual dimension.
+
+    The dimension is the Space's specialization: position, colour, temperature. Where
+    the Space sits (`cortical_area`) and how its content arrives (`modality`) are
+    declared, not inferred, because neither follows from the other — position and colour
+    are both visual and sit in different Cortical Areas.
+    """
 
     def __init__(
         self,
@@ -154,14 +170,26 @@ class Area:
         n_levels: int,
         input_size: int,
         *,
+        cortical_area: str,
+        modality: str | None,
         local_levels: int,
         pooling: int,
         fanin: int,
         rng: np.random.Generator,
         input_mode: str = "identity",
     ):
+        if cortical_area not in CORTICAL_AREAS:
+            raise ValueError(
+                f"{name}: unknown cortical_area {cortical_area!r}; declared: {list(CORTICAL_AREAS)}"
+            )
+        if modality is not None and modality not in MODALITIES:
+            raise ValueError(
+                f"{name}: unknown modality {modality!r}; declared: {list(MODALITIES)} or null"
+            )
         self.name = name
         self.shape = shape
+        self.cortical_area = cortical_area
+        self.modality = modality
         self._input_mode = input_mode
         self._local_levels = local_levels
         self._pooling = pooling
@@ -169,9 +197,9 @@ class Area:
 
         for index, level in enumerate(self.levels):
             if index == 0:
-                # Thalamic drive arrives here. An Area fed by the Thalamus takes it
+                # Thalamic drive arrives here. A Space fed by the Thalamus takes it
                 # one-to-one, which the encoders size to match. A Hub is fed by the
-                # tops of several Areas instead, and that convergence is non-local by
+                # tops of several Spaces instead, and that convergence is non-local by
                 # nature: nothing makes a colour Column and a position Column
                 # neighbours, so there is no neighbourhood to draw from.
                 if input_mode == "identity":
@@ -199,8 +227,8 @@ class Area:
             above = self.levels[index + 1]
             self.levels[index].w_feedback = above.w_input.T
 
-    def describe(self) -> list[dict]:
-        """How every Level of this Area is wired, in plain counts.
+    def describe(self) -> dict:
+        """How this Space is sited, and how every one of its Levels is wired.
 
         Written by the code that built the connections rather than restated by hand,
         so it cannot drift from what actually ran.
@@ -210,7 +238,7 @@ class Area:
             incoming = (level.w_input > 0).sum(axis=1)
             lateral = (level.w_lateral > 0).sum(axis=1)
             if index == 0:
-                source = "Thalamus" if self._input_mode == "identity" else "tops of other Areas"
+                source = "Thalamus" if self._input_mode == "identity" else "tops of other Spaces"
                 rule = ("one-to-one" if self._input_mode == "identity"
                         else f"sparse non-local, {int(incoming.mean())} drawn from anywhere")
                 receptive = 1
@@ -237,7 +265,11 @@ class Area:
                 "competitors": int(lateral.mean()),
                 "feedback_from": self.levels[index + 1].name if level.w_feedback is not None else None,
             })
-        return rows
+        return {
+            "cortical_area": self.cortical_area,
+            "modality": self.modality,
+            "levels": rows,
+        }
 
     @property
     def top(self) -> Level:
@@ -248,7 +280,7 @@ class Area:
             level.reset()
 
     def step(self, thalamic_drive: np.ndarray | None, p: dict) -> None:
-        """One synchronous tick over every Level of this Area."""
+        """One synchronous tick over every Level of this Space."""
         exc, inh = p["excitatory"], p["inhibitory"]
         next_state = []
 

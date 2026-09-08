@@ -1,5 +1,12 @@
 # 2026-09-07 — Sigmoid removed, and experiment 003
 
+> **Written before the vocabulary split.** "Area" throughout this entry means what
+> CCF6 now calls a **Space** — a stack of Levels over one conceptual dimension. "Area"
+> now survives only as **Cortical Area** (frontal, parietal, temporal), and **Modality**
+> (visual, auditory, tactile, motor, affective) names the channel that was never named
+> before. The entry is left in its original wording as the record of what was said at
+> the time; see CONTEXT.md for the current terms.
+
 ## The sigmoid is gone
 
 Removed from `params.py`, `area.py`, `network.py`, the tests,

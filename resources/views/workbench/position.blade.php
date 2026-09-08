@@ -111,14 +111,20 @@
 <section>
     <h2>How this Level is wired</h2>
     <div class="panel">
-        @foreach ($wiring['connectivity']['areas'] ?? [] as $area => $rows)
+        @foreach ($spaces as $space => $detail)
+            @if ($detail['cortical_area'])
+                <p class="muted" style="margin:0 0 10px">
+                    <code>{{ $space }}</code> — {{ $detail['cortical_area'] }} cortex,
+                    {{ $detail['modality'] ?? 'no modality of its own' }}
+                </p>
+            @endif
             <table>
                 <thead>
                 <tr><th class="l">Level</th><th>Columns</th><th class="l">Receives from</th>
                     <th class="l">How</th><th>Fan-in</th><th>Receptive field</th><th>Competes with</th></tr>
                 </thead>
                 <tbody>
-                @foreach ($rows as $row)
+                @foreach ($detail['levels'] as $row)
                     <tr>
                         <td class="l"><code>{{ $row['level'] }}</code></td>
                         <td>{{ $row['columns'] }}</td>

@@ -56,23 +56,36 @@ internals are not what any other part of the network reacts to.
 A Column holds no symbol, label or meaning. What it does is entirely a consequence of
 what it is connected to.
 
-### Level, Grid, Area
+### Level, Grid, Space
 
 - A **Grid** is an 8×8 arrangement of Columns — 64 Columns.
 - A **Level** is one Grid. Levels are stacked: Level 1 is nearest the input, Level 3 is
   furthest from it.
-- An **Area** is a stack of Levels doing one job.
+- A **Space** is a stack of Levels over one conceptual dimension — position, colour,
+  temperature. The dimension is the job.
 
-This experiment has three Areas:
+Each Space also declares two things that are not its job. Its **Modality** is the
+channel its content arrives through — visual, auditory, tactile, motor, affective. Its
+**Cortical Area** is where it sits — frontal, parietal, temporal — and that is an
+anatomical claim and nothing more.
 
-- **position** — three Levels. Represents *where* something is.
-- **colour** — three Levels. Represents *what* colour it is.
-- **hub** — two Levels. Receives from the tops of both, and is the only place *what* and
-  *where* can meet.
+This experiment has three Spaces:
+
+| Space | Levels | Dimension | Cortical Area | Modality |
+| --- | --- | --- | --- | --- |
+| **position** | 3 | *where* something is | parietal | visual |
+| **colour** | 3 | *what* colour it is | temporal | visual |
+| **hub** | 2 | the conjunction of the two | frontal | — |
+
+Note that position and colour are **both visual**. They are two Spaces because they are
+codes for two different dimensions, not because they arrive through two different
+channels. The Hub receives from the tops of both and is the only place *what* and
+*where* can meet; being fed by Spaces rather than by the World, it carries no Modality
+of its own.
 
 ### The Thalamus
 
-The structure between the World and the Areas. It turns one World signal into activity
+The structure between the World and the Spaces. It turns one World signal into activity
 across Columns, and it is the only place the encoding decision lives.
 
 In experiment 001 it uses a **localist** code: colour 3 becomes Column 3 firing, and
@@ -101,7 +114,7 @@ Both happened on the first attempt.
 There is also a subtler trap. If a Column's fan-in is *as large as the Level below*, then
 every Column at that Level receives from every Column below — so they all receive exactly
 the same thing and become identical. A Level of identical Columns cannot distinguish
-anything. This is exactly what happened to the colour Area in run 001.
+anything. This is exactly what happened to the colour Space in run 001.
 
 ## How Columns connect
 
@@ -177,7 +190,7 @@ ask how much of its variation is explained by **which colour** was shown and how
 
 The number that matters is **the Hub's colour score**, because the Hub is the only place
 that receives both *what* and *where*. Everything else is predetermined by the wiring:
-the position Area scores 1.0 on position because colour is never routed into it at all.
+the position Space scores 1.0 on position because colour is never routed into it at all.
 That is a fact about our wiring diagram, not a discovery about the network.
 
 **The result: the Hub's maximum colour score is 0.000 with the localist colour code, and
@@ -197,14 +210,14 @@ Five problems surfaced. Four are fixed; one is open.
    only the neighbours they had, which made them look *more* contrastive than middle
    cells — so the same object registered differently depending on where it sat. Now the
    divisor is always 8.
-4. **The colour Area was too small for its fan-in.** With a localist code the colour Area
-   is 8 Columns wide and the top Level's fan-in is 12, so every top Column drew from all
+4. **The colour Space was too small for its fan-in.** With a localist code the colour
+   Space is 8 Columns wide and the top Level's fan-in is 12, so every top Column drew from all
    8 and they became identical. Switching to the population code (64 Columns) raised
    colour selectivity at that Level from 0.001 to 0.213.
 5. **Strength and identity are confused — still open.** Contrast is used as *how hard*
    the Thalamus drives, while colour determines *which* Column it drives. But Columns add
    up their inputs, so they are sensitive to strength — and strength carries position.
-   By the top of the colour Area, position explains 99% of the variance. The colour
+   By the top of the colour Space, position explains 99% of the variance. The colour
    pathway has been taken over by position information, and the Hub then receives
    position from both sides.
 

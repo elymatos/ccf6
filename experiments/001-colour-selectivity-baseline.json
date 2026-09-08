@@ -13,7 +13,21 @@
     "pooling": 4,
     "fanin": 12,
     "hub_levels": 2,
-    "seed": 20260907
+    "seed": 20260907,
+    "spaces": {
+      "position": {
+        "cortical_area": "parietal",
+        "modality": "visual"
+      },
+      "colour": {
+        "cortical_area": "temporal",
+        "modality": "visual"
+      },
+      "hub": {
+        "cortical_area": "frontal",
+        "modality": null
+      }
+    }
   },
   "parameters": {}
 }

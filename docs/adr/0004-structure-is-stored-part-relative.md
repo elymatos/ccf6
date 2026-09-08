@@ -29,5 +29,5 @@ do not yet need.
 Translation invariance is a property of the representation rather than of the coordinate
 system, and is immediately testable: present one Object at several World positions and
 ask whether the stored structure is identical. Ego exists as a sampling pointer only; it
-is not yet a tracked, path-integrated Area. Scale and rotation invariance do *not* follow
+is not yet a tracked, path-integrated Space. Scale and rotation invariance do *not* follow
 and would need additional mechanism.

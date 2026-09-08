@@ -47,7 +47,7 @@ def build(definition: dict) -> tuple[Network, World, dict]:
     else:
         colour = colour_encoder(arch.n_colours)
     thalamus = Thalamus(colour=colour, position=ENCODERS["localist_position"](arch.world_size))
-    # The colour Area's Grid must hold exactly what the colour encoder produces.
+    # The colour Space's Grid must hold exactly what the colour encoder produces.
     arch.colour_shape = (1, colour.size)
     network = Network(arch, thalamus)
     return network, world, params.resolve(definition.get("parameters"))
@@ -91,7 +91,7 @@ def run_colour_selectivity(definition: dict) -> dict:
                         "position": list(position),
                         "contrast": strength,
                         "world": world.cells.tolist(),
-                        "areas": network.snapshot(),
+                        "spaces": network.snapshot(),
                     }
                 )
 

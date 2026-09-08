@@ -25,7 +25,7 @@ from anything stored inside it. A Column carries no label and no semantic type.
 another Column's Layers except through the connections declared between them.
 *Avoid: level, stage, lamina used loosely.*
 
-**Level** — One hierarchical stage within an Area. A Level is a Grid of Columns. Levels
+**Level** — One hierarchical stage within a Space. A Level is a Grid of Columns. Levels
 are ordered: lower Levels are nearer the sensory boundary, higher Levels further from
 it. *Avoid: layer.*
 
@@ -33,25 +33,46 @@ it. *Avoid: layer.*
 position is mechanical, not decorative: lateral competition is defined over grid
 neighbourhood. *Avoid: map, array.*
 
-**Area** — A stack of Levels forming one functional specialization. The first
-experiment declares three: a position Area, a colour Area, and a Hub.
-*Avoid: module, region, network.*
+**Space** — A stack of Levels over one conceptual dimension: position, colour,
+temperature. The dimension is what the Space's Columns can vary along, and it is the
+Space's whole functional specialization — a Space does one job because it is a code for
+one thing. Every Space declares which **Cortical Area** it sits in and which
+**Modality** its content arrives through. The first experiment declares three: a
+position Space, a colour Space, and a Hub.
+*Avoid: area, module, region, network, dimension used alone.*
 
-**Convergence Node** — A Column at the top Level of an Area, where that Area's activity
-converges. It is modality-specific: it sees only what its own Area carries.
+**Modality** — The channel through which a Space's content reaches the network:
+**visual**, **auditory**, **tactile**, **motor**, **affective**. A Space has exactly one
+Modality, or none — a Hub is fed by other Spaces rather than by the World, so no channel
+is its own. Two Spaces sharing a Modality are still two Spaces: position and colour are
+both visual and are not interchangeable.
+*Avoid: sense, channel, feature type.*
+
+**Cortical Area** — Where a Space sits: **frontal**, **parietal**, **temporal**. This is
+an anatomical claim and nothing else — it says which region of cortex a Space is
+proposed to correspond to, and never which job it does. Two Spaces may share a Cortical
+Area. The word "area" is used in CCF6 in this sense only, always with its qualifier.
+*Avoid: area used bare, lobe, brain region.*
+
+**Convergence Node** — A Column at the top Level of a Space, where that Space's activity
+converges. It is Space-specific: it sees only what its own Space carries, and therefore
+only its own dimension.
 *Avoid: cardinal node, apex, output unit.*
 
 **Cardinal Node** — A Column whose inbound connectivity spans three or more distinct
-Areas and whose activation is stable across varied input contexts. A Cardinal Node is
+Spaces and whose activation is stable across varied input contexts. A Cardinal Node is
 an **entry point** to the set of Columns reachable through it, not a container of the
-concept — the concept is that whole set. Cardinality is multimodal by definition, so a
-Cardinal Node cannot exist inside a single Area.
+concept — the concept is that whole set. Cardinality is cross-Space by definition, so a
+Cardinal Node cannot exist inside a single Space. Whether it must also be cross-Modality
+is open; see *Collisions*.
 *Avoid: grandmother cell, concept node, Convergence Node.*
 
-**Hub** — An Area whose input is the output of several other Areas, and the only place
-Cardinal Nodes can form. *Avoid: association area, integration layer.*
+**Hub** — A Space whose input is the output of several other Spaces, and the only place
+Cardinal Nodes can form. Its dimension is not supplied by the World: it is whatever the
+conjunction of its source Spaces constitutes. A Hub carries no Modality.
+*Avoid: association area, integration layer.*
 
-**Thalamus** — The structure between World and Areas. It converts one world signal into
+**Thalamus** — The structure between World and Spaces. It converts one world signal into
 activation across many Columns of Level 1, and it is the sole site of the encoding
 decision. *Avoid: input layer, encoder used without qualification.*
 
@@ -92,10 +113,10 @@ code: this content, at this structural position. *Avoid: binding tuple, pair.*
 **M — Associative memory** — Fast-changing connectivity supporting storage, retrieval,
 and pattern completion from a partial cue. *Avoid: database, store.*
 
-In CCF6 the position Area carries `g`, the colour Area carries `x`, and the Hub carries
-`p`. This is a mapping between the two vocabularies, not an identity: `g`, `x` and `p`
-remain descriptions of population activity, while Area, Column and Cardinal Node remain
-structure.
+In CCF6 the position Space carries `g`, the colour Space carries `x`, and the Hub
+carries `p`. This is a mapping between the two vocabularies, not an identity: `g`, `x`
+and `p` remain descriptions of population activity, while Space, Column and Cardinal
+Node remain structure.
 
 ---
 
@@ -118,4 +139,16 @@ conjunction of co-active inputs. Whether these are the same mechanism arriving f
 directions is an open question, and CCF6 does not assume they are.
 
 **layer / level** — Resolved rather than open: **Layer** is a compartment inside a
-Column, **Level** is a hierarchical stage inside an Area. See both entries above.
+Column, **Level** is a hierarchical stage inside a Space. See both entries above.
+
+**area** — In neuroanatomy, a region of cortex. In CCF6 before this glossary was split,
+"Area" also carried the functional load now held by **Space** and the channel load now
+held by **Modality** — one word making three claims at once. Resolved rather than open:
+"area" appears only as **Cortical Area**, always qualified, and never on its own.
+
+**cardinal / multimodal** — Open. A Cardinal Node is defined by spanning three or more
+**Spaces**. It was previously said to be multimodal by definition, but the split shows
+those are not the same requirement: position and colour are both **visual**, so a
+Column spanning them is cross-Space and single-Modality. Whether cardinality requires
+crossing Modalities as well as Spaces — and so whether the first experiment can produce
+a Cardinal Node at all — is not settled here.
