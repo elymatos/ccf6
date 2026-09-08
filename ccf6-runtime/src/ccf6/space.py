@@ -2,8 +2,8 @@
 
 A Column holds three private activations. A Level is a Grid of Columns. A Space is a
 stack of Levels over one conceptual dimension, sited in a Cortical Area and carrying a
-Modality. Connections between Columns are dense matrices: the grids are small enough
-that sparsity would cost readability and buy nothing.
+Modality. Connections are sparse (see `connections`): fan-in is a declared quantity,
+because a Column drawing from everything below it distinguishes nothing.
 
 The circuit, per ADR-0002:
 
@@ -21,14 +21,30 @@ from __future__ import annotations
 
 import numpy as np
 
+from ccf6.connections import (
+    Connections,
+    global_competition,
+    local_pooling,
+    neighbourhood,
+    sparse_nonlocal,
+)
+
+#: The channels through which content can reach a Space. A convergence Space has none:
+#: it is fed by other Spaces rather than by the World, so no channel is its own.
+MODALITIES = ("visual", "auditory", "tactile", "motor", "affective")
+
+#: Where a Space sits. An anatomical claim and nothing else — it never says what job
+#: the Space does; the Space's dimension says that.
+CORTICAL_AREAS = ("frontal", "parietal", "temporal")
+
 
 def transmit(l5: np.ndarray, p: dict) -> np.ndarray:
     """What a Column actually sends: its output above a transmission threshold.
 
     The activation floor means no Column is ever silent, so raw L5 carries a constant
-    background. Summed over a fan-in of sixteen that background outweighs the signal.
-    Subtracting the threshold before transmission keeps the floor doing its job — the
-    network cannot die — without letting it accumulate through depth.
+    background. Summed over a fan-in the background outweighs the signal. Subtracting
+    the threshold before transmission keeps the floor doing its job — the network
+    cannot die — without letting it accumulate through depth.
     """
     return np.maximum(0.0, l5 - p["transmission_threshold"])
 
@@ -57,9 +73,9 @@ class Level:
         self.l23 = np.zeros(self.n)
         self.l5 = np.zeros(self.n)
         # Filled in by the connectivity builders.
-        self.w_input: np.ndarray | None = None      # into L4, from below or Thalamus
-        self.w_feedback: np.ndarray | None = None   # into L2/3, from the Level above
-        self.w_lateral: np.ndarray | None = None    # into L2/3, inhibitory, same Level
+        self.w_input: Connections | None = None      # into L4, from below or Thalamus
+        self.w_feedback: Connections | None = None   # into L2/3, from the Level above
+        self.w_lateral: Connections | None = None    # into L2/3, inhibitory, same Level
 
     def reset(self) -> None:
         self.l4[:] = 0.0
@@ -70,97 +86,12 @@ class Level:
         return getattr(self, layer).reshape(self.shape)
 
 
-def local_pooling(shape: tuple[int, int], source_shape: tuple[int, int], k: int) -> np.ndarray:
-    """Each Column draws from a k x k neighbourhood centred on its own position.
-
-    Receptive fields grow additively with depth: RF = 1 + level * (k - 1). Local
-    structure below, which is what the early Levels are for.
-    """
-    h, w = shape
-    sh, sw = source_shape
-    weights = np.zeros((h * w, sh * sw))
-    half = k // 2
-    scale_i, scale_j = sh / h, sw / w
-    for i in range(h):
-        for j in range(w):
-            ci, cj = int(i * scale_i), int(j * scale_j)
-            for di in range(-half, half + 1):
-                for dj in range(-half, half + 1):
-                    si, sj = ci + di, cj + dj
-                    if 0 <= si < sh and 0 <= sj < sw:
-                        weights[i * w + j, si * sw + sj] = 1.0
-    return weights
-
-
-def sparse_nonlocal(
-    shape: tuple[int, int], source_shape: tuple[int, int], fanin: int, rng: np.random.Generator
-) -> np.ndarray:
-    """Each Column draws from a random subset of the Level below, from anywhere.
-
-    Above a certain depth, restricting convergence to a neighbourhood puts a ceiling
-    on receptive-field size that no number of Levels can lift. Sparse non-local
-    sampling reaches the whole Level immediately, and gives every Column a different,
-    overlapping input set — which is what makes distinct convergence possible at all.
-    """
-    n = shape[0] * shape[1]
-    source_n = source_shape[0] * source_shape[1]
-    weights = np.zeros((n, source_n))
-    take = min(fanin, source_n)
-    for row in range(n):
-        picks = rng.choice(source_n, size=take, replace=False)
-        weights[row, picks] = 1.0
-    return weights
-
-
-def neighbourhood_inhibition(shape: tuple[int, int]) -> np.ndarray:
-    """8-neighbourhood competition. No self-inhibition.
-
-    8 rather than 4 so that a diagonal arrangement does not compete differently from
-    an axis-aligned one.
-    """
-    h, w = shape
-    n = h * w
-    weights = np.zeros((n, n))
-    for i in range(h):
-        for j in range(w):
-            for di in (-1, 0, 1):
-                for dj in (-1, 0, 1):
-                    if di == 0 and dj == 0:
-                        continue
-                    ni, nj = i + di, j + dj
-                    if 0 <= ni < h and 0 <= nj < w:
-                        weights[i * w + j, ni * w + nj] = 1.0
-    counts = weights.sum(axis=1, keepdims=True)
-    return np.divide(weights, counts, out=np.zeros_like(weights), where=counts > 0)
-
-
-def global_inhibition(shape: tuple[int, int]) -> np.ndarray:
-    """All-to-all competition, for a top Level whose Columns are not grid neighbours.
-
-    Once convergence stops being spatial, competition cannot stay spatial either:
-    two Columns standing for different things have no reason to be adjacent.
-    """
-    n = shape[0] * shape[1]
-    weights = np.ones((n, n)) - np.eye(n)
-    return weights / max(n - 1, 1)
-
-
-#: The channels through which content can reach a Space. A Hub has none: it is fed by
-#: other Spaces rather than by the World, so no channel is its own.
-MODALITIES = ("visual", "auditory", "tactile", "motor", "affective")
-
-#: Where a Space sits. An anatomical claim and nothing else — it never says what job the
-#: Space does; the Space's dimension says that.
-CORTICAL_AREAS = ("frontal", "parietal", "temporal")
-
-
 class Space:
     """A stack of Levels over one conceptual dimension.
 
-    The dimension is the Space's specialization: position, colour, temperature. Where
-    the Space sits (`cortical_area`) and how its content arrives (`modality`) are
-    declared, not inferred, because neither follows from the other — position and colour
-    are both visual and sit in different Cortical Areas.
+    Where the Space sits (`cortical_area`) and how its content arrives (`modality`)
+    are declared, not inferred, because neither follows from the other: two Spaces can
+    share a Modality and sit in different Cortical Areas.
     """
 
     def __init__(
@@ -197,79 +128,38 @@ class Space:
 
         for index, level in enumerate(self.levels):
             if index == 0:
-                # Thalamic drive arrives here. A Space fed by the Thalamus takes it
-                # one-to-one, which the encoders size to match. A Hub is fed by the
-                # tops of several Spaces instead, and that convergence is non-local by
-                # nature: nothing makes a colour Column and a position Column
-                # neighbours, so there is no neighbourhood to draw from.
-                if input_mode == "identity":
-                    level.w_input = np.eye(level.n, input_size)
-                elif input_mode == "sparse":
-                    take = min(fanin, input_size)
-                    level.w_input = np.zeros((level.n, input_size))
-                    for row in range(level.n):
-                        picks = rng.choice(input_size, size=take, replace=False)
-                        level.w_input[row, picks] = 1.0
-                else:
-                    raise ValueError(f"unknown input_mode {input_mode!r}")
+                level.w_input = self._boundary(level, input_size, fanin, rng)
             elif index < local_levels:
                 level.w_input = local_pooling(shape, shape, pooling)
             else:
-                level.w_input = sparse_nonlocal(shape, shape, fanin, rng)
+                level.w_input = sparse_nonlocal(level.n, level.n, fanin, rng)
 
             is_top = index == len(self.levels) - 1
-            level.w_lateral = (
-                global_inhibition(shape) if is_top else neighbourhood_inhibition(shape)
-            )
+            level.w_lateral = global_competition(level.n) if is_top else neighbourhood(shape)
 
         # Feedback is reciprocal: whatever a Level draws from below, it feeds back to.
+        # Running the same connections backwards is what keeps that structural rather
+        # than a second wiring that could drift out of correspondence.
         for index in range(len(self.levels) - 1):
-            above = self.levels[index + 1]
-            self.levels[index].w_feedback = above.w_input.T
+            self.levels[index].w_feedback = self.levels[index + 1].w_input
 
-    def describe(self) -> dict:
-        """How this Space is sited, and how every one of its Levels is wired.
+    def _boundary(
+        self, level: Level, input_size: int, fanin: int, rng: np.random.Generator
+    ) -> Connections:
+        """What arrives at Level 1.
 
-        Written by the code that built the connections rather than restated by hand,
-        so it cannot drift from what actually ran.
+        A Space fed by the Thalamus takes it one-to-one, which the encoders size to
+        match. A Space fed by the tops of several other Spaces takes a sparse
+        non-local sample, because that convergence has no neighbourhood to draw from:
+        nothing makes a Column of one Space a grid neighbour of a Column of another.
         """
-        rows = []
-        for index, level in enumerate(self.levels):
-            incoming = (level.w_input > 0).sum(axis=1)
-            lateral = (level.w_lateral > 0).sum(axis=1)
-            if index == 0:
-                source = "Thalamus" if self._input_mode == "identity" else "tops of other Spaces"
-                rule = ("one-to-one" if self._input_mode == "identity"
-                        else f"sparse non-local, {int(incoming.mean())} drawn from anywhere")
-                receptive = 1
-            elif index < self._local_levels:
-                source = f"{self.name}.L{index}"
-                rule = f"local pooling, {self._pooling}x{self._pooling} neighbourhood"
-                receptive = 1 + index * (self._pooling - 1)
-            else:
-                source = f"{self.name}.L{index}"
-                rule = f"sparse non-local, {int(incoming.mean())} drawn from anywhere"
-                receptive = self.shape[0] * self.shape[1]
-            rows.append({
-                "level": level.name,
-                "columns": level.n,
-                "shape": list(level.shape),
-                "source": source,
-                "rule": rule,
-                "fan_in": int(incoming.mean()),
-                "fan_in_min": int(incoming.min()),
-                "fan_in_max": int(incoming.max()),
-                "receptive_field": int(receptive),
-                "competition": "every other Column" if index == len(self.levels) - 1
-                               else "8 grid neighbours",
-                "competitors": int(lateral.mean()),
-                "feedback_from": self.levels[index + 1].name if level.w_feedback is not None else None,
-            })
-        return {
-            "cortical_area": self.cortical_area,
-            "modality": self.modality,
-            "levels": rows,
-        }
+        if self._input_mode == "identity":
+            take = min(level.n, input_size)
+            axis = np.arange(take)
+            return Connections(level.n, input_size, axis, axis, np.ones(take))
+        if self._input_mode == "sparse":
+            return sparse_nonlocal(level.n, input_size, fanin, rng)
+        raise ValueError(f"unknown input_mode {self._input_mode!r}")
 
     @property
     def top(self) -> Level:
@@ -279,39 +169,76 @@ class Space:
         for level in self.levels:
             level.reset()
 
-    def step(self, thalamic_drive: np.ndarray | None, p: dict) -> None:
+    def describe(self) -> dict:
+        """How this Space is sited, and how every one of its Levels is wired.
+
+        Written by the code that built the connections rather than restated by hand,
+        so it cannot drift from what actually ran.
+        """
+        rows = []
+        for index, level in enumerate(self.levels):
+            counts = level.w_input.describe()
+            if index == 0:
+                source = "Thalamus" if self._input_mode == "identity" else "tops of other Spaces"
+                rule = ("one-to-one" if self._input_mode == "identity"
+                        else f"sparse non-local, {counts['fan_in']} drawn from anywhere")
+                receptive = 1
+            elif index < self._local_levels:
+                source = self.levels[index - 1].name
+                rule = f"local pooling, {self._pooling}x{self._pooling} neighbourhood"
+                receptive = 1 + index * (self._pooling - 1)
+            else:
+                source = self.levels[index - 1].name
+                rule = f"sparse non-local, {counts['fan_in']} drawn from anywhere"
+                receptive = self.shape[0] * self.shape[1]
+            rows.append({
+                "level": level.name,
+                "columns": level.n,
+                "shape": list(level.shape),
+                "source": source,
+                "rule": rule,
+                "receptive_field": int(receptive),
+                "competition": "every other Column" if index == len(self.levels) - 1
+                               else "8 grid neighbours",
+                "competitors": int(level.w_lateral.fan_in().mean()),
+                "feedback_from": self.levels[index + 1].name if level.w_feedback else None,
+                **counts,
+            })
+        return {
+            "cortical_area": self.cortical_area,
+            "modality": self.modality,
+            "levels": rows,
+        }
+
+    def step(self, drive_in: np.ndarray | None, p: dict) -> None:
         """One synchronous tick over every Level of this Space."""
         exc, inh = p["excitatory"], p["inhibitory"]
         next_state = []
 
         for index, level in enumerate(self.levels):
             if index == 0:
-                source = thalamic_drive if thalamic_drive is not None else np.zeros(level.w_input.shape[1])
-                drive_l4 = exc * p["thalamic_gain"] * (level.w_input @ source)
+                source = drive_in if drive_in is not None else np.zeros(level.w_input.n_in)
+                drive_l4 = exc * p["thalamic_gain"] * level.w_input.forward(source)
             else:
-                drive_l4 = exc * (level.w_input @ transmit(self.levels[index - 1].l5, p))
+                drive_l4 = exc * level.w_input.forward(transmit(self.levels[index - 1].l5, p))
 
             feedback = 0.0
             if level.w_feedback is not None:
-                feedback = exc * p["feedback_gain"] * (
-                    level.w_feedback @ transmit(self.levels[index + 1].l5, p)
+                feedback = exc * p["feedback_gain"] * level.w_feedback.backward(
+                    transmit(self.levels[index + 1].l5, p)
                 )
 
             drive_l23 = (
                 exc * level.l4
                 + exc * p["recurrent_gain"] * level.l23
                 + feedback
-                - inh * p["lateral_gain"] * (level.w_lateral @ level.l23)
+                - inh * p["lateral_gain"] * level.w_lateral.forward(level.l23)
             )
-            drive_l5 = exc * level.l23
-
-            next_state.append(
-                (
-                    relax(level.l4, drive_l4, p["tau_l4"], p),
-                    relax(level.l23, drive_l23, p["tau_l23"], p),
-                    relax(level.l5, drive_l5, p["tau_l5"], p),
-                )
-            )
+            next_state.append((
+                relax(level.l4, drive_l4, p["tau_l4"], p),
+                relax(level.l23, drive_l23, p["tau_l23"], p),
+                relax(level.l5, exc * level.l23, p["tau_l5"], p),
+            ))
 
         for level, (l4, l23, l5) in zip(self.levels, next_state):
             level.l4, level.l23, level.l5 = l4, l23, l5

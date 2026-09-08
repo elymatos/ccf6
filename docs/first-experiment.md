@@ -1,5 +1,11 @@
 # The first experiment, in plain English
 
+> **Describes the superseded substrate.** This walkthrough was written for a network
+> organised around Spaces fed one World position at a time, before the Web, Schema and
+> Index existed and before a figure could be presented as a sequence. It is kept as the
+> record of that design and of what it measured. See `architecture.md` for the current
+> one.
+
 This explains what experiment 001 does, what every term in the workbench means, and how
 to read the result. No prior knowledge of the framework is assumed.
 

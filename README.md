@@ -53,14 +53,14 @@ curl -sI http://localhost:8002/      # 200
 Run an experiment, on the host:
 
 ```bash
-PYTHONPATH=ccf6-runtime/src python3 -m ccf6 experiments/001-colour-selectivity-baseline.json artifacts
+PYTHONPATH=ccf6-runtime/src python3 -m ccf6 experiments/004-structure-baseline.json artifacts
 ```
 
 …or through the runtime service:
 
 ```bash
 curl -X POST http://localhost:8933/run -H 'Content-Type: application/json' \
-     --data-binary @experiments/001-colour-selectivity-baseline.json
+     --data-binary @experiments/004-structure-baseline.json
 ```
 
 Either way the run writes an artifact directory, and the workbench at

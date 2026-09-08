@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 /**
@@ -34,54 +35,34 @@ class WorkbenchController extends Controller
         $dir = $this->root().'/'.basename($run);
         abort_unless(File::isDirectory($dir), 404);
 
-        $manifest = $this->manifest($dir);
         $wiring = $this->json($dir.'/connectivity.json') ?? ['connectivity' => [], 'palette' => []];
-        $view = ($manifest['kind'] ?? '') === 'position_representation'
-            ? 'workbench.position'
-            : 'workbench.run';
-
-        return view($view, [
-            'positions' => $this->json($dir.'/positions.json') ?? ['records' => [], 'similarity' => [], 'duplicates' => []],
-            'run' => basename($run),
-            'manifest' => $manifest,
-            'definition' => $this->json($dir.'/definition.json') ?? [],
-            'summary' => $this->json($dir.'/summary.json') ?? [],
-            'snapshots' => $this->snapshots($this->json($dir.'/snapshots.json') ?? []),
-            'wiring' => $wiring,
-            'spaces' => $this->spaces($wiring),
-        ]);
-    }
-
-    /**
-     * Every Space in a run, as name => [cortical_area, modality, levels].
-     *
-     * Runs written before "Area" was split into Space, Modality and Cortical Area
-     * carry an `areas` key holding the Level rows directly, and say nothing about
-     * siting. They are still readable, and what they never recorded is left null
-     * rather than guessed at.
-     */
-    private function spaces(array $wiring): array
-    {
         $connectivity = $wiring['connectivity'] ?? [];
 
-        if (isset($connectivity['spaces'])) {
-            return $connectivity['spaces'];
+        // An artifact written before the architecture was replaced records structures
+        // this workbench has no page for. Migrating those runs is deliberately out of
+        // scope — they are the record of a superseded design — so the page says what
+        // the run is instead of failing to draw it.
+        if (! array_key_exists('structures', $connectivity)) {
+            return view('workbench.superseded', [
+                'run' => basename($run),
+                'manifest' => $this->manifest($dir),
+                'summary' => $this->json($dir.'/summary.json') ?? [],
+            ]);
         }
 
-        return collect($connectivity['areas'] ?? [])
-            ->map(fn ($levels) => ['cortical_area' => null, 'modality' => null, 'levels' => $levels])
-            ->all();
-    }
-
-    /** Snapshots, with the pre-split `areas` key read as `spaces`. */
-    private function snapshots(array $snapshots): array
-    {
-        return array_map(function (array $snapshot) {
-            $snapshot['spaces'] ??= $snapshot['areas'] ?? [];
-            unset($snapshot['areas']);
-
-            return $snapshot;
-        }, $snapshots);
+        return view('workbench.run', [
+            'run' => basename($run),
+            'manifest' => $this->manifest($dir),
+            'definition' => $this->json($dir.'/definition.json') ?? [],
+            'summary' => $this->json($dir.'/summary.json') ?? [],
+            'snapshots' => $this->json($dir.'/snapshots.json') ?? [],
+            'palette' => $wiring['palette'] ?? [],
+            'structures' => $connectivity['structures'] ?? [],
+            'spaces' => $connectivity['web']['spaces'] ?? [],
+            'convergenceSources' => $connectivity['web']['convergence_sources'] ?? [],
+            'schema' => $connectivity['schema'] ?? null,
+            'index' => $connectivity['index'] ?? null,
+        ]);
     }
 
     /** A document from docs/, rendered. The file on disk stays the source of truth. */
@@ -91,8 +72,8 @@ class WorkbenchController extends Controller
         abort_unless(File::exists($path), 404);
 
         return view('workbench.doc', [
-            'title' => \Illuminate\Support\Str::of(File::get($path))->before("\n")->ltrim('# ')->toString(),
-            'body' => \Illuminate\Support\Str::markdown(File::get($path)),
+            'title' => Str::of(File::get($path))->before("\n")->ltrim('# ')->toString(),
+            'body' => Str::markdown(File::get($path)),
         ]);
     }
 
