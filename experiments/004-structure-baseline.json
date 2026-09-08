@@ -1,0 +1,44 @@
+{
+  "number": "004",
+  "name": "Structure baseline",
+  "kind": "structure_baseline",
+  "question": "With no learning, how well does any Column separate four figures that share one feature bag? T, ⊥, ⊢ and ⊣ have identical parts and differ only in arrangement, so this is the null a local rule must beat.",
+  "ticks": 150,
+  "visiting_order": "raster",
+  "figures": [
+    "T",
+    "T-up",
+    "T-right",
+    "T-left"
+  ],
+  "invariances": {
+    "must_preserve_identity": [
+      "translation"
+    ],
+    "must_destroy_identity": [
+      "rotation"
+    ]
+  },
+  "architecture": {
+    "world_size": 12,
+    "n_colours": 8,
+    "levels": 3,
+    "convergence_levels": 2,
+    "local_levels": 0,
+    "fanin": 4,
+    "schema_periods": [
+      3,
+      4,
+      5
+    ],
+    "schema_width": 0.6,
+    "structures": [
+      "web",
+      "schema",
+      "index"
+    ],
+    "seed": 20260908,
+    "convergence_fanin": 12
+  },
+  "parameters": {}
+}

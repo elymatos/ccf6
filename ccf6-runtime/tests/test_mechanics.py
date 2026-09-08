@@ -12,7 +12,7 @@ import pytest
 from ccf6 import params
 from ccf6.space import Space, relax, transmit
 from ccf6.metrics import two_way_selectivity
-from ccf6.thalamus import LocalistColour, PopulationColour, Thalamus, LocalistPosition
+from ccf6.thalamus import LocalistColour, LocalForm, LocalistPosition, PopulationColour, Thalamus
 from ccf6.world import Object, World
 
 
@@ -77,24 +77,84 @@ def test_the_top_level_competes_globally_and_lower_levels_locally():
     space = Space(
         "a", (8, 8), 3, 64,
         cortical_area="parietal", modality="visual",
-        local_levels=2, pooling=4, fanin=12, rng=np.random.default_rng(0),
+        local_levels=2, pooling=3, fanin=12, rng=np.random.default_rng(0),
     )
-    lower_neighbours = int((space.levels[0].w_lateral[0] > 0).sum())
-    top_neighbours = int((space.levels[-1].w_lateral[0] > 0).sum())
-    assert lower_neighbours == 3          # corner Column of an 8-neighbourhood
-    assert top_neighbours == 63           # every other Column at the top
+    lateral = [level.w_lateral.fan_in() for level in space.levels]
+    assert lateral[0][0] == 3             # corner Column of an 8-neighbourhood
+    assert lateral[-1][0] == 63           # every other Column at the top
 
 
 def test_swapping_the_colour_encoder_changes_nothing_downstream():
     """D3: the Thalamus is the sole site of the encoding decision."""
-    localist = Thalamus(LocalistColour(8), LocalistPosition(8))
-    population = Thalamus(PopulationColour(8, 32), LocalistPosition(8))
+    signals = {"colour": 3, "position": (2, 2)}
+    localist = Thalamus({"colour": LocalistColour(8), "position": LocalistPosition(8)})
+    population = Thalamus({"colour": PopulationColour(8, 32), "position": LocalistPosition(8)})
 
-    assert localist.project(3, (2, 2), 1.0)["colour"].sum() == pytest.approx(1.0)
-    assert (localist.project(3, (2, 2), 1.0)["colour"] > 0).sum() == 1
+    assert localist.project(signals, 1.0)["colour"].sum() == pytest.approx(1.0)
+    assert (localist.project(signals, 1.0)["colour"] > 0).sum() == 1
     # A population code spreads one value over many Columns; the interface is identical.
-    assert (population.project(3, (2, 2), 1.0)["colour"] > 0.01).sum() > 1
-    assert localist.project(3, (2, 2), 1.0)["position"].shape == (64,)
+    assert (population.project(signals, 1.0)["colour"] > 0.01).sum() > 1
+    # Every other Space is untouched by the swap.
+    assert localist.project(signals, 1.0)["position"].tolist() == \
+           population.project(signals, 1.0)["position"].tolist()
+
+
+def test_the_thalamus_carries_no_state_between_samples():
+    """The moment the boundary remembers where it has been it has become the Schema."""
+    thalamus = Thalamus({"colour": LocalistColour(8)})
+    first = thalamus.project({"colour": 3}, 1.0)["colour"]
+    thalamus.project({"colour": 5}, 1.0)
+    assert thalamus.project({"colour": 3}, 1.0)["colour"].tolist() == first.tolist()
+
+
+def test_a_form_encoder_reports_the_neighbourhood_it_was_given():
+    """Local form is a sensory code: what is here, never where here is."""
+    encoder = LocalForm(radius=1)
+    patch = np.arange(9, dtype=float).reshape(3, 3) / 8.0
+    assert encoder.encode(patch, 1.0).tolist() == patch.ravel().tolist()
+    with pytest.raises(ValueError):
+        encoder.encode(np.zeros((5, 5)), 1.0)
+
+
+def test_the_confusion_set_shares_one_feature_bag():
+    """T, ⊥, ⊢ and ⊣ have identical parts, which is what makes the set discriminating."""
+    from ccf6 import figures
+
+    assert len({len(shape.parts) for shape in figures.FIGURES.values()}) == 1
+
+
+def test_an_unordered_bag_of_offsets_cannot_separate_the_confusion_set():
+    """A found limit of part-relative structure as ADR-0004 currently computes it.
+
+    `Object.relations()` is the *unordered multiset* of every pairwise offset. That
+    multiset is closed under reflection for a figure whose bar is symmetric, so a T and
+    an upside-down T store identically — as do ⊢ and ⊣. The bag keeps which offsets
+    occur and discards how they were traversed, and the arrangement is in the traversal.
+
+    This is why the Schema is advanced by a *sequence* of Relations rather than handed a
+    set of them, and it is recorded here so that a later structural claim cannot be
+    made on the bag by mistake.
+    """
+    from ccf6 import figures
+
+    bags = {name: tuple(shape.relations()) for name, shape in figures.FIGURES.items()}
+    assert len(set(bags.values())) == 2, "expected T≡⊥ and ⊢≡⊣ to collapse"
+    assert bags["T"] == bags["T-up"]
+    assert bags["T-right"] == bags["T-left"]
+
+
+def test_an_ordered_walk_does_separate_the_confusion_set():
+    """What the bag loses, the traversal keeps — and the traversal is what Ego supplies."""
+    from ccf6 import figures
+    from ccf6.ego import Presentation
+
+    walks = {}
+    for name, shape in figures.FIGURES.items():
+        world = World(12)
+        world.place_object(shape, (5, 5))
+        steps = Presentation.of_object(world, shape, (5, 5)).steps
+        walks[name] = tuple(s.relation for s in steps[1:])
+    assert len(set(walks.values())) == len(figures.FIGURES)
 
 
 def test_selectivity_separates_the_two_factors():
@@ -104,11 +164,11 @@ def test_selectivity_separates_the_two_factors():
     responses[:, :, 1] = np.arange(5)[None, :]      # varies with position only
     responses[:, :, 2] = 0.5                        # never moves
 
-    colour, position = two_way_selectivity(responses)
-    assert colour[0] == pytest.approx(1.0)
-    assert position[0] == pytest.approx(0.0)
-    assert position[1] == pytest.approx(1.0)
-    assert colour[2] == pytest.approx(0.0) and position[2] == pytest.approx(0.0)
+    first, second = two_way_selectivity(responses)
+    assert first[0] == pytest.approx(1.0)
+    assert second[0] == pytest.approx(0.0)
+    assert second[1] == pytest.approx(1.0)
+    assert first[2] == pytest.approx(0.0) and second[2] == pytest.approx(0.0)
 
 
 def test_a_space_declares_where_it_sits_and_how_its_content_arrives():
@@ -120,23 +180,25 @@ def test_a_space_declares_where_it_sits_and_how_its_content_arrives():
     from ccf6.network import Architecture, Network
     from ccf6.thalamus import LocalistColour, LocalistPosition
 
-    network = Network(Architecture(), Thalamus(LocalistColour(8), LocalistPosition(8)))
-    assert network.position.cortical_area == "parietal"
-    assert network.colour.cortical_area == "temporal"
+    thalamus = Thalamus({"colour": PopulationColour(8, 64), "form": LocalForm()})
+    network = Network(Architecture(), thalamus)
+    spaces = network.web.spaces
+    assert spaces["colour"].cortical_area == "temporal"
     # Two Spaces, one Modality: distinctness is a matter of dimension, not of channel.
-    assert network.position.modality == network.colour.modality == "visual"
-    # A Hub is fed by other Spaces rather than by the World, so no channel is its own.
-    assert network.hub.modality is None
+    assert spaces["colour"].modality == spaces["form"].modality == "visual"
+    # A convergence Space is fed by other Spaces, so no channel is its own.
+    assert spaces["convergence"].modality is None
+    assert spaces["convergence"].cortical_area == "frontal"
 
 
 def test_a_space_outside_the_declared_anatomy_is_refused():
     """An invented Cortical Area would look like a claim CCF6 has not made."""
     with pytest.raises(ValueError):
         Space("a", (2, 2), 1, 4, cortical_area="occipital", modality="visual",
-              local_levels=1, pooling=2, fanin=2, rng=np.random.default_rng(0))
+              local_levels=0, pooling=2, fanin=2, rng=np.random.default_rng(0))
     with pytest.raises(ValueError):
         Space("a", (2, 2), 1, 4, cortical_area="parietal", modality="olfactory",
-              local_levels=1, pooling=2, fanin=2, rng=np.random.default_rng(0))
+              local_levels=0, pooling=2, fanin=2, rng=np.random.default_rng(0))
 
 
 def test_an_unknown_parameter_is_refused():

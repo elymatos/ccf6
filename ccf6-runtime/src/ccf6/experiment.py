@@ -1,22 +1,22 @@
 """Running a declared experiment and writing its artifact.
 
 An experiment is a file. Running it is a function from that file to an artifact
-directory, so a run is reproducible, diffable and re-renderable without re-running.
-Nothing meaningful is configured anywhere else — the UI may *generate* this file, but
-it may not carry semantics the file does not.
+directory, so a run is reproducible, diffable and re-renderable without re-running
+(ADR-0007). Nothing meaningful is configured anywhere else — the workbench may
+*generate* this file, but it may not carry semantics the file does not.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
 
-from ccf6 import params
+from ccf6 import figures, params
+from ccf6.ego import Presentation
 from ccf6.metrics import summarise_by_level, two_way_selectivity
 from ccf6.network import Architecture, Network
 from ccf6.thalamus import ENCODERS, Thalamus
@@ -39,170 +39,194 @@ def digest(definition: dict) -> str:
 
 
 def build(definition: dict) -> tuple[Network, World, dict]:
-    arch = Architecture(**definition.get("architecture", {}))
-    world = World(arch.world_size)
-    colour_encoder = ENCODERS[definition.get("colour_encoder", "localist_colour")]
-    if colour_encoder.__name__ == "PopulationColour":
-        colour = colour_encoder(arch.n_colours, arch.colour_shape[0] * arch.colour_shape[1])
-    else:
-        colour = colour_encoder(arch.n_colours)
-    thalamus = Thalamus(colour=colour, position=ENCODERS["localist_position"](arch.world_size))
-    # The colour Space's Grid must hold exactly what the colour encoder produces.
-    arch.colour_shape = (1, colour.size)
-    network = Network(arch, thalamus)
-    return network, world, params.resolve(definition.get("parameters"))
+    declared = dict(definition.get("architecture", {}))
+    declared.pop("structures", None)
+    arch = Architecture(**declared)
+    if "structures" in definition.get("architecture", {}):
+        arch.structures = tuple(definition["architecture"]["structures"])
+
+    colour_kind = definition.get("colour_encoder", "population_colour")
+    encoder = ENCODERS[colour_kind]
+    colour = (encoder(arch.n_colours, arch.n_colours * 8) if colour_kind == "population_colour"
+              else encoder(arch.n_colours))
+    available = {
+        "colour": colour,
+        "form": ENCODERS["local_form"](),
+        "position": ENCODERS["localist_position"](arch.world_size),
+    }
+    # Only the Spaces an experiment declared get an encoder: the Thalamus projects to
+    # the Spaces that exist, and no others.
+    thalamus = Thalamus({n: e for n, e in available.items() if n in arch.spaces})
+    return Network(arch, thalamus), World(arch.world_size), params.resolve(definition.get("parameters"))
 
 
-def run_colour_selectivity(definition: dict) -> dict:
-    """Present every (colour, position) pair once and measure what responds to what.
+def _signals(world: World, patch_radius: int = 1):
+    """What the Thalamus is handed at one stop: what is here, not where here is.
 
-    A factorial design on purpose: colour and position vary independently, so the
-    variance decomposition can say which factor a Column follows. No learning happens
-    — this measures the substrate.
+    The contrast field is read from the World *as it stands when this is built*, so it
+    must be rebuilt after every placement. A closure over a stale field would hand the
+    network an empty patch and the Space fed by it would sit silently at the activation
+    floor, looking like a wiring problem rather than a bookkeeping one.
+    """
+    padded = np.pad(world.contrast(), patch_radius)
+
+    def at(step):
+        i, j = step.position
+        window = padded[i:i + 2 * patch_radius + 1, j:j + 2 * patch_radius + 1]
+        return {"colour": step.colour, "form": window, "position": step.position}
+
+    return at
+
+
+def run_structure_baseline(definition: dict) -> dict:
+    """Present every figure at every position it fits, and measure what responds.
+
+    A factorial design on purpose: shape and position vary independently, so the
+    variance decomposition can say which factor a Column follows. No learning happens —
+    this measures the substrate, and the numbers it reports are the null a local rule
+    has to beat.
     """
     network, world, p = build(definition)
+    if network.web is None:
+        raise ValueError(
+            "this experiment measures what Columns respond to, so it needs a Web; "
+            "declare it in architecture.structures"
+        )
     arch = network.arch
-    ticks = int(definition.get("ticks", 30))
-    colours = definition.get("colours") or list(range(1, arch.n_colours))
-    positions = [(i, j) for i in range(arch.world_size) for j in range(arch.world_size)]
+    ticks = int(definition.get("ticks", 20))
+    order = definition.get("visiting_order", "raster")
+    shapes = figures.named(definition.get("figures", sorted(figures.FIGURES)))
+    names = definition.get("figures", sorted(figures.FIGURES))
 
-    responses = np.zeros((len(colours), len(positions), network.response_vector().size))
-    snapshots = []
-    # A central position and a corner one: the corner shows what the border does to
-    # contrast, which is a real effect and easier to see than to describe.
-    of_interest = [tuple(pos) for pos in definition.get("snapshot_positions", [[3, 3], [0, 0]])]
+    origins = [
+        (i, j)
+        for i in range(arch.world_size)
+        for j in range(arch.world_size)
+        if all(world.fits(shape, (i, j)) for shape in shapes)
+    ]
+    if not origins:
+        raise ValueError("no World position holds every figure; enlarge the World")
 
-    for ci, colour in enumerate(colours):
-        for pi, position in enumerate(positions):
+    responses = np.zeros((len(shapes), len(origins), max(network.response_vector().size, 1)))
+    snapshots, schema_states, stops = [], {}, 0
+    of_interest = [tuple(pos) for pos in definition.get("snapshot_positions", [origins[0]])]
+
+    for si, shape in enumerate(shapes):
+        for oi, origin in enumerate(origins):
             world.clear()
-            world.place(colour, position)
-            strength = float(world.contrast()[position])
+            world.place_object(shape, origin)
+            presentation = Presentation.of_object(world, shape, origin, order)
 
             network.reset()
-            for _ in range(ticks):
-                network.step(colour, position, strength, p)
+            # Built after placement: the contrast field is a property of the World as
+            # it now stands, not as it stood when the run began.
+            responses[si, oi] = network.present(
+                presentation, _signals(world), ticks, p
+            )
+            stops += len(presentation.steps)
+            if network.schema is not None:
+                for step in presentation.steps:
+                    schema_states.setdefault(step.position, None)
+            if origin in of_interest and si < 4:
+                snapshots.append({
+                    "figure": names[si],
+                    "origin": list(origin),
+                    "world": world.cells.tolist(),
+                    "presentation": presentation.describe(),
+                    **network.snapshot(),
+                })
 
-            responses[ci, pi] = network.response_vector()
-            if position in of_interest and ci < 3:
-                snapshots.append(
-                    {
-                        "colour": PALETTE[colour],
-                        "colour_index": int(colour),
-                        "position": list(position),
-                        "contrast": strength,
-                        "world": world.cells.tolist(),
-                        "spaces": network.snapshot(),
-                    }
-                )
-
-    colour_sel, position_sel = two_way_selectivity(responses)
+    shape_sel, position_sel = two_way_selectivity(responses)
     labels = network.column_labels()
-    return {
-        "summary": summarise_by_level(colour_sel, position_sel, labels),
+    active = int((shape_sel + position_sel > 1e-9).sum())
+
+    result = {
+        "summary": {
+            "overall": {
+                "columns": len(labels),
+                "shape_selectivity_max": float(shape_sel.max(initial=0.0)),
+                "shape_selectivity_mean": float(shape_sel.mean()) if labels else 0.0,
+                "position_selectivity_max": float(position_sel.max(initial=0.0)),
+                "position_selectivity_mean": float(position_sel.mean()) if labels else 0.0,
+                "active_columns": active,
+                "silent_columns": len(labels) - active,
+            },
+            "by_level": summarise_by_level(shape_sel, position_sel, labels, ("shape", "position")),
+            "presentation": {
+                "figures": names,
+                "origins": len(origins),
+                "stops_per_figure": len(shapes[0].parts),
+                "parts_per_figure": len(shapes[0].parts),
+                "relations_per_figure": len(shapes[0].parts) - 1,
+                "visiting_order": order,
+            },
+        },
         "responses": responses,
-        "colour_selectivity": colour_sel,
+        "shape_selectivity": shape_sel,
         "position_selectivity": position_sel,
         "labels": labels,
         "snapshots": snapshots,
         "connectivity": network.describe(),
         "palette": list(PALETTE),
-        "stimuli": {"colours": [PALETTE[c] for c in colours], "positions": len(positions)},
+        "stimuli": {"figures": names, "origins": len(origins)},
         "parameters": p,
     }
+    result["summary"]["schema"] = _schema_report(network, world, p)
+    result["summary"]["index"] = _index_report(network, stops, p)
+    return result
 
 
-def run_position_representation(definition: dict) -> dict:
-    """Can one Level hold all 64 World positions apart, with no two alike?
+def _schema_report(network: Network, world: World, p: dict) -> dict:
+    """Separation and path consistency, measured rather than asserted (§3.2)."""
+    if network.schema is None:
+        return {}
+    schema = network.schema
+    size = world.size
+    states = {(i, j): schema.at((i, j), p) for i in range(size) for j in range(size)}
+    distinct = {tuple(np.round(state, 6)) for state in states.values()}
 
-    Position is presented at every World position in turn and Level 1's output is
-    recorded. Each position therefore yields a 64-element vector, and the question is
-    whether those 64 vectors are distinct — whether the Level is a faithful code for
-    position, or whether two different places produce the same activity and become
-    indistinguishable to everything downstream.
-
-    Colour is held constant throughout: this experiment asks about position alone.
-    """
-    network, world, p = build(definition)
-    arch = network.arch
-    ticks = int(definition.get("ticks", 250))
-    colour = int(definition.get("colour", 1))
-    level = network.position.levels[0]
-    positions = [(i, j) for i in range(arch.world_size) for j in range(arch.world_size)]
-
-    patterns = np.zeros((len(positions), level.n))
-    records = []
-    for index, position in enumerate(positions):
-        world.clear()
-        world.place(colour, position)
-        strength = float(world.contrast()[position])
-
-        network.reset()
-        for _ in range(ticks):
-            network.step(colour, position, strength, p)
-
-        patterns[index] = level.l5
-        records.append(
-            {
-                "position": list(position),
-                "contrast": strength,
-                "world": world.cells.tolist(),
-                "level": level.grid("l5").tolist(),
-                "peak": int(np.argmax(level.l5)),
-                "peak_value": float(level.l5.max()),
-            }
-        )
-
-    # Cosine similarity: two positions are indistinguishable if their patterns point
-    # the same way, whatever their overall magnitude.
-    norms = np.linalg.norm(patterns, axis=1, keepdims=True)
-    unit = np.divide(patterns, norms, out=np.zeros_like(patterns), where=norms > 1e-12)
-    similarity = unit @ unit.T
-    off_diagonal = similarity - np.eye(len(positions)) * 2.0
-
-    tolerance = float(definition.get("duplicate_tolerance", 0.999))
-    duplicates = [
-        {
-            "a": list(positions[i]),
-            "b": list(positions[j]),
-            "similarity": float(similarity[i, j]),
-        }
-        for i, j in zip(*np.triu_indices(len(positions), k=1))
-        if similarity[i, j] >= tolerance
-    ]
-    peaks = [record["peak"] for record in records]
+    # Reach one position two ways: the states must agree, or a memory stored there
+    # becomes unreachable from a new direction.
+    worst = 0.0
+    for target in ((1, 2), (2, 3), (3, 1)):
+        a = schema.advance(schema.advance(schema.origin(), (target[0], 0), p), (0, target[1]), p)
+        b = schema.advance(schema.advance(schema.origin(), (0, target[1]), p), (target[0], 0), p)
+        worst = max(worst, float(np.abs(a - b).max()))
 
     return {
-        "summary": {
-            "positions": len(positions),
-            "distinct_patterns": int(len({tuple(np.round(row, 6)) for row in patterns})),
-            "distinct_peaks": int(len(set(peaks))),
-            "peak_is_a_bijection": bool(len(set(peaks)) == len(positions)),
-            "duplicate_pairs": len(duplicates),
-            "max_off_diagonal_similarity": float(off_diagonal.max()),
-            "mean_off_diagonal_similarity": float(
-                (similarity.sum() - np.trace(similarity)) / (len(positions) ** 2 - len(positions))
-            ),
-            "silent_positions": int((patterns.max(axis=1) <= p["activation_floor"] + 1e-9).sum()),
-        },
-        "records": records,
-        "similarity": similarity.tolist(),
-        "duplicates": duplicates,
-        "responses": patterns[:, None, :],
-        "colour_selectivity": np.zeros(level.n),
-        "position_selectivity": np.zeros(level.n),
-        "labels": network.column_labels(),
-        "snapshots": [],
-        "connectivity": network.describe(),
-        "palette": list(PALETTE),
-        "stimuli": {"colours": [PALETTE[colour]], "positions": len(positions)},
-        "parameters": p,
+        "columns": schema.size,
+        "periods": list(schema.periods),
+        "capacity": schema.capacity,
+        "positions_visited": size * size,
+        "distinct_states": len(distinct),
+        "path_consistency_error": worst,
     }
 
 
-KINDS = {
-    "colour_selectivity_baseline": run_colour_selectivity,
-    "position_representation": run_position_representation,
-}
+def _index_report(network: Network, stops: int, p: dict) -> dict:
+    """Did the last presentation's bindings come back from a positional cue?"""
+    if network.index is None:
+        return {}
+    index = network.index
+    hits, bound = 0, 0
+    for content, where in index.stored():
+        if np.linalg.norm(content) <= 1e-12:
+            continue                      # nothing was there to bind
+        bound += 1
+        recovered, _ = index.complete(schema_state=where)
+        denominator = np.linalg.norm(content) * np.linalg.norm(recovered)
+        if denominator > 1e-12 and content @ recovered / denominator > 0.9:
+            hits += 1
+    return {
+        "entries": index.entries,
+        "stops": index.entries,
+        "bindings_with_content": bound,
+        "total_stops_in_run": stops,
+        "completion_accuracy": hits / bound if bound else 0.0,
+    }
+
+
+KINDS = {"structure_baseline": run_structure_baseline}
 
 
 def execute(definition: dict, artifact_root: str | Path = "artifacts") -> Path:
@@ -220,43 +244,27 @@ def execute(definition: dict, artifact_root: str | Path = "artifacts") -> Path:
     out.mkdir(parents=True, exist_ok=True)
 
     (out / "definition.json").write_text(json.dumps(definition, indent=2, sort_keys=True))
-    (out / "manifest.json").write_text(
-        json.dumps(
-            {
-                "digest": run_digest,
-                # The experiment's number, so a run can be located by the file that
-                # produced it rather than by a timestamp.
-                "number": str(definition.get("number", "—")),
-                "kind": kind,
-                "name": definition.get("name", kind),
-                "started": started.isoformat(),
-                "finished": finished.isoformat(),
-                "seconds": (finished - started).total_seconds(),
-                "stimuli": result["stimuli"],
-                "parameters": result["parameters"],
-            },
-            indent=2,
-        )
-    )
+    (out / "manifest.json").write_text(json.dumps({
+        "digest": run_digest,
+        "number": number,
+        "kind": kind,
+        "name": definition.get("name", kind),
+        "question": definition.get("question", ""),
+        "started": started.isoformat(),
+        "finished": finished.isoformat(),
+        "seconds": (finished - started).total_seconds(),
+        "stimuli": result["stimuli"],
+        "parameters": result["parameters"],
+    }, indent=2))
     (out / "summary.json").write_text(json.dumps(result["summary"], indent=2))
     (out / "snapshots.json").write_text(json.dumps(result["snapshots"]))
-    if "records" in result:
-        (out / "positions.json").write_text(
-            json.dumps(
-                {
-                    "records": result["records"],
-                    "similarity": result["similarity"],
-                    "duplicates": result["duplicates"],
-                }
-            )
-        )
-    (out / "connectivity.json").write_text(
-        json.dumps({"connectivity": result["connectivity"], "palette": result["palette"]}, indent=2)
-    )
+    (out / "connectivity.json").write_text(json.dumps(
+        {"connectivity": result["connectivity"], "palette": result["palette"]}, indent=2
+    ))
     np.savez_compressed(
         out / "responses.npz",
         responses=result["responses"],
-        colour_selectivity=result["colour_selectivity"],
+        shape_selectivity=result["shape_selectivity"],
         position_selectivity=result["position_selectivity"],
         labels=np.array(result["labels"]),
     )

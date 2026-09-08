@@ -1,17 +1,20 @@
-"""The Network: Spaces, a Hub, and the Thalamus that feeds them.
+"""The Network: a Web, a Schema, an Index, and the Thalamus that feeds them.
 
-Three Spaces in the first configuration. The position Space and the colour Space are
-spokes, each a code for one dimension. The Hub sees the tops of both and is the only
-place a Cardinal Node can form, since cardinality is cross-Space by definition.
+Two slow abstractors and one fast binder. The **Web** converges over co-occurrence and
+says what things are. The **Schema** converges over transitions and says how things
+change. The **Index** binds fast and separates, and says what happened where. The
+pressures on the Web's code and the Index's code are opposite — convergence against
+separation — which is why they are different structures rather than one structure with
+a compromise setting.
 
-Both spokes carry the **visual** Modality and differ in Cortical Area — position in
-parietal, colour in temporal. They are two Spaces because they are codes for two
-dimensions, not because they arrive through two channels; see CONTEXT.md, where whether
-cardinality also requires crossing Modalities is recorded as open.
+A presentation is a sequence. At each stop the Thalamus encodes what is there and the
+Web settles; the Relation to that stop advances the Schema; the Web's convergence
+output is bound to the Schema's state in the Index.
 
-Mapped onto the population vocabulary: the position Space carries `g`, the colour Space
-carries `x`, and the Hub carries `p`. That is a mapping between two vocabularies, not an
-identity — see CONTEXT.md.
+Nothing in the Web or the Schema learns. The Index binds, because binding is what it
+is for and a Hebbian association is a local rule rather than a gradient, but no
+connectivity changes, nothing is recruited and nothing is promoted. That is what makes
+a run a baseline.
 """
 
 from __future__ import annotations
@@ -20,18 +23,11 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from ccf6.space import Space
+from ccf6.ego import Presentation, Step
+from ccf6.index import Index
+from ccf6.schema import Schema
 from ccf6.thalamus import Thalamus
-
-
-#: Where each Space of the first configuration sits, and how its content arrives. An
-#: experiment overrides this by declaring `spaces` in its architecture; the same field
-#: says which Spaces to build, so a Space that is not sited is not built.
-DEFAULT_SPACES: dict[str, dict[str, str | None]] = {
-    "position": {"cortical_area": "parietal", "modality": "visual"},
-    "colour": {"cortical_area": "temporal", "modality": "visual"},
-    "hub": {"cortical_area": "frontal", "modality": None},
-}
+from ccf6.web import Web
 
 
 @dataclass
@@ -41,31 +37,38 @@ class Architecture:
     world_size: int = 8
     n_colours: int = 8
     levels: int = 3
-    local_levels: int = 2
-    pooling: int = 4
-    fanin: int = 12
-    hub_levels: int = 2
-    seed: int = 20260907
-    #: Which Spaces to build, and how each is sited. An experiment that asks about one
-    #: Space should not have to run the others: they would contribute nothing and their
-    #: activity would only make the picture harder to read.
+    convergence_levels: int = 2
+    #: Local pooling assumes a Grid's neighbourhood means something. For a Space over
+    #: colour or local form it does not — adjacency there is an artefact of laying the
+    #: dimension out on a square. Only a genuinely spatial Space should pool locally, so
+    #: the default is none, and `pooling` waits for one that has a real neighbourhood.
+    local_levels: int = 0
+    pooling: int = 3
+    #: Must be smaller than the narrowest Space, or its Columns all see the same thing.
+    fanin: int = 4
+    #: Fan-in is declared per connection class, not once for the network. A convergence
+    #: Space draws from the tops of every Space at once, so a fan-in sized for a narrow
+    #: spoke would leave most of its Columns sampling only silent sources and its output
+    #: would fall below the transmission threshold before reaching its own top.
+    convergence_fanin: int = 12
+    #: Module periods for the Schema. Capacity along one axis is their least common
+    #: multiple, so coprime periods buy a large field from a few small modules.
+    schema_periods: tuple[int, ...] = (3, 4, 5)
+    schema_width: float = 0.6
+    #: Which Spaces to build, and how each is sited.
     spaces: dict[str, dict[str, str | None]] = field(
-        default_factory=lambda: {name: dict(siting) for name, siting in DEFAULT_SPACES.items()}
+        default_factory=lambda: {
+            name: dict(sited) for name, sited in Web.DEFAULT_SITING.items()
+            if name in ("colour", "form", "convergence")
+        }
     )
-    colour_shape: tuple[int, int] = (8, 8)
-
-    @property
-    def position_shape(self) -> tuple[int, int]:
-        return (self.world_size, self.world_size)
+    #: Which structures to build. A question about one need not run the others.
+    structures: tuple[str, ...] = ("web", "schema", "index")
+    seed: int = 20260908
 
     def siting(self, name: str) -> dict[str, str | None]:
-        """Cortical Area and Modality for one Space, falling back to the default.
-
-        An experiment may name a Space without re-stating where it sits, since the
-        siting is a claim about the model rather than about the run.
-        """
         declared = self.spaces.get(name) or {}
-        return {**DEFAULT_SPACES.get(name, {}), **declared}
+        return {**Web.DEFAULT_SITING.get(name, {}), **declared}
 
 
 class Network:
@@ -73,132 +76,113 @@ class Network:
         self.arch = arch
         self.thalamus = thalamus
         rng = np.random.default_rng(arch.seed)
-        self.spaces: dict[str, Space] = {}
 
-        self.position = Space(
-            "position",
-            arch.position_shape,
-            arch.levels,
-            thalamus.position.size,
-            **arch.siting("position"),
-            local_levels=arch.local_levels,
-            pooling=arch.pooling,
-            fanin=arch.fanin,
-            rng=rng,
-        )
-        self.spaces["position"] = self.position
+        self.web: Web | None = None
+        if "web" in arch.structures:
+            siting = {name: arch.siting(name) for name in arch.spaces}
+            self.web = Web(
+                siting,
+                thalamus.sizes(),
+                levels=arch.levels,
+                convergence_levels=arch.convergence_levels,
+                local_levels=arch.local_levels,
+                pooling=arch.pooling,
+                fanin=arch.fanin,
+                convergence_fanin=arch.convergence_fanin,
+                rng=rng,
+            )
 
-        self.colour = None
-        self.hub = None
-        if "colour" not in arch.spaces:
-            return
+        self.schema: Schema | None = None
+        self.schema_state: np.ndarray | None = None
+        if "schema" in arch.structures:
+            self.schema = Schema(tuple(arch.schema_periods), arch.schema_width)
 
-        self.colour = Space(
-            "colour",
-            arch.colour_shape,
-            arch.levels,
-            thalamus.colour.size,
-            **arch.siting("colour"),
-            local_levels=arch.local_levels,
-            pooling=arch.pooling,
-            fanin=arch.fanin,
-            rng=rng,
-        )
-        self.spaces["colour"] = self.colour
-        if "hub" not in arch.spaces:
-            return
-
-        hub_input = self.position.top.n + self.colour.top.n
-        self.hub = Space(
-            "hub",
-            arch.position_shape,
-            arch.hub_levels,
-            hub_input,
-            **arch.siting("hub"),
-            local_levels=0,          # the Hub is non-local at every Level
-            pooling=arch.pooling,
-            fanin=arch.fanin,
-            rng=rng,
-            input_mode="sparse",
-        )
-        self.spaces["hub"] = self.hub
+        self.index: Index | None = None
+        if "index" in arch.structures:
+            if self.web is None or self.schema is None:
+                raise ValueError("an Index binds Web content to a Schema state; it needs both")
+            self.index = Index(self.web.content_size, self.schema.size)
 
     def reset(self) -> None:
-        for space in self.spaces.values():
-            space.reset()
+        if self.web is not None:
+            self.web.reset()
+        if self.schema is not None:
+            self.schema_state = self.schema.origin()
+        if self.index is not None:
+            self.index.reset()
 
-    def step(self, colour: int | None, position: tuple[int, int] | None, strength: float, p: dict) -> None:
-        """One synchronous tick of the whole Network.
+    def present(
+        self, presentation: Presentation, signals, ticks: int, p: dict
+    ) -> np.ndarray:
+        """Run one whole presentation and report the response to the figure.
 
-        Every Space computes from the state left by the previous tick, so the order the
-        Spaces appear in below does not affect the result.
+        The response is averaged over the stops rather than read off the last one. A
+        figure is the whole traversal, so scoring the state left at the final stop would
+        measure that cell's neighbourhood and call it the figure — and since the figures
+        differ in which cell comes last, that artefact would masquerade as selectivity.
         """
-        if colour is None or position is None or strength <= 0.0:
-            drive = {"colour": None, "position": None}
-        else:
-            drive = self.thalamus.project(colour, position, strength)
+        seen = []
+        for index, step in enumerate(presentation.steps):
+            self.stop(step, signals(step), ticks, p, first=index == 0)
+            seen.append(self.response_vector())
+        return np.mean(seen, axis=0) if seen else self.response_vector()
 
-        from ccf6.space import transmit
+    def stop(self, step: Step, signals: dict, ticks: int, p: dict, *, first: bool) -> None:
+        """One stop of a presentation.
 
-        hub_drive = (
-            np.concatenate([transmit(self.position.top.l5, p), transmit(self.colour.top.l5, p)])
-            if self.hub is not None
-            else None
-        )
+        The Relation advances the Schema *before* binding, so what gets bound is the
+        content at the position the network has arrived at rather than the one it left.
+        """
+        if self.schema is not None:
+            if first:
+                self.schema_state = self.schema.origin()
+            elif step.relation is not None:
+                self.schema_state = self.schema.advance(self.schema_state, step.relation, p)
 
-        self.position.step(drive["position"], p)
-        if self.colour is not None:
-            self.colour.step(drive["colour"], p)
-        if self.hub is not None:
-            self.hub.step(hub_drive, p)
+        if self.web is not None:
+            drive = self.thalamus.project(signals, step.contrast)
+            for _ in range(ticks):
+                self.web.step(drive, p)
 
-    def describe(self) -> dict:
-        """Every Space's siting and wiring, plus what feeds the Hub."""
-        return {
-            "spaces": {name: space.describe() for name, space in self.spaces.items()},
-            "hub_sources": [
-                {
-                    "space": name,
-                    "cortical_area": self.spaces[name].cortical_area,
-                    "modality": self.spaces[name].modality,
-                    "level": self.spaces[name].top.name,
-                    "columns": self.spaces[name].top.n,
-                }
-                for name in ("position", "colour")
-                if self.hub is not None and name in self.spaces
-            ],
-        }
-
-    def snapshot(self) -> dict:
-        """Every drawable field, as nested lists. What the workbench renders."""
-        return {
-            name: {
-                level.name: {
-                    "shape": list(level.shape),
-                    "l4": level.grid("l4").tolist(),
-                    "l23": level.grid("l23").tolist(),
-                    "l5": level.grid("l5").tolist(),
-                }
-                for level in space.levels
-            }
-            for name, space in self.spaces.items()
-        }
+        if self.index is not None:
+            self.index.write(self.web.content(p), self.schema_state)
 
     def response_vector(self) -> np.ndarray:
-        """L5 of every Column in the Network, in a fixed order.
+        """L5 of every Column in the Web, in a fixed order.
 
         The order is stable for the life of a Network, so a Column's index means the
         same thing in every stimulus of a run.
         """
-        parts = []
-        for space in self.spaces.values():
-            for level in space.levels:
-                parts.append(level.l5)
-        return np.concatenate(parts)
+        if self.web is None:
+            return np.zeros(0)
+        return np.concatenate(
+            [level.l5 for space in self.web.spaces.values() for level in space.levels]
+        )
 
     def column_labels(self) -> list[str]:
-        labels = []
-        for space in self.spaces.values():
-            for level in space.levels:
-                labels.extend(f"{level.name}#{i}" for i in range(level.n))
-        return labels
+        if self.web is None:
+            return []
+        return [
+            f"{level.name}#{i}"
+            for space in self.web.spaces.values()
+            for level in space.levels
+            for i in range(level.n)
+        ]
+
+    def describe(self) -> dict:
+        out: dict = {"structures": list(self.arch.structures)}
+        if self.web is not None:
+            out["web"] = self.web.describe()
+        if self.schema is not None:
+            out["schema"] = self.schema.describe()
+        if self.index is not None:
+            out["index"] = self.index.describe()
+        return out
+
+    def snapshot(self) -> dict:
+        out: dict = {}
+        if self.web is not None:
+            out["web"] = self.web.snapshot()
+        if self.schema is not None and self.schema_state is not None:
+            out["schema"] = [b.tolist() for b in self.schema.blocks(self.schema_state)]
+        return out
