@@ -3,11 +3,17 @@
 A World is a square grid of colour indices. Colour 0 is white, and white is an
 ordinary colour rather than a gap — a blank cell is a fact, not an absence.
 
-What reaches the Thalamus is not the colour field but its *contrast*: how much a cell
-differs from its neighbours. That is a deliberate premise: the framework is meant to
-record relations between things rather than the things themselves, so a region with no
-internal relations registers as empty. A uniform white field produces almost nothing,
-and that is intended behaviour, not a defect.
+What reaches the Thalamus is the colour field, at unit strength. It was once the
+*contrast* field — how much a cell differs from its neighbours — on the premise that a
+framework meant to record relations should be shown relations rather than things. That
+premise moved (ADR-0009): contrast is not translation invariant, because a figure
+touching the World's frame scores lower than the same figure in the middle, and it was
+also serving as drive magnitude, so it carried that non-invariance into every Space at
+once. The relational quantity supplied at the boundary is now the **Relation** between
+two sampled World positions, and nothing else.
+
+`contrast()` survives as something one can compute *about* a World and draw. Nothing in
+the encoding path calls it.
 """
 
 from __future__ import annotations
@@ -86,11 +92,14 @@ class World:
         """Per-cell fraction of neighbours whose colour differs from this cell's.
 
         The divisor is the full neighbourhood, not the neighbours a cell happens to
-        have. Scoring border cells against their own smaller neighbourhood inflates
-        their contrast, so the same Object registers more strongly near an edge than
-        in the middle — which would break the translation invariance ADR-0004 rests
-        on. Off-field neighbours count as not differing: the frame of the World is not
-        an edge in the World.
+        have, and off-field neighbours count as not differing: the frame of the World is
+        not an edge in the World.
+
+        **This is still not translation invariant**, and that is why it is no longer the
+        input code (ADR-0009). Counting an absent neighbour as not-differing makes a
+        figure touching the frame score *lower* than the same figure in the middle. One
+        Object at its 80 fitting origins in a 12x12 World has nine distinct contrast
+        signatures. The full divisor removed the inflation, not the dependence.
         """
         differing = np.zeros((self.size, self.size), dtype=np.float64)
         for di, dj in NEIGHBOUR_OFFSETS:
@@ -104,11 +113,26 @@ class World:
             differing += valid & (shifted != self.cells)
         return differing / len(NEIGHBOUR_OFFSETS)
 
+    def foreground(self, radius: int) -> np.ndarray:
+        """The figure as a mask, padded by `radius` cells of background.
+
+        Padded with background rather than reflected or wrapped, so a patch read at the
+        World's frame is the same patch read in the middle: an Object's neighbourhood
+        does not depend on where the Object was put (ADR-0004).
+
+        A mask rather than the colour indices, because a Column adds its inputs and a
+        raw index would drive one colour seven times harder than another — the same
+        confusion of strength with identity that ADR-0009 removed. What colour a cell is
+        belongs to the colour Space; whether a cell is filled belongs here.
+        """
+        return np.pad((self.cells != self.background).astype(np.float64), radius)
+
     def sampled_positions(self, threshold: float = 0.0) -> list[tuple[int, int]]:
         """World positions carrying contrast above threshold.
 
         One always looks from somewhere, but the places worth looking at are the ones
-        with structure in them.
+        with structure in them. This is a segmentation heuristic, not the input path;
+        see `Presentation.of_contrast` for why it takes its threshold explicitly.
         """
         field = self.contrast()
         return [(int(i), int(j)) for i, j in zip(*np.nonzero(field > threshold))]

@@ -8,6 +8,11 @@ Thalamus is a separate structure rather than wiring inside a Space.
 It carries **no state between samples**. A presentation is a sequence, and the moment
 the boundary remembered where it had been it would have quietly become the Schema, and
 the encoding could no longer be changed independently of everything else.
+
+It carries **no separate strength channel** either (ADR-0009). What is shown decides
+which Columns are driven; nothing decides how hard. A magnitude alongside the signal is
+a second, undeclared code, and Columns add their inputs, so whatever it carries arrives
+everywhere at once.
 """
 
 from __future__ import annotations
@@ -22,7 +27,7 @@ class Encoder(Protocol):
 
     size: int
 
-    def encode(self, value, strength: float = 1.0) -> np.ndarray: ...
+    def encode(self, value) -> np.ndarray: ...
 
 
 class LocalistColour:
@@ -37,9 +42,9 @@ class LocalistColour:
         self.n_colours = n_colours
         self.size = n_colours
 
-    def encode(self, value: int, strength: float = 1.0) -> np.ndarray:
+    def encode(self, value: int) -> np.ndarray:
         out = np.zeros(self.size)
-        out[int(value)] = strength
+        out[int(value)] = 1.0
         return out
 
 
@@ -52,20 +57,27 @@ class PopulationColour:
         self.width = width
         self._centres = np.linspace(0.0, size, n_colours, endpoint=False)
 
-    def encode(self, value: int, strength: float = 1.0) -> np.ndarray:
+    def encode(self, value: int) -> np.ndarray:
         positions = np.arange(self.size, dtype=np.float64)
         offset = np.abs(positions - self._centres[int(value)])
         circular = np.minimum(offset, self.size - offset)
-        return strength * np.exp(-0.5 * (circular / self.width) ** 2)
+        return np.exp(-0.5 * (circular / self.width) ** 2)
 
 
 class LocalForm:
-    """The contrast neighbourhood at the stop Ego is looking from.
+    """The colour neighbourhood at the stop Ego is looking from.
 
-    Nine Columns for a 3x3 patch. This is what distinguishes the end of a stroke from
-    its middle and from a junction — the local evidence a convergence hierarchy has to
-    work with before any arrangement is available. It is a *sensory* code: it says what
-    is here, not where here is.
+    Nine Columns for a 3x3 patch, one per cell, each carrying whether that cell differs
+    from the World's background. This is what distinguishes the end of a stroke from its
+    middle and from a junction — the local evidence a convergence hierarchy has to work
+    with before any arrangement is available. It is a *sensory* code: it says what is
+    here, not where here is.
+
+    It reads colour rather than contrast (ADR-0009), so a figure at the World frame
+    encodes exactly as it does in the middle. The local-feature shortcut this affords —
+    a junction patch is oriented, so a T's patch already differs from a bottom's — is
+    unaffected by that change and is meant to stay visible: it comes from locality, and
+    it is the number a relational-learning claim has to beat.
     """
 
     def __init__(self, radius: int = 1):
@@ -73,11 +85,11 @@ class LocalForm:
         self.side = 2 * radius + 1
         self.size = self.side * self.side
 
-    def encode(self, value: np.ndarray, strength: float = 1.0) -> np.ndarray:
+    def encode(self, value: np.ndarray) -> np.ndarray:
         patch = np.asarray(value, dtype=np.float64).ravel()
         if patch.size != self.size:
             raise ValueError(f"expected a {self.side}x{self.side} patch, got {patch.size} values")
-        return strength * patch
+        return patch
 
 
 class LocalistPosition:
@@ -93,10 +105,10 @@ class LocalistPosition:
         self.world_size = world_size
         self.size = world_size * world_size
 
-    def encode(self, value: tuple[int, int], strength: float = 1.0) -> np.ndarray:
+    def encode(self, value: tuple[int, int]) -> np.ndarray:
         i, j = value
         out = np.zeros(self.size)
-        out[i * self.world_size + j] = strength
+        out[i * self.world_size + j] = 1.0
         return out
 
 
@@ -117,14 +129,14 @@ class Thalamus:
     def sizes(self) -> dict[str, int]:
         return {name: encoder.size for name, encoder in self.encoders.items()}
 
-    def project(self, signals: dict[str, object], strength: float) -> dict[str, np.ndarray]:
+    def project(self, signals: dict[str, object]) -> dict[str, np.ndarray]:
         """One stop of a presentation becomes drive for every Space that has an encoder.
 
-        `strength` is the contrast at that World position, so a cell that differs from
-        nothing drives nothing.
+        Every encoder is driven at unit strength. There is no magnitude argument, so
+        there is nowhere for a second code to hide (ADR-0009).
         """
         return {
-            name: encoder.encode(signals[name], strength)
+            name: encoder.encode(signals[name])
             for name, encoder in self.encoders.items()
             if name in signals
         }

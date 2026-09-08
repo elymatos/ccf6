@@ -17,7 +17,7 @@ import numpy as np
 
 from ccf6 import figures, params
 from ccf6.ego import Presentation
-from ccf6.metrics import summarise_by_level, two_way_selectivity
+from ccf6.metrics import figure_separation, summarise_by_level, two_way_selectivity
 from ccf6.network import Architecture, Network
 from ccf6.thalamus import ENCODERS, Thalamus
 from ccf6.world import PALETTE, World
@@ -63,12 +63,12 @@ def build(definition: dict) -> tuple[Network, World, dict]:
 def _signals(world: World, patch_radius: int = 1):
     """What the Thalamus is handed at one stop: what is here, not where here is.
 
-    The contrast field is read from the World *as it stands when this is built*, so it
-    must be rebuilt after every placement. A closure over a stale field would hand the
-    network an empty patch and the Space fed by it would sit silently at the activation
-    floor, looking like a wiring problem rather than a bookkeeping one.
+    The field is read from the World *as it stands when this is built*, so it must be
+    rebuilt after every placement. A closure over a stale field would hand the network
+    an empty patch and the Space fed by it would sit silently at the activation floor,
+    looking like a wiring problem rather than a bookkeeping one.
     """
-    padded = np.pad(world.contrast(), patch_radius)
+    padded = world.foreground(patch_radius)
 
     def at(step):
         i, j = step.position
@@ -118,8 +118,8 @@ def run_structure_baseline(definition: dict) -> dict:
             presentation = Presentation.of_object(world, shape, origin, order)
 
             network.reset()
-            # Built after placement: the contrast field is a property of the World as
-            # it now stands, not as it stood when the run began.
+            # Built after placement: the field is a property of the World as it now
+            # stands, not as it stood when the run began.
             responses[si, oi] = network.present(
                 presentation, _signals(world), ticks, p
             )
@@ -137,6 +137,7 @@ def run_structure_baseline(definition: dict) -> dict:
                 })
 
     shape_sel, position_sel = two_way_selectivity(responses)
+    separation = figure_separation(responses)
     labels = network.column_labels()
     active = int((shape_sel + position_sel > 1e-9).sum())
 
@@ -148,10 +149,14 @@ def run_structure_baseline(definition: dict) -> dict:
                 "shape_selectivity_mean": float(shape_sel.mean()) if labels else 0.0,
                 "position_selectivity_max": float(position_sel.max(initial=0.0)),
                 "position_selectivity_mean": float(position_sel.mean()) if labels else 0.0,
+                "separation_max": float(separation.max(initial=0.0)),
+                "separation_mean": float(separation.mean()) if labels else 0.0,
                 "active_columns": active,
                 "silent_columns": len(labels) - active,
             },
-            "by_level": summarise_by_level(shape_sel, position_sel, labels, ("shape", "position")),
+            "by_level": summarise_by_level(
+                shape_sel, position_sel, labels, ("shape", "position"), separation
+            ),
             "presentation": {
                 "figures": names,
                 "origins": len(origins),
@@ -164,6 +169,7 @@ def run_structure_baseline(definition: dict) -> dict:
         "responses": responses,
         "shape_selectivity": shape_sel,
         "position_selectivity": position_sel,
+        "separation": separation,
         "labels": labels,
         "snapshots": snapshots,
         "connectivity": network.describe(),
@@ -266,6 +272,7 @@ def execute(definition: dict, artifact_root: str | Path = "artifacts") -> Path:
         responses=result["responses"],
         shape_selectivity=result["shape_selectivity"],
         position_selectivity=result["position_selectivity"],
+        separation=result["separation"],
         labels=np.array(result["labels"]),
     )
     return out

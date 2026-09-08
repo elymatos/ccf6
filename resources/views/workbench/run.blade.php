@@ -8,7 +8,7 @@
             'yellow'=>'#e3c020','cyan'=>'#31b7c2','magenta'=>'#bf47b5','black'=>'#222'];
     $overall = $summary['overall'] ?? [];
     $presentation = $summary['presentation'] ?? [];
-    $nothing = ($overall['shape_selectivity_max'] ?? 0) < 0.01;
+    $nothing = ($overall['separation_max'] ?? 0) < 0.01;
 @endphp
 
 <section>
@@ -38,17 +38,26 @@
             <tr><td class="l">Columns</td><td>{{ $overall['columns'] ?? 0 }}</td></tr>
             <tr><td class="l">Active / silent</td>
                 <td>{{ $overall['active_columns'] ?? 0 }} / {{ $overall['silent_columns'] ?? 0 }}</td></tr>
-            <tr><td class="l">Best shape selectivity</td>
-                <td><strong>{{ number_format($overall['shape_selectivity_max'] ?? 0, 4) }}</strong></td></tr>
-            <tr><td class="l">Best position selectivity</td>
-                <td>{{ number_format($overall['position_selectivity_max'] ?? 0, 4) }}</td></tr>
+            <tr><td class="l">Best figure separation</td>
+                <td><strong>{{ number_format($overall['separation_max'] ?? 0, 4) }}</strong></td></tr>
+            <tr><td class="l">Shape / position selectivity</td>
+                <td class="muted">{{ number_format($overall['shape_selectivity_max'] ?? 0, 4) }}
+                    / {{ number_format($overall['position_selectivity_max'] ?? 0, 4) }}</td></tr>
             </tbody>
         </table>
         <p class="muted" style="max-width:70ch;margin:14px 0 0">
-            <strong>Shape</strong> and <strong>position</strong> were crossed factorially, so
-            each Column's variance can be attributed to the factor it actually follows.
-            A Column that never moved scores zero on both rather than being credited with
-            perfect selectivity for nothing.
+            <strong>Figure separation</strong> is the headline number: how far apart the
+            figures' responses are, relative to how large those responses are. Zero means
+            the figures are indistinguishable here, and it is what a learning rule has to
+            beat.
+        </p>
+        <p class="muted" style="max-width:70ch;margin:10px 0 0">
+            <strong>Shape</strong> and <strong>position</strong> were crossed factorially,
+            but since the boundary became translation invariant (ADR-0009) position
+            contributes exactly zero variance — so that ratio is 1.000 wherever a Column
+            moves at all and 0.000 where it does not. It is kept because a value other than
+            those two would mean translation invariance had broken, and shown small
+            because it no longer separates anything.
         </p>
     </div>
 </section>
@@ -125,7 +134,7 @@
                 <tr><th class="l">Level</th><th>Columns</th><th class="l">Receives from</th>
                     <th class="l">How</th><th>Fan-in</th><th>Connections</th>
                     <th>Competes with</th><th class="l">Feedback from</th>
-                    <th>Shape sel.</th><th>Position sel.</th></tr>
+                    <th>Separation</th><th>Shape sel.</th><th>Position sel.</th></tr>
                 </thead>
                 <tbody>
                 @foreach ($detail['levels'] as $row)
@@ -139,8 +148,9 @@
                         <td class="muted">{{ number_format($row['connections']) }}</td>
                         <td>{{ $row['competitors'] }}</td>
                         <td class="l muted">{{ $row['feedback_from'] ?? '—' }}</td>
-                        <td>{{ number_format($level['shape_selectivity_max'] ?? 0, 3) }}</td>
-                        <td>{{ number_format($level['position_selectivity_max'] ?? 0, 3) }}</td>
+                        <td><strong>{{ number_format($level['separation_max'] ?? 0, 3) }}</strong></td>
+                        <td class="muted">{{ number_format($level['shape_selectivity_max'] ?? 0, 3) }}</td>
+                        <td class="muted">{{ number_format($level['position_selectivity_max'] ?? 0, 3) }}</td>
                     </tr>
                 @endforeach
                 </tbody>

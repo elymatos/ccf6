@@ -21,6 +21,11 @@ separates them in general. An experiment therefore presents a known Object and E
 visits its parts. `of_contrast` remains for the case where the question really is "look
 wherever there is structure", and it takes its threshold explicitly so that nobody
 acquires a segmenter by accident.
+
+A stop carries **what is at a position and how it was reached, and no magnitude**. The
+boundary drives at unit strength (ADR-0009): a separate strength channel was free to
+carry information the signal did not, and did — contrast varies with a figure's distance
+from the World frame, so it was smuggling position into every Space.
 """
 
 from __future__ import annotations
@@ -44,7 +49,6 @@ class Step:
 
     position: Position
     colour: int
-    contrast: float
     relation: Position | None
 
 
@@ -58,7 +62,6 @@ class Presentation:
     def over(cls, world: World, positions: list[Position], order: str) -> Presentation:
         """The core constructor: show these positions, in this declared order."""
         positions = visiting_order(order)(list(positions))
-        field = world.contrast()
         steps = []
         for index, position in enumerate(positions):
             previous = positions[index - 1] if index else None
@@ -66,7 +69,6 @@ class Presentation:
                 Step(
                     position=position,
                     colour=int(world.cells[position]),
-                    contrast=float(field[position]),
                     relation=None if previous is None else
                     (position[0] - previous[0], position[1] - previous[1]),
                 )
