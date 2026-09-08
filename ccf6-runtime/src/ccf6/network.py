@@ -140,7 +140,7 @@ class Network:
                 self.schema_state = self.schema.advance(self.schema_state, step.relation, p)
 
         if self.web is not None:
-            drive = self.thalamus.project(signals, step.contrast)
+            drive = self.thalamus.project(signals)
             for _ in range(ticks):
                 self.web.step(drive, p)
 

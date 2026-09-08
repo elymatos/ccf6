@@ -9,7 +9,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from ccf6 import params
+from ccf6 import figures, params
 from ccf6.space import Space, relax, transmit
 from ccf6.metrics import two_way_selectivity
 from ccf6.thalamus import LocalistColour, LocalForm, LocalistPosition, PopulationColour, Thalamus
@@ -22,9 +22,60 @@ def p():
 
 
 def test_a_uniform_world_produces_no_contrast(p):
-    """E5: a region with no internal relations registers as empty, by design."""
+    """Contrast still measures what it always measured — it is just no longer the input.
+
+    ADR-0009 moved it out of the encoding path; it remains available as analysis, and
+    the property that made it attractive should keep holding where it is used.
+    """
     world = World(8)
     assert world.contrast().max() == pytest.approx(0.0)
+
+
+def test_contrast_is_not_translation_invariant(p):
+    """ADR-0009: the reason contrast is not the input code.
+
+    Off-field neighbours count as not differing, so a figure touching the World's frame
+    scores lower than the same figure in the middle. The full-neighbourhood divisor
+    removed the border *inflation*, not the dependence on where the figure sits.
+    """
+    world = World(12)
+    shape = figures.named(["T"])[0]
+    signatures = set()
+    for i in range(12):
+        for j in range(12):
+            if not world.fits(shape, (i, j)):
+                continue
+            world.clear()
+            world.place_object(shape, (i, j))
+            field = world.contrast()
+            signatures.add(tuple(field[a, b] for a, b, _ in shape.cells_at((i, j))))
+    assert len(signatures) > 1
+
+
+def test_what_the_boundary_encodes_is_the_same_at_every_world_position(p):
+    """ADR-0004, asserted where it actually bites: on what reaches the Thalamus.
+
+    Not `.sum()` at two interior origins — that passed for the whole life of contrast
+    coding while the invariance was broken at the frame. Every fitting origin, per
+    Column, for every figure in the confusion set.
+    """
+    world = World(12)
+    encoder = LocalForm(radius=1)
+    for shape in figures.named(sorted(figures.FIGURES)):
+        encoded = set()
+        for i in range(12):
+            for j in range(12):
+                if not world.fits(shape, (i, j)):
+                    continue
+                world.clear()
+                world.place_object(shape, (i, j))
+                padded = world.foreground(1)
+                stops = tuple(
+                    tuple(encoder.encode(padded[a:a + 3, b:b + 3]))
+                    for a, b, _ in shape.cells_at((i, j))
+                )
+                encoded.add(stops)
+        assert len(encoded) == 1, f"{shape.name} encodes {len(encoded)} ways across origins"
 
 
 def test_a_single_coloured_cell_is_maximally_contrastive():
@@ -40,12 +91,10 @@ def test_object_structure_is_the_same_at_every_world_position():
     shape = Object("L", ((((0, 0)), 1), (((0, 1)), 1), (((1, 0)), 1)))
     assert shape.relations() == shape.relations()
 
-    world_a, world_b = World(8), World(8)
-    world_a.place_object(shape, (1, 1))
-    world_b.place_object(shape, (5, 4))
     # Identical structure, different World positions, identical relations.
     assert shape.relations() == Object("L", shape.parts).relations()
-    assert world_a.contrast().sum() == pytest.approx(world_b.contrast().sum())
+    # What the boundary makes of that placement is asserted separately, and per Column:
+    # see test_what_the_boundary_encodes_is_the_same_at_every_world_position.
 
 
 def test_relaxation_never_leaves_the_declared_bounds(p):
@@ -90,30 +139,30 @@ def test_swapping_the_colour_encoder_changes_nothing_downstream():
     localist = Thalamus({"colour": LocalistColour(8), "position": LocalistPosition(8)})
     population = Thalamus({"colour": PopulationColour(8, 32), "position": LocalistPosition(8)})
 
-    assert localist.project(signals, 1.0)["colour"].sum() == pytest.approx(1.0)
-    assert (localist.project(signals, 1.0)["colour"] > 0).sum() == 1
+    assert localist.project(signals)["colour"].sum() == pytest.approx(1.0)
+    assert (localist.project(signals)["colour"] > 0).sum() == 1
     # A population code spreads one value over many Columns; the interface is identical.
-    assert (population.project(signals, 1.0)["colour"] > 0.01).sum() > 1
+    assert (population.project(signals)["colour"] > 0.01).sum() > 1
     # Every other Space is untouched by the swap.
-    assert localist.project(signals, 1.0)["position"].tolist() == \
-           population.project(signals, 1.0)["position"].tolist()
+    assert localist.project(signals)["position"].tolist() == \
+           population.project(signals)["position"].tolist()
 
 
 def test_the_thalamus_carries_no_state_between_samples():
     """The moment the boundary remembers where it has been it has become the Schema."""
     thalamus = Thalamus({"colour": LocalistColour(8)})
-    first = thalamus.project({"colour": 3}, 1.0)["colour"]
-    thalamus.project({"colour": 5}, 1.0)
-    assert thalamus.project({"colour": 3}, 1.0)["colour"].tolist() == first.tolist()
+    first = thalamus.project({"colour": 3})["colour"]
+    thalamus.project({"colour": 5})
+    assert thalamus.project({"colour": 3})["colour"].tolist() == first.tolist()
 
 
 def test_a_form_encoder_reports_the_neighbourhood_it_was_given():
     """Local form is a sensory code: what is here, never where here is."""
     encoder = LocalForm(radius=1)
     patch = np.arange(9, dtype=float).reshape(3, 3) / 8.0
-    assert encoder.encode(patch, 1.0).tolist() == patch.ravel().tolist()
+    assert encoder.encode(patch).tolist() == patch.ravel().tolist()
     with pytest.raises(ValueError):
-        encoder.encode(np.zeros((5, 5)), 1.0)
+        encoder.encode(np.zeros((5, 5)))
 
 
 def test_the_confusion_set_shares_one_feature_bag():

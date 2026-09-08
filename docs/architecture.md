@@ -522,6 +522,12 @@ without it.
 
 ### 8.3 Contrast coding yields edges, not regions
 
+> **Superseded 2026-09-08 by ADR-0009.** The specification's answer was to remove
+> contrast from the input path rather than to state what happens to interiors: contrast
+> is not translation invariant at the World's frame, and it was also serving as drive
+> magnitude. The question below is moot at the boundary and returns unchanged wherever
+> local relations are later learned.
+
 If the boundary transmits how much a location differs from its surroundings — recording
 relations between things rather than the things themselves — then a solid region
 registers only at its outline, its interior being uniform and therefore silent.

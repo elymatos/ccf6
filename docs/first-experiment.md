@@ -229,3 +229,8 @@ Five problems surfaced. Four are fixed; one is open.
 
 Problem 5 is why the Hub scores essentially zero on colour. It is architectural rather
 than a coding mistake, and it needs a decision rather than a patch.
+
+**Resolved 2026-09-08 by ADR-0009.** The decision was to remove contrast from the input
+path entirely. The Thalamus now drives at unit strength, so there is no magnitude channel
+for position to travel in. Contrast turned out to be non-invariant as well as
+confusing — see `docs/journal/2026-09-08-contrast-removed-from-the-input-path.md`.
