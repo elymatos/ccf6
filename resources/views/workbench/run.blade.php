@@ -80,7 +80,7 @@
                     </div>
                     <figcaption><strong>World</strong><br>{{ $snapshot['colour'] }} at ({{ implode(',', $snapshot['position']) }})</figcaption>
                 </figure>
-                @foreach ($snapshot['areas'] as $area => $levels)
+                @foreach ($snapshot['spaces'] as $space => $levels)
                     @foreach ($levels as $level => $data)
                         <figure>
                             <canvas class="heat" data-snapshot="{{ $index }}" data-level="{{ $level }}"
@@ -105,8 +105,16 @@
             with</strong> is how many Columns inhibit it. Every number below was written by the code
             that built the connections, so it cannot drift from what actually ran.
         </p>
-        @foreach ($wiring['connectivity']['areas'] ?? [] as $area => $rows)
-            <h3 style="font-size:14px;margin:20px 0 8px"><code>{{ $area }}</code></h3>
+        @foreach ($spaces as $space => $detail)
+            <h3 style="font-size:14px;margin:20px 0 8px">
+                <code>{{ $space }}</code>
+                @if ($detail['cortical_area'])
+                    <span class="muted" style="font-weight:400">
+                        — {{ $detail['cortical_area'] }} cortex,
+                        {{ $detail['modality'] ?? 'no modality of its own' }}
+                    </span>
+                @endif
+            </h3>
             <table>
                 <thead>
                 <tr><th class="l">Level</th><th>Columns</th><th class="l">Receives from</th>
@@ -114,7 +122,7 @@
                     <th>Competes with</th><th class="l">Feedback from</th></tr>
                 </thead>
                 <tbody>
-                @foreach ($rows as $row)
+                @foreach ($detail['levels'] as $row)
                     <tr>
                         <td class="l"><code>{{ $row['level'] }}</code></td>
                         <td>{{ $row['columns'] }}</td>
@@ -190,7 +198,7 @@ function draw() {
     document.querySelectorAll('canvas.heat').forEach((canvas) => {
         const snapshot = SNAPSHOTS[+canvas.dataset.snapshot];
         const levelName = canvas.dataset.level;
-        const data = snapshot.areas[levelName.split('.')[0]][levelName];
+        const data = snapshot.spaces[levelName.split('.')[0]][levelName];
         const rows = data.shape[0], cols = data.shape[1];
         const ctx = canvas.getContext('2d');
         const image = ctx.createImageData(cols, rows);

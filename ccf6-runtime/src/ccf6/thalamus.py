@@ -3,7 +3,7 @@
 It converts one World signal into activation across many Columns of Level 1. Every
 encoder lives behind the same interface, so replacing a localist code with a
 population code changes this module and nothing downstream — which is the whole
-reason the Thalamus is a separate structure rather than wiring inside an Area.
+reason the Thalamus is a separate structure rather than wiring inside a Space.
 """
 
 from __future__ import annotations
@@ -81,7 +81,7 @@ ENCODERS = {
 
 
 class Thalamus:
-    """Holds one encoder per Area it projects to."""
+    """Holds one encoder per Space it projects to."""
 
     def __init__(self, colour: Encoder, position: Encoder):
         self.colour = colour
@@ -90,7 +90,7 @@ class Thalamus:
     def project(
         self, colour_index: int, position: tuple[int, int], strength: float
     ) -> dict[str, np.ndarray]:
-        """One sample of the World becomes drive for two Areas.
+        """One sample of the World becomes drive for two Spaces.
 
         `strength` is the contrast at that World position, so a cell that differs
         from nothing drives nothing.

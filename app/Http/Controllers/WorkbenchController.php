@@ -35,6 +35,7 @@ class WorkbenchController extends Controller
         abort_unless(File::isDirectory($dir), 404);
 
         $manifest = $this->manifest($dir);
+        $wiring = $this->json($dir.'/connectivity.json') ?? ['connectivity' => [], 'palette' => []];
         $view = ($manifest['kind'] ?? '') === 'position_representation'
             ? 'workbench.position'
             : 'workbench.run';
@@ -45,9 +46,42 @@ class WorkbenchController extends Controller
             'manifest' => $manifest,
             'definition' => $this->json($dir.'/definition.json') ?? [],
             'summary' => $this->json($dir.'/summary.json') ?? [],
-            'snapshots' => $this->json($dir.'/snapshots.json') ?? [],
-            'wiring' => $this->json($dir.'/connectivity.json') ?? ['connectivity' => [], 'palette' => []],
+            'snapshots' => $this->snapshots($this->json($dir.'/snapshots.json') ?? []),
+            'wiring' => $wiring,
+            'spaces' => $this->spaces($wiring),
         ]);
+    }
+
+    /**
+     * Every Space in a run, as name => [cortical_area, modality, levels].
+     *
+     * Runs written before "Area" was split into Space, Modality and Cortical Area
+     * carry an `areas` key holding the Level rows directly, and say nothing about
+     * siting. They are still readable, and what they never recorded is left null
+     * rather than guessed at.
+     */
+    private function spaces(array $wiring): array
+    {
+        $connectivity = $wiring['connectivity'] ?? [];
+
+        if (isset($connectivity['spaces'])) {
+            return $connectivity['spaces'];
+        }
+
+        return collect($connectivity['areas'] ?? [])
+            ->map(fn ($levels) => ['cortical_area' => null, 'modality' => null, 'levels' => $levels])
+            ->all();
+    }
+
+    /** Snapshots, with the pre-split `areas` key read as `spaces`. */
+    private function snapshots(array $snapshots): array
+    {
+        return array_map(function (array $snapshot) {
+            $snapshot['spaces'] ??= $snapshot['areas'] ?? [];
+            unset($snapshot['areas']);
+
+            return $snapshot;
+        }, $snapshots);
     }
 
     /** A document from docs/, rendered. The file on disk stays the source of truth. */

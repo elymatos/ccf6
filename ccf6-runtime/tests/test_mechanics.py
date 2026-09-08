@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 
 from ccf6 import params
-from ccf6.area import Area, relax, transmit
+from ccf6.space import Space, relax, transmit
 from ccf6.metrics import two_way_selectivity
 from ccf6.thalamus import LocalistColour, PopulationColour, Thalamus, LocalistPosition
 from ccf6.world import Object, World
@@ -74,12 +74,13 @@ def test_transmission_removes_the_activation_floor(p):
 
 def test_the_top_level_competes_globally_and_lower_levels_locally():
     """H2/G1: once convergence stops being spatial, competition cannot stay spatial."""
-    area = Area(
+    space = Space(
         "a", (8, 8), 3, 64,
+        cortical_area="parietal", modality="visual",
         local_levels=2, pooling=4, fanin=12, rng=np.random.default_rng(0),
     )
-    lower_neighbours = int((area.levels[0].w_lateral[0] > 0).sum())
-    top_neighbours = int((area.levels[-1].w_lateral[0] > 0).sum())
+    lower_neighbours = int((space.levels[0].w_lateral[0] > 0).sum())
+    top_neighbours = int((space.levels[-1].w_lateral[0] > 0).sum())
     assert lower_neighbours == 3          # corner Column of an 8-neighbourhood
     assert top_neighbours == 63           # every other Column at the top
 
@@ -108,6 +109,34 @@ def test_selectivity_separates_the_two_factors():
     assert position[0] == pytest.approx(0.0)
     assert position[1] == pytest.approx(1.0)
     assert colour[2] == pytest.approx(0.0) and position[2] == pytest.approx(0.0)
+
+
+def test_a_space_declares_where_it_sits_and_how_its_content_arrives():
+    """CONTEXT.md: Cortical Area and Modality are declared, and neither implies the other.
+
+    position and colour are both visual and sit in different Cortical Areas, so a Space
+    cannot infer one from the other and must be told both.
+    """
+    from ccf6.network import Architecture, Network
+    from ccf6.thalamus import LocalistColour, LocalistPosition
+
+    network = Network(Architecture(), Thalamus(LocalistColour(8), LocalistPosition(8)))
+    assert network.position.cortical_area == "parietal"
+    assert network.colour.cortical_area == "temporal"
+    # Two Spaces, one Modality: distinctness is a matter of dimension, not of channel.
+    assert network.position.modality == network.colour.modality == "visual"
+    # A Hub is fed by other Spaces rather than by the World, so no channel is its own.
+    assert network.hub.modality is None
+
+
+def test_a_space_outside_the_declared_anatomy_is_refused():
+    """An invented Cortical Area would look like a claim CCF6 has not made."""
+    with pytest.raises(ValueError):
+        Space("a", (2, 2), 1, 4, cortical_area="occipital", modality="visual",
+              local_levels=1, pooling=2, fanin=2, rng=np.random.default_rng(0))
+    with pytest.raises(ValueError):
+        Space("a", (2, 2), 1, 4, cortical_area="parietal", modality="olfactory",
+              local_levels=1, pooling=2, fanin=2, rng=np.random.default_rng(0))
 
 
 def test_an_unknown_parameter_is_refused():

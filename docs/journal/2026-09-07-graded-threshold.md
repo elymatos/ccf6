@@ -1,3 +1,10 @@
+> **Written before the vocabulary split.** "Area" throughout this entry means what
+> CCF6 now calls a **Space** — a stack of Levels over one conceptual dimension. "Area"
+> now survives only as **Cortical Area** (frontal, parietal, temporal), and **Modality**
+> (visual, auditory, tactile, motor, affective) names the channel that was never named
+> before. The entry is left in its original wording as the record of what was said at
+> the time; see CONTEXT.md for the current terms.
+
 > **Reverted on the same day.** The graded threshold made the network's behaviour worse
 > than the linear transfer it replaced, and it was removed from the code and the
 > documentation. `recurrent_gain` went back to 0.55. This entry is kept as the record of
