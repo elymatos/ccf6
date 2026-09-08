@@ -7,9 +7,15 @@ that the two source traditions are complementary halves rather than rival accoun
 document establishes *why*. This one proposes *what to build*.
 
 This is an architecture, not a specification. It fixes the structures, what each is
-responsible for, what each is forbidden to do, and how they exchange information. It
-does not fix representations, parameters, update equations, or an order of work. Names
-proposed here are candidates for discussion, not settled terms.
+responsible for, what each is forbidden to do, how they exchange information, and the
+constraints any realization must satisfy. It does not fix representations, parameters,
+update equations, or an order of work. Names proposed here are candidates for
+discussion, not settled terms.
+
+§6 works one task — recognizing a letter — through the whole architecture. It is
+included because it discriminates between the two halves rather than merely illustrating
+them, and because a specification written without it would under-specify exactly the
+parts that carry the argument.
 
 ---
 
@@ -78,7 +84,7 @@ specific experience the system has, which is exactly backwards.
 
 Splitting the store lets particulars be written fast and cheap somewhere that does not
 own the categories, and lets abstraction proceed slowly over many particulars. The cost
-is that the two must be kept in correspondence, which is what §4 is about.
+is that the two must be kept in correspondence, which is what §3.4 is about.
 
 ### 2.3 The two generalizations are different operations
 
@@ -337,7 +343,120 @@ rather than a feedforward classifier.
 
 ---
 
-## 6. What each structure is forbidden to do
+## 6. A worked example: the letter T
+
+A concrete task, traced through the structures. It is included here rather than left to
+a task document because it discriminates between the two halves of the architecture, and
+a specification that did not anticipate it would under-specify the parts that matter.
+
+### 6.1 Why this example rather than an easier one
+
+Take recognizing the letter **T**, presented somewhere in a two-dimensional field, and
+required to be recognized in a field never seen before.
+
+The discriminating power is not in the T. It is in the confusion set:
+
+```text
+    T        ⊥        ⊢        ⊣
+```
+
+All four have an **identical feature bag**: one horizontal stroke, one vertical stroke,
+one junction. They differ only in the arrangement. A structure that abstracts over
+co-occurring features therefore sees the same bundle four times, and **convergence alone
+cannot separate them**.
+
+This is §10's first prediction instantiated in a case where the concept is object-like —
+a letter, a noun, something one would expect to be featurally individuated — and turns
+out to be **relationally individuated** instead. Had the task been T against O, both
+mechanisms would succeed and the result would say nothing about which was operating.
+
+**The confusion set is the experiment; the letter is only the stimulus.** A specification
+should treat the set as part of the task definition, not as an evaluation detail.
+
+### 6.2 The task traced through the structures
+
+| Structure | Contribution |
+| --- | --- |
+| **Web** | Recruits the parts: oriented stroke segments, terminations, junctions. Convergence over local contrast yields "vertical stroke", "horizontal stroke". |
+| **Schema** | Relations between successively sampled parts advance its state. The figure occupies a small set of Schema positions. |
+| **Index** | Binds one part to one Schema position: this stroke, here; that stroke, there. |
+| **Recruitment** | The binding pattern recurs across presentations and is promoted. |
+
+### 6.3 Promotion goes to both destinations, and that is the demonstration
+
+The example exercises §3.4 directly, because what recurs decomposes into two things
+promoted to two places.
+
+- The **arrangement** — a bar across the top of a stem — is promoted into the
+  **Schema**. It is reusable and material-independent: the same arrangement made of
+  cells, of dots, or of people standing in a field is the same arrangement.
+- The **letter** — named, pronounced, participating in words — is promoted into the
+  **Web** as a concept with a Cardinal Node.
+
+The recruited Schema structure then becomes available as content in the Web, which is
+the loop closing on a single worked case. This is the clearest available demonstration of
+the architecture's central mechanism, and a specification should make it observable
+rather than merely possible: it must be possible to ask, after training, *which*
+structure a recruited unit was promoted into.
+
+### 6.4 The invariances are three different problems
+
+They are routinely named together and must not be specified together.
+
+| Invariance | Status | Reason |
+| --- | --- | --- |
+| **Translation** | Free | Part-relative structure carries no origin, so offsets between parts do not change when the figure moves. This follows from the standing commitment that structure is stored part-relative (ADR-0004). |
+| **Scale** | Not free, and wanted | Scaling multiplies every offset by a constant, so a naive relational code sees a different arrangement. Requires offsets represented up to a scale factor, or convergence over scales. |
+| **Rotation** | Not free, and **must be excluded** | See below. |
+
+**Rotation invariance is not a hard requirement to postpone — it is a contradiction.**
+Look at the confusion set again: **⊥ is T rotated 180°, and ⊢ is T rotated 90°.** A system
+invariant to rotation cannot distinguish them, because under that invariance they are the
+same object. Demanding rotation invariance makes the alphabet unlearnable.
+
+This is not a quirk of the letter T. Written character recognition is deliberately
+neither rotation- nor mirror-invariant — b/d, p/q, M/W, N/Z — and mirror invariance is
+the *default* in ventral visual processing, since a mirrored physical object is normally
+the same object. Literacy has to break it.
+
+So the task's honest statement is **translation- and scale-invariant,
+rotation-variant**, and the exclusion is evidence for the architecture rather than a
+concession: if a figure's identity *is* its arrangement, then changing the arrangement
+must change the concept.
+
+A specification should therefore state invariances as a **signed list** — which
+transformations must preserve identity and which must destroy it — rather than as a set
+of invariances to maximize.
+
+### 6.5 Failure modes the specification must design against
+
+Three ways this task can be passed while demonstrating nothing.
+
+1. **Memorization presented as generalization.** Training on every position and
+   evaluating on those positions learns a lookup table. Positions and scales must be
+   held out, and the specification must say which.
+2. **The local-feature shortcut.** An orientation-tuned junction detector separates T
+   from ⊥ using one local feature and demonstrates nothing relational. The defence is
+   scale: strokes long enough that no single receptive field spans the junction and both
+   terminations, plus evaluation at an unseen scale — a detector tuned to one junction
+   size will not transfer, a relational code will.
+3. **Reporting the wrong generalization.** The architecture claims two (§2.3), and a
+   readout that cannot separate them will report structural transfer when only taxonomic
+   abstraction occurred. Factorial designs varying shape against position, and shape
+   against scale, are the minimum.
+
+### 6.6 Two further tests the example makes cheap
+
+- **Content-blindness of the Schema.** Learn the figure in one colour; present it in
+  another. If the arrangement is stored content-blind as §3.2 requires, the colour must
+  not matter. This tests a prohibition directly and costs one extra condition.
+- **Completion.** Present two thirds of the figure. Whether it completes is the
+  difference between a classifier and the bidirectional Web §3.1 requires, and it is
+  §10's third prediction on the smallest possible stimulus.
+
+---
+
+## 7. What each structure is forbidden to do
 
 Boundary conditions. These are the claims that make the architecture falsifiable, since
 each one predicts a specific failure if violated.
@@ -357,11 +476,69 @@ independently of everything downstream is lost.
 
 ---
 
-## 7. Trying answers to the open questions
+## 8. Constraints on any realization
+
+Three constraints that are not free parameters. They follow from the architecture rather
+than from any particular way of building it, and a specification that leaves them open
+will produce something unrunnable.
+
+### 8.1 Connectivity must be sparse
+
+The populations the architecture needs are large enough that all-to-all connectivity is
+not merely wasteful but infeasible. A two-dimensional field of 64×64 gives roughly four
+thousand units per Level, and a dense connection matrix between two such Levels is on the
+order of sixteen million weights — hundreds of megabytes for one matrix, several
+gigabytes for a network with a few Levels and a few structures.
+
+This is a **specification-level constraint, not an optimization to apply later**, because
+it changes what has to be decided: fan-in becomes an explicit design quantity, and the
+rule that chooses which units connect becomes part of the architecture rather than an
+implementation convenience.
+
+It is also required on its own terms. Convergence is only meaningful when a unit draws
+from a limited subset — a unit that sees everything below it is identical to every other
+such unit and distinguishes nothing. Separation in the Index likewise depends on sparse,
+low-overlap connectivity. Density would defeat both structures independently of cost.
+
+### 8.2 The boundary must present multi-part figures
+
+An arrangement cannot be learned from a stimulus that has no parts. If the boundary
+delivers one location per step, the Schema has nothing to integrate over and the Index
+has nothing to bind, and the entire structural half of the architecture is unreachable
+regardless of what learning rule is installed.
+
+The specification must therefore fix:
+
+- how a figure with several parts is presented — as a sequence of samples, as a
+  simultaneous field, or both;
+- what **Ego** is as a mechanism, since sampling from somewhere is what generates the
+  offsets the Schema consumes;
+- how a **Relation** is obtained between successive samples, honouring the standing
+  decision that relations are **given** by geometry before they are **enacted** by
+  movement (ADR-0003).
+
+This is the most basic prerequisite in the document. Everything in §6 is unreachable
+without it.
+
+### 8.3 Contrast coding yields edges, not regions
+
+If the boundary transmits how much a location differs from its surroundings — recording
+relations between things rather than the things themselves — then a solid region
+registers only at its outline, its interior being uniform and therefore silent.
+
+For thin-stroke figures this is close to ideal, and the worked example in §6 benefits
+from it. For solid figures the specification must say what is intended: that interiors
+are legitimately invisible, or that some further mechanism fills them. Leaving it
+unstated will produce a system that appears to fail on filled shapes for reasons that
+were designed in.
+
+---
+
+## 9. Trying answers to the open questions
 
 The predecessor document left four open. Positions, not decisions.
 
-### 7.1 Names
+### 9.1 Names
 
 The framework already uses **map** for nothing, deliberately, because it names two
 incompatible things across the traditions. New words are needed rather than a winner
@@ -384,7 +561,7 @@ saying so in the glossary is stronger than dodging the term.
 **Frame** should probably be rejected outright: it collides with two large existing
 literatures at once and would import more than it names.
 
-### 7.2 Where the population-level codes attach
+### 9.2 Where the population-level codes attach
 
 Answered in §4. The substantive commitment is that the content code is a Cardinal's
 activation rather than a sensory vector. A structural code supplied by an encoder — a
@@ -393,7 +570,7 @@ code at all, and it passes the path-consistency test vacuously, which means the 
 cannot discriminate. Whatever carries the structural code must be *updated by Relations*
 or it is not doing the job.
 
-### 7.3 Two structures, two settings, or two rates?
+### 9.3 Two structures, two settings, or two rates?
 
 **Two structures.** The argument in §2.1 is that the pressures are contradictory rather
 than merely different, so a single population under a compromise setting fails both
@@ -404,7 +581,7 @@ A weaker version is worth keeping available for testing: one population with two
 and a sparsity schedule. If that turns out to work, the architecture is wrong in an
 interesting way, and it is cheap to find out.
 
-### 7.4 Recruitment versus gradient
+### 9.4 Recruitment versus gradient
 
 The framework's standing commitment is to local learning rules. The structural tradition
 reaches its representations by global optimization over many environments. The gap
@@ -429,7 +606,7 @@ connectivity to be interpretable at all.
 
 ---
 
-## 8. Predictions
+## 10. Predictions
 
 If the architecture is right, these should hold. They are listed because they are the
 places it can be caught being wrong.
@@ -457,7 +634,7 @@ places it can be caught being wrong.
 
 ---
 
-## 9. What the specification must settle
+## 11. What the specification must settle
 
 Points to carry forward. The architecture deliberately leaves all of these open.
 
@@ -482,11 +659,25 @@ Points to carry forward. The architecture deliberately leaves all of these open.
     transition evidence are combined.
 12. What the encoding boundary produces, and how a change there is shown to leave
     everything downstream untouched.
+13. How a multi-part figure is presented, what Ego is as a mechanism, and how offsets
+    between successive samples are obtained (§8.2).
+14. What happens to the interior of a solid figure under contrast coding (§8.3).
+
+**Realization**
+15. The fan-in rule and the sparsity of every connection class, as design quantities
+    rather than tuning parameters (§8.1).
+16. The size of the field, and how the choice interacts with 15.
 
 **Measurement**
-13. The unlearned baseline each learning claim must beat.
-14. Readouts that distinguish the two generalizations, so structural transfer is not
+17. The unlearned baseline each learning claim must beat.
+18. Readouts that distinguish the two generalizations, so structural transfer is not
     reported when only taxonomic abstraction occurred.
-15. Lesion protocol for prediction 2.
-16. The smallest experiment that discriminates this architecture from a single-system
-    alternative — which, given §7.3, is the first thing worth building.
+19. Lesion protocol for prediction 2.
+20. Invariances stated as a **signed list** — which transformations must preserve
+    identity, and which must destroy it (§6.4).
+21. Held-out positions and scales, and the unseen-scale evaluation that defeats a
+    local-feature shortcut (§6.5).
+22. How to determine, after training, which structure a recruited unit was promoted
+    into (§6.3).
+23. The smallest experiment that discriminates this architecture from a single-system
+    alternative — which, given §9.3, is the first thing worth building.
