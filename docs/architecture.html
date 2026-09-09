@@ -1021,8 +1021,8 @@
 
         <rect x="628" y="118" width="152" height="62" rx="5" fill="var(--paper)" stroke="var(--rule-2)" stroke-width="1.4"/>
         <text x="642" y="138" class="svg-label" fill="var(--ink)">metrics.py</text>
-        <text x="642" y="155" class="svg-small" fill="var(--ink-2)">two-way selectivity,</text>
-        <text x="642" y="168" class="svg-small" fill="var(--ink-2)">figure separation</text>
+        <text x="642" y="155" class="svg-small" fill="var(--ink-2)">per-Column, population</text>
+        <text x="642" y="168" class="svg-small" fill="var(--ink-2)">and traversal readouts</text>
 
         <rect x="628" y="192" width="152" height="62" rx="5" fill="var(--paper)" stroke="var(--rule-2)" stroke-width="1.4"/>
         <text x="642" y="212" class="svg-label" fill="var(--ink)">serve.py</text>
@@ -1054,7 +1054,7 @@
     </svg>
     </div>
     <figcaption>
-      <b>Figure 6.</b> The runtime, about 2,000 lines of Python. Solid boxes are structures
+      <b>Figure 6.</b> The runtime, about 2,400 lines of Python. Solid boxes are structures
       of the architecture; dashed boxes are the machinery that makes a run declarable and
       reproducible. What is not built is as much part of the picture as what is.
     </figcaption>
@@ -1087,7 +1087,7 @@
     size: int
     def encode(self, value) -&gt; np.ndarray: ...
 
-Thalamus.project({"colour": 1, "shape": patch}) → {"colour": vec(64), "shape": vec(9)}</pre>
+Thalamus.project({"colour": 1, "shape": window}) → {"colour": vec(64), "shape": vec(25)}</pre>
   <p>
     That narrow interface is the whole reason it is a separate structure rather than
     wiring inside a Space: swapping a localist code for a population code changes this
@@ -1106,27 +1106,27 @@ Thalamus.project({"colour": 1, "shape": patch}) → {"colour": vec(64), "shape":
 
       <rect x="20" y="56" width="380" height="152" rx="6" fill="var(--web-soft)" stroke="var(--web)" stroke-width="1.6"/>
       <text x="36" y="78" class="svg-label" fill="var(--web)">local_shape · LocalShape</text>
-      <text x="36" y="96" class="svg-small" fill="var(--ink-2)">the 3×3 neighbourhood at the stop,</text>
-      <text x="36" y="110" class="svg-small" fill="var(--ink-2)">as a foreground mask</text>
-      <text x="36" y="128" class="svg-small" fill="var(--ink-2)">one Column per cell → <tspan class="svg-mono" font-weight="700">size 9</tspan></text>
+      <text x="36" y="96" class="svg-small" fill="var(--ink-2)">the 5×5 neighbourhood at the stop, graded</text>
+      <text x="36" y="110" class="svg-small" fill="var(--ink-2)">by eccentricity: 1.0 · 0.6 · 0.2 by ring</text>
+      <text x="36" y="128" class="svg-small" fill="var(--ink-2)">one value per cell → <tspan class="svg-mono" font-weight="700">size 25</tspan></text>
       <text x="36" y="142" class="svg-small" fill="var(--web)" font-weight="600">wired in 004</text>
-      <g transform="translate(316,84)">
-        <rect x="0" y="0" width="66" height="66" fill="var(--paper)" stroke="var(--rule-2)"/>
-        <path d="M22 0 v66 M44 0 v66 M0 22 h66 M0 44 h66" stroke="var(--rule)" stroke-width=".75"/>
-        <rect x="0" y="22" width="22" height="22" fill="var(--ink)" opacity=".85"/>
-        <rect x="22" y="22" width="22" height="22" fill="var(--ink)" opacity=".85"/>
-        <rect x="44" y="22" width="22" height="22" fill="var(--ink)" opacity=".85"/>
-        <rect x="22" y="44" width="22" height="22" fill="var(--ink)" opacity=".85"/>
-        <text x="33" y="82" text-anchor="middle" class="svg-small" fill="var(--ink-3)">a junction</text>
+      <g transform="translate(300,78)">
+        <rect x="0" y="0" width="80" height="80" fill="var(--paper)" stroke="var(--rule-2)"/>
+        <rect x="0" y="0" width="80" height="80" fill="var(--web)" opacity=".18"/>
+        <rect x="16" y="16" width="48" height="48" fill="var(--web)" opacity=".45"/>
+        <rect x="32" y="32" width="16" height="16" fill="var(--web)"/>
+        <path d="M16 0 v80 M32 0 v80 M48 0 v80 M64 0 v80 M0 16 h80 M0 32 h80 M0 48 h80 M0 64 h80"
+              stroke="var(--rule)" stroke-width=".6"/>
+        <text x="40" y="94" text-anchor="middle" class="svg-small" fill="var(--ink-3)">1.0 / 0.6 / 0.2</text>
       </g>
-      <text x="36" y="166" class="svg-small" fill="var(--ink-3)">It says what is here, never where here is.</text>
-      <text x="36" y="180" class="svg-small" fill="var(--ink-3)">Also where the local-feature shortcut enters,</text>
-      <text x="36" y="194" class="svg-small" fill="var(--ink-3)">deliberately: the shortcut is a number, not a worry.</text>
+      <text x="36" y="166" class="svg-small" fill="var(--ink-3)">Ego is focused somewhere, and the rest of what is in</text>
+      <text x="36" y="180" class="svg-small" fill="var(--ink-3)">view is not silent. Ego-centric and padded, so the same</text>
+      <text x="36" y="194" class="svg-small" fill="var(--ink-3)">figure at any origin encodes identically.</text>
 
       <rect x="420" y="56" width="360" height="152" rx="6" fill="var(--web-soft)" stroke="var(--web)" stroke-width="1.6"/>
       <text x="436" y="78" class="svg-label" fill="var(--web)">population_colour · PopulationColour</text>
       <text x="436" y="96" class="svg-small" fill="var(--ink-2)">colours as overlapping Gaussian bumps on a ring</text>
-      <text x="436" y="114" class="svg-small" fill="var(--ink-2)">8 colours over <tspan class="svg-mono" font-weight="700">size 64</tspan> Columns, tuning width 1.2</text>
+      <text x="436" y="114" class="svg-small" fill="var(--ink-2)">8 colours over <tspan class="svg-mono" font-weight="700">size 64</tspan> values, tuning width 1.2</text>
       <text x="436" y="128" class="svg-small" fill="var(--web)" font-weight="600">wired in 004</text>
       <g transform="translate(436,140)">
         <path d="M0 30 h324" stroke="var(--rule-2)" stroke-width="1"/>
@@ -1139,7 +1139,7 @@ Thalamus.project({"colour": 1, "shape": patch}) → {"colour": vec(64), "shape":
 
       <rect x="20" y="224" width="380" height="130" rx="6" fill="var(--paper)" stroke="var(--rule-2)" stroke-width="1.4" stroke-dasharray="5 3"/>
       <text x="36" y="246" class="svg-label" fill="var(--ink-2)">localist_colour · LocalistColour</text>
-      <text x="36" y="264" class="svg-small" fill="var(--ink-2)">one Column per colour, <tspan class="svg-mono">size 8</tspan></text>
+      <text x="36" y="264" class="svg-small" fill="var(--ink-2)">one value per colour, <tspan class="svg-mono">size 8</tspan></text>
       <text x="36" y="278" class="svg-small" fill="var(--ink-3)">available, not used in 004</text>
       <g transform="translate(36,290)">
         <rect x="0" y="0" width="20" height="20" fill="var(--paper-2)" stroke="var(--rule-2)"/>
@@ -1147,13 +1147,13 @@ Thalamus.project({"colour": 1, "shape": patch}) → {"colour": vec(64), "shape":
         <rect x="44" y="0" width="20" height="20" fill="var(--web)"/>
         <rect x="66" y="0" width="20" height="20" fill="var(--paper-2)" stroke="var(--rule-2)"/>
         <rect x="88" y="0" width="20" height="20" fill="var(--paper-2)" stroke="var(--rule-2)"/>
-        <text x="120" y="14" class="svg-small" fill="var(--ink-3)">colour 3 is Column 3 firing</text>
+        <text x="120" y="14" class="svg-small" fill="var(--ink-3)">colour 3 is value 3 alone</text>
       </g>
       <text x="36" y="342" class="svg-small" fill="var(--ink-3)">Installs no similarity between colours, keeping it findable.</text>
 
       <rect x="420" y="224" width="360" height="130" rx="6" fill="var(--paper)" stroke="var(--rule-2)" stroke-width="1.4" stroke-dasharray="5 3"/>
       <text x="436" y="246" class="svg-label" fill="var(--ink-2)">localist_position · LocalistPosition</text>
-      <text x="436" y="264" class="svg-small" fill="var(--ink-2)">one Column per World position, <tspan class="svg-mono">size 144</tspan></text>
+      <text x="436" y="264" class="svg-small" fill="var(--ink-2)">one value per World position, <tspan class="svg-mono">size 144</tspan></text>
       <text x="436" y="278" class="svg-small" fill="var(--ink-3)">available, not used in 004</text>
       <text x="436" y="300" class="svg-small" fill="var(--warn)" font-weight="600">Emphatically not the structural code.</text>
       <text x="436" y="316" class="svg-small" fill="var(--ink-3)">A coordinate handed over rather than integrated over a</text>
@@ -1323,92 +1323,94 @@ Thalamus.project({"colour": 1, "shape": patch}) → {"colour": vec(64), "shape":
   <p>
     A recurring source of confusion, so it is worth stating flatly: <b>the World's grid
     and a Space's Grid are different populations with different sizes, and neither is a
-    picture of the other.</b> The World is 12×12 and holds no Columns at all. A Space's
-    Grid is sized by whatever feeds it — its encoder, or the Spaces below it — and its
-    two-dimensional shape exists for one mechanical reason, that lateral competition is
-    defined over grid neighbourhood. Only the shape Space's 3×3 happens to correspond to
-    anything spatial, and only because its encoder is a 3×3 patch.
+    picture of the other.</b> The World is 12×12 and holds no Columns at all. Every Space
+    is <b>64×64 at every Level, declared rather than inferred</b> — its width no longer
+    follows from whatever feeds it — and its two-dimensional shape exists for two
+    mechanical reasons: lateral competition is defined over grid neighbourhood, and the
+    cluster that competition runs inside is a block of that grid.
+  </p>
+  <p>
+    One consequence is worth naming, because it changes what a Level 1 Column
+    <em>is</em>. Since the Grid no longer matches the encoder, Level 1 cannot be a copy
+    of the boundary; it is a <b>sparse expansion</b> of it, 4096 Columns each drawing 4
+    of the encoder's outputs at random. So there are no raw-sensory Columns inside a
+    Space any more. The unconjoined sensory values exist only in the Thalamus's output
+    vector, and every Column in every Space is already a conjunction of something.
   </p>
 
   <figure>
     <div class="plate">
-    <svg viewBox="0 0 800 302" role="img" aria-label="The World grid, the Space grids and the Schema modules, drawn at their real relative sizes">
+    <svg viewBox="0 0 800 336" role="img" aria-label="The World grid, the Space grids and the Schema modules, drawn at their real relative sizes">
       <text x="20" y="22" class="svg-title" fill="var(--ink-3)">EVERY GRID IN EXPERIMENT 004, TO SCALE</text>
 
       <g transform="translate(20,44)">
-        <rect x="0" y="0" width="132" height="132" fill="var(--world-soft)" stroke="var(--world)" stroke-width="1.4"/>
-        <g stroke="var(--rule-2)" stroke-width=".6" opacity=".7">
-          <path d="M11 0 v132 M22 0 v132 M33 0 v132 M44 0 v132 M55 0 v132 M66 0 v132 M77 0 v132 M88 0 v132 M99 0 v132 M110 0 v132 M121 0 v132"/>
-          <path d="M0 11 h132 M0 22 h132 M0 33 h132 M0 44 h132 M0 55 h132 M0 66 h132 M0 77 h132 M0 88 h132 M0 99 h132 M0 110 h132 M0 121 h132"/>
+        <rect x="0" y="0" width="36" height="36" fill="var(--world-soft)" stroke="var(--world)" stroke-width="1.2"/>
+        <g stroke="var(--rule-2)" stroke-width=".4" opacity=".7">
+          <path d="M3 0 v36 M6 0 v36 M9 0 v36 M12 0 v36 M15 0 v36 M18 0 v36 M21 0 v36 M24 0 v36 M27 0 v36 M30 0 v36 M33 0 v36"/>
+          <path d="M0 3 h36 M0 6 h36 M0 9 h36 M0 12 h36 M0 15 h36 M0 18 h36 M0 21 h36 M0 24 h36 M0 27 h36 M0 30 h36 M0 33 h36"/>
         </g>
-        <g fill="var(--ink)" opacity=".8">
-          <rect x="33" y="44" width="11" height="11"/><rect x="44" y="44" width="11" height="11"/>
-          <rect x="55" y="44" width="11" height="11"/><rect x="66" y="44" width="11" height="11"/>
-          <rect x="77" y="44" width="11" height="11"/>
-          <rect x="55" y="55" width="11" height="11"/><rect x="55" y="66" width="11" height="11"/>
+        <g fill="var(--ink)" opacity=".85">
+          <rect x="9" y="12" width="3" height="3"/><rect x="12" y="12" width="3" height="3"/>
+          <rect x="15" y="12" width="3" height="3"/><rect x="18" y="12" width="3" height="3"/>
+          <rect x="21" y="12" width="3" height="3"/>
+          <rect x="15" y="15" width="3" height="3"/><rect x="15" y="18" width="3" height="3"/>
         </g>
-        <text x="66" y="150" text-anchor="middle" class="svg-label" fill="var(--ink)">World · 12 × 12</text>
-        <text x="66" y="165" text-anchor="middle" class="svg-small" fill="var(--ink-3)">144 positions, 0 Columns</text>
-        <text x="66" y="179" text-anchor="middle" class="svg-small" fill="var(--ink-3)">64 origins fit all four figures</text>
+        <text x="18" y="54" text-anchor="middle" class="svg-label" fill="var(--ink)">World</text>
+        <text x="18" y="68" text-anchor="middle" class="svg-label" fill="var(--ink)">12 × 12</text>
+        <text x="18" y="86" text-anchor="middle" class="svg-small" fill="var(--ink-3)">144 positions,</text>
+        <text x="18" y="98" text-anchor="middle" class="svg-small" fill="var(--ink-3)">0 Columns</text>
       </g>
 
-      <line x1="186" y1="40" x2="186" y2="226" stroke="var(--rule)"/>
+      <line x1="92" y1="40" x2="92" y2="268" stroke="var(--rule)"/>
 
-      <g transform="translate(214,44)">
-        <rect x="0" y="0" width="88" height="88" fill="var(--web-soft)" stroke="var(--web)" stroke-width="1.4"/>
-        <g stroke="var(--rule-2)" stroke-width=".6" opacity=".7">
-          <path d="M11 0 v88 M22 0 v88 M33 0 v88 M44 0 v88 M55 0 v88 M66 0 v88 M77 0 v88"/>
-          <path d="M0 11 h88 M0 22 h88 M0 33 h88 M0 44 h88 M0 55 h88 M0 66 h88 M0 77 h88"/>
+      <g transform="translate(120,44)">
+        <rect x="0" y="0" width="192" height="192" fill="var(--web-soft)" stroke="var(--web)" stroke-width="1.5"/>
+        <g stroke="var(--web)" stroke-width=".9" opacity=".55">
+          <path d="M24 0 v192 M48 0 v192 M72 0 v192 M96 0 v192 M120 0 v192 M144 0 v192 M168 0 v192"/>
+          <path d="M0 24 h192 M0 48 h192 M0 72 h192 M0 96 h192 M0 120 h192 M0 144 h192 M0 168 h192"/>
         </g>
-        <text x="44" y="106" text-anchor="middle" class="svg-label" fill="var(--web)">colour · 8 × 8</text>
-        <text x="44" y="121" text-anchor="middle" class="svg-small" fill="var(--ink-3)">64 Columns per Level</text>
-        <text x="44" y="135" text-anchor="middle" class="svg-small" fill="var(--ink-3)">× 3 Levels = 192</text>
-        <text x="44" y="153" text-anchor="middle" class="svg-small" fill="var(--ink-2)">sized by its encoder</text>
+        <rect x="24" y="48" width="24" height="24" fill="var(--web)" opacity=".45"/>
+        <text x="96" y="212" text-anchor="middle" class="svg-label" fill="var(--web)">any Space · 64 × 64</text>
+        <text x="96" y="228" text-anchor="middle" class="svg-small" fill="var(--ink-2)">4096 Columns per Level · the grid drawn is the 8×8 clusters, one shaded</text>
       </g>
 
-      <g transform="translate(330,44)">
-        <rect x="0" y="0" width="33" height="33" fill="var(--web-soft)" stroke="var(--web)" stroke-width="1.4"/>
-        <g stroke="var(--rule-2)" stroke-width=".6" opacity=".7"><path d="M11 0 v33 M22 0 v33 M0 11 h33 M0 22 h33"/></g>
-        <text x="16" y="51" text-anchor="middle" class="svg-label" fill="var(--web)">shape</text>
-        <text x="16" y="65" text-anchor="middle" class="svg-label" fill="var(--web)">3 × 3</text>
-        <text x="16" y="82" text-anchor="middle" class="svg-small" fill="var(--ink-3)">9 per Level</text>
-        <text x="16" y="96" text-anchor="middle" class="svg-small" fill="var(--ink-3)">× 3 = 27</text>
+      <g transform="translate(340,52)">
+        <text x="0" y="10" class="svg-label" fill="var(--ink)">colour</text>
+        <text x="0" y="26" class="svg-small" fill="var(--ink-2)">3 Levels · 12 288 Columns</text>
+        <text x="0" y="40" class="svg-small" fill="var(--ink-3)">fed by 64 encoder values</text>
+
+        <text x="0" y="70" class="svg-label" fill="var(--ink)">shape</text>
+        <text x="0" y="86" class="svg-small" fill="var(--ink-2)">3 Levels · 12 288 Columns</text>
+        <text x="0" y="100" class="svg-small" fill="var(--ink-3)">fed by 25 encoder values</text>
+
+        <text x="0" y="130" class="svg-label" fill="var(--ink)">convergence — the Hub</text>
+        <text x="0" y="146" class="svg-small" fill="var(--ink-2)">2 Levels · 8192 Columns</text>
+        <text x="0" y="160" class="svg-small" fill="var(--ink-3)">fed by 4096 + 4096 tops</text>
+        <text x="0" y="182" class="svg-small" fill="var(--warn)">half of that fan-in is the silent colour Space</text>
       </g>
 
-      <g transform="translate(400,44)">
-        <rect x="0" y="0" width="99" height="99" fill="var(--web-soft)" stroke="var(--web)" stroke-width="1.4"/>
-        <g stroke="var(--rule-2)" stroke-width=".6" opacity=".7">
-          <path d="M11 0 v99 M22 0 v99 M33 0 v99 M44 0 v99 M55 0 v99 M66 0 v99 M77 0 v99 M88 0 v99"/>
-          <path d="M0 11 h99 M0 22 h99 M0 33 h99 M0 44 h99 M0 55 h99 M0 66 h99 M0 77 h99 M0 88 h99"/>
-        </g>
-        <text x="49" y="117" text-anchor="middle" class="svg-label" fill="var(--web)">convergence · 9 × 9</text>
-        <text x="49" y="132" text-anchor="middle" class="svg-small" fill="var(--ink-3)">81 Columns per Level</text>
-        <text x="49" y="146" text-anchor="middle" class="svg-small" fill="var(--ink-3)">× 2 Levels = 162</text>
-        <text x="49" y="164" text-anchor="middle" class="svg-small" fill="var(--ink-2)">sized by 64 + 9 = 73 sources</text>
-      </g>
+      <line x1="596" y1="40" x2="596" y2="268" stroke="var(--rule)"/>
 
-      <line x1="530" y1="40" x2="530" y2="226" stroke="var(--rule)"/>
-
-      <g transform="translate(556,44)">
+      <g transform="translate(620,60)">
         <rect x="0" y="66" width="33" height="33" fill="none" stroke="var(--schema)" stroke-width="1.4"/>
         <rect x="44" y="55" width="44" height="44" fill="none" stroke="var(--schema)" stroke-width="1.4"/>
         <rect x="99" y="44" width="55" height="55" fill="none" stroke="var(--schema)" stroke-width="1.4"/>
         <text x="77" y="121" text-anchor="middle" class="svg-label" fill="var(--schema)">Schema · 3² + 4² + 5²</text>
         <text x="77" y="136" text-anchor="middle" class="svg-small" fill="var(--ink-3)">50 Columns, capacity 60</text>
-        <text x="77" y="154" text-anchor="middle" class="svg-small" fill="var(--ink-2)">not a Space, and not a Grid over</text>
-        <text x="77" y="168" text-anchor="middle" class="svg-small" fill="var(--ink-2)">the World: phases on a torus</text>
+        <text x="77" y="154" text-anchor="middle" class="svg-small" fill="var(--ink-2)">not a Space, and not a Grid</text>
+        <text x="77" y="168" text-anchor="middle" class="svg-small" fill="var(--ink-2)">over the World: phases on a torus</text>
       </g>
 
-      <rect x="20" y="236" width="760" height="46" rx="5" fill="var(--paper)" stroke="var(--rule-2)" stroke-dasharray="5 3"/>
-      <text x="36" y="256" class="svg-small" fill="var(--ink-2)"><tspan font-weight="700">381 Columns in the Web</tspan> (192 + 27 + 162), 50 in the Schema. The Index binds a content vector of 81 to a Schema state of 50.</text>
-      <text x="36" y="272" class="svg-small" fill="var(--ink-3)">The figure spans 3 × 5 World cells; the shape encoder sees 3 × 3 of them at a time. Neither number sets any Space&#8217;s Grid but shape&#8217;s.</text>
+      <rect x="20" y="278" width="760" height="46" rx="5" fill="var(--paper)" stroke="var(--rule-2)" stroke-dasharray="5 3"/>
+      <text x="36" y="298" class="svg-small" fill="var(--ink-2)"><tspan font-weight="700">32 768 Columns in the Web</tspan>, 50 in the Schema. The Index binds a content vector of 4096 to a Schema state of 50.</text>
+      <text x="36" y="314" class="svg-small" fill="var(--ink-3)">The figure spans 3 × 5 World cells; the shape encoder sees a 5 × 5 window of them at a time. Neither number sets any Space&#8217;s Grid.</text>
     </svg>
     </div>
     <figcaption>
-      <b>Figure 9.</b> Drawn at one scale so the relative sizes are honest. The World is
-      the largest grid on the page and contains none of the network; the Space whose job
-      is cross-Space convergence is 9×9 because 64 + 9 sources round up to 81, not because
-      anything about the task is 9-shaped.
+      <b>Figure 9.</b> Drawn at one scale. Every Space is now the same size, so the
+      picture that used to show three different Grids shows one — and the World, which
+      contains none of the network, is the smallest thing on the page rather than the
+      largest.
     </figcaption>
   </figure>
 
@@ -1433,44 +1435,40 @@ Thalamus.project({"colour": 1, "shape": patch}) → {"colour": vec(64), "shape":
           <circle cx="5" cy="5" r="4" fill="var(--warn)"/>
         </marker>
       </defs>
-      <text x="20" y="22" class="svg-title" fill="var(--ink-3)">THE COLOUR SPACE, WIRED — counts as the run recorded them</text>
+      <text x="20" y="22" class="svg-title" fill="var(--ink-3)">THE SHAPE SPACE, WIRED — counts as the run recorded them</text>
 
-      <!-- three level bars -->
       <g>
         <rect x="150" y="300" width="300" height="34" rx="4" fill="var(--web-soft)" stroke="var(--web)" stroke-width="1.5"/>
-        <text x="164" y="322" class="svg-label" fill="var(--ink)">colour.L1 — 64 Columns</text>
+        <text x="164" y="322" class="svg-label" fill="var(--ink)">shape.L1 — 4096 Columns</text>
         <rect x="150" y="196" width="300" height="34" rx="4" fill="var(--web-soft)" stroke="var(--web)" stroke-width="1.5"/>
-        <text x="164" y="218" class="svg-label" fill="var(--ink)">colour.L2 — 64 Columns</text>
+        <text x="164" y="218" class="svg-label" fill="var(--ink)">shape.L2 — 4096 Columns</text>
         <rect x="150" y="92" width="300" height="34" rx="4" fill="var(--web-soft)" stroke="var(--web)" stroke-width="1.5"/>
-        <text x="164" y="114" class="svg-label" fill="var(--ink)">colour.L3 — 64 Columns</text>
+        <text x="164" y="114" class="svg-label" fill="var(--ink)">shape.L3 — 4096 Columns</text>
         <rect x="150" y="352" width="300" height="22" rx="4" fill="var(--world-soft)" stroke="var(--world)" stroke-width="1.3"/>
-        <text x="164" y="367" class="svg-small" fill="var(--ink)">Thalamus — 64 values</text>
+        <text x="164" y="367" class="svg-small" fill="var(--ink)">Thalamus — 25 values</text>
       </g>
 
-      <!-- rule 1: identity -->
-      <g stroke="var(--web)" stroke-width="1.1" opacity=".9">
-        <path d="M180 352 v-18"/><path d="M240 352 v-18"/><path d="M300 352 v-18"/>
-        <path d="M360 352 v-18"/><path d="M420 352 v-18"/>
+      <g stroke="var(--web)" stroke-width="1" fill="none" opacity=".85" marker-end="url(#cn)">
+        <path d="M200 352 L 260 334"/><path d="M260 352 L 270 334"/>
+        <path d="M330 352 L 280 334"/><path d="M400 352 L 290 334"/>
       </g>
-      <text x="466" y="348" class="svg-label" fill="var(--web)">1 · one-to-one</text>
-      <text x="466" y="364" class="svg-small" fill="var(--ink-2)">64 connections, fan-in 1. The encoder is sized</text>
-      <text x="466" y="376" class="svg-small" fill="var(--ink-2)">to the Grid, so no Column is left unwired.</text>
+      <text x="466" y="344" class="svg-label" fill="var(--web)">1 · a sparse expansion</text>
+      <text x="466" y="360" class="svg-small" fill="var(--ink-2)">4096 Columns draw 4 of the 25 encoder values each.</text>
+      <text x="466" y="372" class="svg-small" fill="var(--ink-2)">16 384 connections. Level 1 is not a copy of the boundary.</text>
 
-      <!-- rule 2: sparse non-local -->
       <g stroke="var(--web)" stroke-width="1" fill="none" opacity=".85" marker-end="url(#cn)">
         <path d="M170 300 L 300 230"/><path d="M250 300 L 300 230"/><path d="M380 300 L 300 230"/><path d="M430 300 L 300 230"/>
         <path d="M200 196 L 380 126"/><path d="M300 196 L 380 126"/><path d="M340 196 L 380 126"/><path d="M440 196 L 380 126"/>
       </g>
       <circle cx="300" cy="230" r="6" fill="var(--web)"/>
       <circle cx="380" cy="126" r="6" fill="var(--web)"/>
-      <text x="466" y="252" class="svg-label" fill="var(--web)">2 · sparse non-local</text>
-      <text x="466" y="268" class="svg-small" fill="var(--ink-2)">Each Column draws <tspan font-weight="700">4 sources at random from</tspan></text>
-      <text x="466" y="280" class="svg-small" fill="var(--ink-2)"><tspan font-weight="700">anywhere</tspan> in the Level below. 256 connections.</text>
-      <text x="466" y="296" class="svg-small" fill="var(--ink-3)">Not a neighbourhood: local pooling would put a</text>
-      <text x="466" y="308" class="svg-small" fill="var(--ink-3)">ceiling on receptive-field size that no number</text>
-      <text x="466" y="320" class="svg-small" fill="var(--ink-3)">of Levels could lift. It is off by default.</text>
+      <text x="466" y="248" class="svg-label" fill="var(--web)">2 · sparse non-local</text>
+      <text x="466" y="264" class="svg-small" fill="var(--ink-2)">Each Column draws <tspan font-weight="700">4 sources at random from</tspan></text>
+      <text x="466" y="276" class="svg-small" fill="var(--ink-2)"><tspan font-weight="700">anywhere</tspan> in the Level below. 16 384 connections.</text>
+      <text x="466" y="292" class="svg-small" fill="var(--ink-3)">Two Columns share 0.004 sources on average, so</text>
+      <text x="466" y="304" class="svg-small" fill="var(--ink-3)">the population really is separating. Local pooling</text>
+      <text x="466" y="316" class="svg-small" fill="var(--ink-3)">is off: it would cap the receptive field for good.</text>
 
-      <!-- feedback -->
       <path d="M150 210 C 110 210, 110 300, 146 306" stroke="var(--ink-2)" stroke-width="1.3" fill="none" stroke-dasharray="4 3" marker-end="url(#cnb)"/>
       <path d="M150 106 C 110 106, 110 196, 146 202" stroke="var(--ink-2)" stroke-width="1.3" fill="none" stroke-dasharray="4 3" marker-end="url(#cnb)"/>
       <text x="20" y="150" class="svg-label" fill="var(--ink-2)">feedback</text>
@@ -1485,65 +1483,68 @@ Thalamus.project({"colour": 1, "shape": patch}) → {"colour": vec(64), "shape":
       <text x="20" y="270" class="svg-small" fill="var(--ink-2)">from, so the two</text>
       <text x="20" y="282" class="svg-small" fill="var(--ink-2)">cannot drift apart.</text>
 
-      <!-- rule 3: competition -->
       <g stroke="var(--warn)" stroke-width="1.1" fill="none" marker-end="url(#cni)">
         <path d="M232 196 C 250 178, 274 178, 290 192"/>
         <path d="M290 300 C 274 282, 250 282, 234 296"/>
       </g>
       <text x="466" y="112" class="svg-label" fill="var(--warn)">3 · competition, within a Level</text>
       <text x="466" y="128" class="svg-small" fill="var(--ink-2)">L1 and L2: the 8 grid neighbours, inhibitory,</text>
-      <text x="466" y="140" class="svg-small" fill="var(--ink-2)">normalized by how many a Column has (6 on average).</text>
-      <text x="466" y="156" class="svg-small" fill="var(--ink-2)">L3, the top: <tspan font-weight="700">every other Column</tspan> — 63 competitors,</text>
-      <text x="466" y="168" class="svg-small" fill="var(--ink-2)">because once convergence stops being spatial,</text>
-      <text x="466" y="180" class="svg-small" fill="var(--ink-2)">competition cannot stay spatial either.</text>
+      <text x="466" y="140" class="svg-small" fill="var(--ink-2)">normalized by how many a Column has.</text>
+      <text x="466" y="156" class="svg-small" fill="var(--ink-2)">L3, the top: every other Column <tspan font-weight="700">of its 8×8</tspan></text>
+      <text x="466" y="168" class="svg-small" fill="var(--ink-2)"><tspan font-weight="700">cluster</tspan> — 63 competitors, 258 048 connections.</text>
+      <text x="466" y="184" class="svg-small" fill="var(--ink-3)">All-to-all would be 16.8 million for this one Level.</text>
       <path d="M180 92 C 210 66, 380 66, 420 88" stroke="var(--warn)" stroke-width="1.1" fill="none" marker-end="url(#cni)"/>
-      <text x="300" y="60" text-anchor="middle" class="svg-small" fill="var(--warn)">all-to-all at the top Level</text>
+      <text x="300" y="60" text-anchor="middle" class="svg-small" fill="var(--warn)">by cluster at the top Level</text>
     </svg>
     </div>
     <figcaption>
-      <b>Figure 10.</b> The convergence Space is wired the same way with two numbers
-      changed: its Level 1 draws 12 sources at random from the 73 Columns formed by
-      concatenating colour.L3 (64) and shape.L3 (9), for 972 connections, and it pools
-      locally at no Level.
+      <b>Figure 10.</b> The colour Space is identical. The convergence Space differs by two
+      numbers: its Level 1 draws 12 sources from the 8192 Columns formed by concatenating
+      colour.L3 and shape.L3, for 49 152 connections. The whole network is 1.13 M
+      connections, 27 MB, and one minute a run.
     </figcaption>
   </figure>
 
   <div class="note warn">
-    <span class="tag">What this wiring cannot do, and why it is the next thing to change</span>
+    <span class="tag">What this wiring still cannot do</span>
     <p>
-      <b>Nothing narrows.</b> Every Level of the colour Space has exactly as many Columns
-      as the Level below it — 64, 64, 64 — and the shape Space is 9, 9, 9. A convergence
-      hierarchy that never reduces its width has no structural pressure to concentrate
-      anything; whatever concentration occurs must come entirely from competition.
+      <b>Nothing narrows.</b> Every Level has exactly as many Columns as the Level below
+      — 4096, 4096, 4096 — so a hierarchy that never reduces its width has no structural
+      pressure to concentrate anything. Whatever concentration occurs must come entirely
+      from competition, and competition is now confined to a cluster.
     </p>
     <p>
-      <b>Sparsity means different things at different widths.</b> Drawing 4 of 64, two
-      Columns share 0.25 sources on average, which is genuinely separating. Drawing 4 of
-      9, they share 1.8 of 4 — nearly half — so the shape Space's Columns are near-copies
-      of one another by construction. The same declared fan-in is sparse in one Space and
-      dense in the other, which is an argument for fan-in as a <em>fraction</em>, or for
-      Spaces wide enough that a constant makes sense.
+      <b>Half the Hub's input is dead.</b> The convergence Space draws equally from
+      colour.L3 and shape.L3, and the colour Space is silent for this confusion set. So
+      half of every convergence Column's fan-in carries nothing, and the Hub's numbers
+      should be read as a network being asked to converge over one Space while sampling
+      two.
     </p>
     <p>
-      These two facts, and not the absence of a learning rule, are the most likely
-      explanation for Figure 14: a Level that cannot narrow and whose Columns share most
-      of their input has no way to build a distinction, and every reason to average one
-      away.
+      <b>The cluster partition has edges.</b> Two adjacent Columns either side of a
+      cluster boundary never compete however similar they are. An overlapping rule would
+      not have that property and would cost more; the artefact is recorded rather than
+      designed away.
     </p>
   </div>
 
   <h4>Sparsity is a specification-level constraint, not an optimization</h4>
   <p>
-    A 64×64 field gives roughly four thousand Columns per Level, and a dense matrix between
-    two such Levels is on the order of sixteen million weights. The foundation stores
-    connections as triplets, so memory scales with the number of connections rather than
-    the square of the population: wiring that would have cost 134 MB dense costs under a
-    megabyte. But cost is the lesser reason. Convergence is only meaningful when a unit
-    draws from a limited subset — a unit that sees everything below it is identical to
-    every other such unit and distinguishes nothing — and separation in the Index depends
-    on low-overlap connectivity for the same reason. <b>A configuration in which a Column
-    could see everything below it is refused at construction.</b>
+    A 64×64 Level is 4096 Columns, and a dense matrix between two of them is 16.8 million
+    weights. The foundation stores connections as triplets, so memory scales with the
+    number of connections rather than the square of the population, and the whole network
+    — eight Levels of 4096 Columns, plus the Hub — comes to 1.13 M connections and 27 MB.
   </p>
+  <p>
+    Cost is the lesser reason. Convergence is only meaningful when a unit draws from a
+    limited subset: a unit that sees everything below it is identical to every other such
+    unit and distinguishes nothing. <b>A configuration in which a Column could see
+    everything below it is refused at construction.</b> The place that rule was not being
+    applied was lateral competition, which grew as the square of the population until a
+    cluster became the unit of competition — the constraint arriving where nobody had
+    looked for it, twice in one document.
+  </p>
+
 </section>
 
 <section id="presentation">
@@ -1625,8 +1626,8 @@ Thalamus.project({"colour": 1, "shape": patch}) → {"colour": vec(64), "shape":
         </g>
         <text x="0" y="260" class="svg-small" fill="var(--ink-2)">Seven Parts, seven Stops, six Relations. The order is</text>
         <text x="0" y="273" class="svg-small" fill="var(--ink-2)">declared (raster), so a run stays reproducible.</text>
-        <text x="0" y="291" class="svg-small" fill="var(--ink-3)">The same Object at any of the 64 origins where all</text>
-        <text x="0" y="304" class="svg-small" fill="var(--ink-3)">four figures fit is the same Object: Parts carry</text>
+        <text x="0" y="291" class="svg-small" fill="var(--ink-3)">64 origins hold all four figures and every one gives a</text>
+        <text x="0" y="304" class="svg-small" fill="var(--ink-3)">bit-identical response, so the run keeps 4. Parts carry</text>
         <text x="0" y="317" class="svg-small" fill="var(--ink-3)">offsets, never World coordinates.</text>
       </g>
 
@@ -1640,10 +1641,10 @@ Thalamus.project({"colour": 1, "shape": patch}) → {"colour": vec(64), "shape":
 
         <rect x="0" y="60" width="480" height="46" rx="5" fill="var(--world-soft)" stroke="var(--world)" stroke-width="1.5"/>
         <text x="14" y="80" class="svg-label" fill="var(--ink)">2 · The Thalamus encodes what is there</text>
-        <text x="14" y="97" class="svg-small" fill="var(--ink-2)">one signal per Space in, a Level-1 activation out, at unit strength, carrying no state</text>
+        <text x="14" y="97" class="svg-small" fill="var(--ink-2)">a 5×5 window graded by eccentricity, expanded onto 4096 Columns, carrying no state</text>
 
         <rect x="0" y="120" width="480" height="46" rx="5" fill="var(--web-soft)" stroke="var(--web)" stroke-width="1.5"/>
-        <text x="14" y="140" class="svg-label" fill="var(--web)">3 · The Web settles — 150 ticks</text>
+        <text x="14" y="140" class="svg-label" fill="var(--web)">3 · The Web settles — 150 ticks, 32 768 Columns</text>
         <text x="14" y="157" class="svg-small" fill="var(--ink-2)">dt = 1/60, τ = 0.13 — about 12% toward target per tick, so dozens are needed</text>
 
         <rect x="0" y="180" width="480" height="46" rx="5" fill="var(--index-soft)" stroke="var(--index)" stroke-width="1.5"/>
@@ -1655,10 +1656,10 @@ Thalamus.project({"colour": 1, "shape": patch}) → {"colour": vec(64), "shape":
         </g>
 
         <rect x="0" y="244" width="480" height="78" rx="5" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.5" stroke-dasharray="5 3"/>
-        <text x="14" y="264" class="svg-label" fill="var(--ink)">After the last stop: the response to the figure</text>
-        <text x="14" y="281" class="svg-small" fill="var(--ink-2)">L5 of every Column, averaged <tspan font-style="italic">over the stops</tspan> rather than read off the last one.</text>
-        <text x="14" y="295" class="svg-small" fill="var(--ink-2)">The figures differ in which cell comes last, so scoring the final state would</text>
-        <text x="14" y="307" class="svg-small" fill="var(--ink-2)">measure that cell's neighbourhood and call it selectivity.</text>
+        <text x="14" y="264" class="svg-label" fill="var(--ink)">After the last stop: what a figure&#8217;s response is</text>
+        <text x="14" y="281" class="svg-small" fill="var(--ink-2)">Four readouts, not one. The stop-average, the ordered traversal, the Index&#8217;s</text>
+        <text x="14" y="295" class="svg-small" fill="var(--ink-2)">bindings, and the Schema states. Reading only the last stop would measure that</text>
+        <text x="14" y="307" class="svg-small" fill="var(--ink-2)">cell's neighbourhood; averaging them loses the arrangement. See §12.</text>
       </g>
     </svg>
     </div>
@@ -1762,285 +1763,329 @@ Thalamus.project({"colour": 1, "shape": patch}) → {"colour": vec(64), "shape":
 
 <section id="baseline">
   <h2><span class="num">12</span>The baseline</h2>
-  <h3>Four figures, 64 origins, 7 stops each, and nothing learning</h3>
+  <h3>Four figures, 4 origins, 7 stops each, and nothing learning</h3>
   <p>
     Experiment 004 asks one question: <em>with no learning, how well does anything here
     separate four figures that share one feature bag?</em> Each of T, ⊥, ⊢ and ⊣ is shown
-    at every one of the 64 World origins where all four fit, as a 7-stop presentation,
-    150 ticks a stop. 1,792 stops in all. What is measured is the response of all 381
-    Columns of the Web, and the answer is the null a local rule must beat.
+    as a 7-stop presentation at 4 World origins, 150 ticks a stop. 112 stops in all,
+    across 32 768 Columns. The answer is the null a local rule must beat.
+  </p>
+  <p>
+    Only 4 origins because the boundary is translation invariant to machine precision:
+    all 64 origins that hold every figure give bit-identical responses, so the other 60
+    bought an hour of compute and no information.
   </p>
 
   <h4>What a response is, before any measure is applied to it</h4>
   <p>
-    A Column's response to one presentation is its L5 activation averaged over the 7
-    stops. Its response to a <em>figure</em> is that averaged again over the 64 origins.
-    So the raw material of every number below is a table
-    <code>mean[figure, column]</code> with 4 rows and 381 columns.
+    A Column's response at one stop is its L5 activation after the Web settles. What
+    happens to the 7 stops after that is the whole question of this section, and the run
+    now reports four different answers to it rather than one.
   </p>
 
   <h4>Figure separation, per Column</h4>
   <p>
-    The headline measure asks of one Column: how differently does it answer to the four
+    The oldest measure asks of one Column: how differently does it answer to the four
     figures, relative to how loudly it answers at all?
   </p>
   <pre>gap[c]        = mean over the 6 figure pairs of  | mean[a,c] − mean[b,c] |
 scale[c]      = ‖ mean[:,c] ‖₂           (the Column's own magnitude, over figures)
 separation[c] = gap[c] / scale[c]        (0 if the Column never moved)</pre>
   <p>
-    Dividing by the Column's own magnitude is what stops a loud, undifferentiated Column
-    from scoring well. It also fixes the scale: for four figures, the largest value a
-    Column can reach is <b>0.5</b>, attained when it answers to exactly one figure and is
-    silent for the other three. A Column that fires equally for all four scores 0. That
-    ceiling is what the numbers below should be read against — shape.L1's best Column, at
-    0.304, is at 61% of it; the Web's top Level reaches 4.7%.
+    Dividing by the Column's own magnitude stops a loud, undifferentiated Column scoring
+    well. It also fixes the scale: for four figures the largest value a Column can reach
+    is <b>0.527</b>, attained not by a Column that answers to exactly one figure — that
+    gives 0.5 — but by one whose responses are proportional to (1, ⅓, 0, 0). A Column
+    firing equally for all four scores 0.
   </p>
 
   <figure>
     <div class="plate">
-    <svg viewBox="0 0 800 340" role="img" aria-label="Per-Column figure separation by Level, against the ceiling of 0.5">
+    <svg viewBox="0 0 800 340" role="img" aria-label="Per-Column figure separation by Level, against the ceiling of 0.527">
       <text x="20" y="22" class="svg-title" fill="var(--ink-3)">PER-COLUMN FIGURE SEPARATION</text>
-      <text x="20" y="38" class="svg-small" fill="var(--ink-2)">bar = mean over the Level&#8217;s Columns · tick = its best single Column · dashed = the ceiling of 0.5</text>
+      <text x="20" y="38" class="svg-small" fill="var(--ink-2)">bar = mean over the Level&#8217;s Columns · tick = its best single Column · dashed = the ceiling of 0.527</text>
       <line x1="150" y1="68" x2="150" y2="254" stroke="var(--rule)" stroke-width="1"/>
       <text x="150" y="62" text-anchor="middle" class="svg-mono" fill="var(--ink-3)">0.0</text>
-      <line x1="232" y1="68" x2="232" y2="254" stroke="var(--rule)" stroke-width="1"/>
-      <text x="232" y="62" text-anchor="middle" class="svg-mono" fill="var(--ink-3)">0.1</text>
-      <line x1="314" y1="68" x2="314" y2="254" stroke="var(--rule)" stroke-width="1"/>
-      <text x="314" y="62" text-anchor="middle" class="svg-mono" fill="var(--ink-3)">0.2</text>
-      <line x1="396" y1="68" x2="396" y2="254" stroke="var(--rule)" stroke-width="1"/>
-      <text x="396" y="62" text-anchor="middle" class="svg-mono" fill="var(--ink-3)">0.3</text>
-      <line x1="478" y1="68" x2="478" y2="254" stroke="var(--rule)" stroke-width="1"/>
-      <text x="478" y="62" text-anchor="middle" class="svg-mono" fill="var(--ink-3)">0.4</text>
-      <line x1="560" y1="68" x2="560" y2="254" stroke="var(--warn)" stroke-width="1" stroke-dasharray="4 3"/>
-      <text x="560" y="62" text-anchor="middle" class="svg-mono" fill="var(--warn)">0.5</text>
+      <line x1="220" y1="68" x2="220" y2="254" stroke="var(--rule)" stroke-width="1"/>
+      <text x="220" y="62" text-anchor="middle" class="svg-mono" fill="var(--ink-3)">0.1</text>
+      <line x1="289" y1="68" x2="289" y2="254" stroke="var(--rule)" stroke-width="1"/>
+      <text x="289" y="62" text-anchor="middle" class="svg-mono" fill="var(--ink-3)">0.2</text>
+      <line x1="359" y1="68" x2="359" y2="254" stroke="var(--rule)" stroke-width="1"/>
+      <text x="359" y="62" text-anchor="middle" class="svg-mono" fill="var(--ink-3)">0.3</text>
+      <line x1="429" y1="68" x2="429" y2="254" stroke="var(--rule)" stroke-width="1"/>
+      <text x="429" y="62" text-anchor="middle" class="svg-mono" fill="var(--ink-3)">0.4</text>
+      <line x1="498" y1="68" x2="498" y2="254" stroke="var(--rule)" stroke-width="1"/>
+      <text x="498" y="62" text-anchor="middle" class="svg-mono" fill="var(--ink-3)">0.5</text>
+      <line x1="517" y1="68" x2="517" y2="254" stroke="var(--warn)" stroke-width="1.2" stroke-dasharray="4 3"/>
+      <text x="517" y="62" text-anchor="middle" class="svg-mono" fill="var(--warn)">0.527</text>
       <text x="138" y="95" text-anchor="end" class="svg-small" fill="var(--ink)" font-weight="600">colour.L1–L3</text>
       <rect x="150" y="83" width="1.2" height="17" rx="2" fill="var(--rule-2)"/>
       <line x1="150" y1="81" x2="150" y2="102" stroke="var(--rule-2)" stroke-width="2.5" opacity=".6"/>
       <text x="160" y="96" class="svg-mono" fill="var(--ink-2)">0.000 / 0.000</text>
-      <text x="780" y="96" text-anchor="end" class="svg-small" fill="var(--ink-3)">0 / 192 moved</text>
+      <text x="780" y="96" text-anchor="end" class="svg-small" fill="var(--ink-3)">0 / 12 288 moved</text>
       <text x="138" y="125" text-anchor="end" class="svg-small" fill="var(--ink)" font-weight="600">shape.L1</text>
-      <rect x="150" y="113" width="121.7" height="17" rx="2" fill="var(--web)"/>
-      <line x1="399" y1="111" x2="399" y2="132" stroke="var(--web)" stroke-width="2.5" opacity=".6"/>
-      <text x="409" y="126" class="svg-mono" fill="var(--ink-2)">0.148 / 0.304</text>
-      <text x="780" y="126" text-anchor="end" class="svg-small" fill="var(--ink-3)">9 / 9 moved</text>
+      <rect x="150" y="113" width="108.6" height="17" rx="2" fill="var(--web)"/>
+      <line x1="500" y1="111" x2="500" y2="132" stroke="var(--web)" stroke-width="2.5" opacity=".6"/>
+      <text x="510" y="126" class="svg-mono" fill="var(--ink-2)">0.156 / 0.503</text>
+      <text x="780" y="126" text-anchor="end" class="svg-small" fill="var(--ink-3)">3900 / 4096 moved</text>
       <text x="138" y="155" text-anchor="end" class="svg-small" fill="var(--ink)" font-weight="600">shape.L2</text>
-      <rect x="150" y="143" width="58.4" height="17" rx="2" fill="var(--web)"/>
-      <line x1="377" y1="141" x2="377" y2="162" stroke="var(--web)" stroke-width="2.5" opacity=".6"/>
-      <text x="387" y="156" class="svg-mono" fill="var(--ink-2)">0.071 / 0.277</text>
-      <text x="780" y="156" text-anchor="end" class="svg-small" fill="var(--ink-3)">8 / 9 moved</text>
+      <rect x="150" y="143" width="102.4" height="17" rx="2" fill="var(--web)"/>
+      <line x1="492" y1="141" x2="492" y2="162" stroke="var(--web)" stroke-width="2.5" opacity=".6"/>
+      <text x="502" y="156" class="svg-mono" fill="var(--ink-2)">0.147 / 0.491</text>
+      <text x="780" y="156" text-anchor="end" class="svg-small" fill="var(--ink-3)">3985 / 4096 moved</text>
       <text x="138" y="185" text-anchor="end" class="svg-small" fill="var(--ink)" font-weight="600">shape.L3</text>
-      <rect x="150" y="173" width="40.8" height="17" rx="2" fill="var(--web)"/>
-      <line x1="239" y1="171" x2="239" y2="192" stroke="var(--web)" stroke-width="2.5" opacity=".6"/>
-      <text x="249" y="186" class="svg-mono" fill="var(--ink-2)">0.050 / 0.108</text>
-      <text x="780" y="186" text-anchor="end" class="svg-small" fill="var(--ink-3)">9 / 9 moved</text>
+      <rect x="150" y="173" width="65.0" height="17" rx="2" fill="var(--web)"/>
+      <line x1="491" y1="171" x2="491" y2="192" stroke="var(--web)" stroke-width="2.5" opacity=".6"/>
+      <text x="501" y="186" class="svg-mono" fill="var(--ink-2)">0.093 / 0.490</text>
+      <text x="780" y="186" text-anchor="end" class="svg-small" fill="var(--ink-3)">4065 / 4096 moved</text>
       <text x="138" y="215" text-anchor="end" class="svg-small" fill="var(--ink)" font-weight="600">convergence.L1</text>
-      <rect x="150" y="203" width="5.4" height="17" rx="2" fill="var(--schema)"/>
-      <line x1="178" y1="201" x2="178" y2="222" stroke="var(--schema)" stroke-width="2.5" opacity=".6"/>
-      <text x="188" y="216" class="svg-mono" fill="var(--ink-2)">0.007 / 0.034</text>
-      <text x="780" y="216" text-anchor="end" class="svg-small" fill="var(--ink-3)">81 / 81 moved</text>
+      <rect x="150" y="203" width="3.6" height="17" rx="2" fill="var(--schema)"/>
+      <line x1="195" y1="201" x2="195" y2="222" stroke="var(--schema)" stroke-width="2.5" opacity=".6"/>
+      <text x="205" y="216" class="svg-mono" fill="var(--ink-2)">0.005 / 0.065</text>
+      <text x="780" y="216" text-anchor="end" class="svg-small" fill="var(--ink-3)">4096 / 4096 moved</text>
       <text x="138" y="245" text-anchor="end" class="svg-small" fill="var(--ink)" font-weight="600">convergence.L2</text>
-      <rect x="150" y="233" width="5.6" height="17" rx="2" fill="var(--schema)"/>
-      <line x1="169" y1="231" x2="169" y2="252" stroke="var(--schema)" stroke-width="2.5" opacity=".6"/>
-      <text x="179" y="246" class="svg-mono" fill="var(--ink-2)">0.007 / 0.024</text>
-      <text x="780" y="246" text-anchor="end" class="svg-small" fill="var(--ink-3)">81 / 81 moved</text>
-      <text x="20" y="284" class="svg-small" fill="var(--ink-2)">Read this chart for the <tspan font-style="italic">max</tspan>, not the mean. The mean falls as a Level concentrates a figure onto fewer Columns, which is</text>
-      <text x="20" y="298" class="svg-small" fill="var(--ink-2)">what a convergence hierarchy is supposed to do — so averaging over Columns punishes exactly the behaviour we want.</text>
-      <text x="20" y="318" class="svg-small" fill="var(--warn)" font-weight="600">And neither column of numbers can say whether the <tspan font-style="italic">Level</tspan> tells the figures apart. Only the population can. See Figure 14.</text>
+      <rect x="150" y="233" width="2.0" height="17" rx="2" fill="var(--schema)"/>
+      <line x1="161" y1="231" x2="161" y2="252" stroke="var(--schema)" stroke-width="2.5" opacity=".6"/>
+      <text x="171" y="246" class="svg-mono" fill="var(--ink-2)">0.003 / 0.015</text>
+      <text x="780" y="246" text-anchor="end" class="svg-small" fill="var(--ink-3)">4096 / 4096 moved</text>
+      <text x="20" y="284" class="svg-small" fill="var(--ink-2)">The shape Space&#8217;s best Columns now reach 0.49–0.50 against a ceiling of 0.527. The means stay low, and should:</text>
+      <text x="20" y="298" class="svg-small" fill="var(--ink-2)">a Level concentrating a figure onto fewer Columns lowers its own mean, which is the behaviour we want.</text>
+      <text x="20" y="318" class="svg-small" fill="var(--warn)" font-weight="600">Neither column of numbers can say whether the <tspan font-style="italic">Level</tspan> tells the figures apart. Only the population can.</text>
     </svg>
     </div>
-    <figcaption><b>Figure 13.</b> Experiment 004, run 004-20260909T171333. Every number is read from the artifact, not recomputed here.</figcaption>
+    <figcaption><b>Figure 13.</b> Experiment 004, run 004-20260909T183559. Every number is read from the artifact, not recomputed here.</figcaption>
   </figure>
 
   <h4>A Column is not where a figure lives</h4>
   <p>
     The chart above scores Columns one at a time, and that answers a narrower question
     than the one worth asking. What stands for a figure at a Level is the <b>pattern
-    across every Column that reached it</b>, not any single Column's activation. The
-    distinction runs the wrong way with depth: a Level doing its job concentrates a
-    figure onto fewer Columns, and a per-Column mean falls exactly when that succeeds.
-    In the limit an experimenter would <em>want</em> — a wide Level where each figure
-    ignites one Column — the mean would be near zero and the Level would be working
-    perfectly.
+    across every Column that reached it</b>. The distinction runs the wrong way with
+    depth: a Level doing its job concentrates a figure onto fewer Columns, and a
+    per-Column mean falls exactly when that succeeds.
   </p>
   <p>
-    So the run also reports a population measure. Take each figure's mean response
-    vector over a Level's Columns, and measure the Euclidean distances between those four
-    vectors, divided by the population's own rms magnitude. Reporting the mean alone
-    would hide the failure that matters, so the artifact carries the whole pairwise
-    matrix: a mean cannot say <em>which</em> figures a Level has merged.
+    So the run also measures the population — the Euclidean distances between the four
+    figures' mean response vectors, over the population's own rms magnitude. And it
+    reports the whole pairwise matrix rather than the mean of it, because a mean cannot
+    say <em>which</em> figures a Level has merged.
   </p>
 
   <figure>
     <div class="plate">
     <svg viewBox="0 0 800 318" role="img" aria-label="Pairwise distances between the four figures at three Levels">
       <text x="20" y="22" class="svg-title" fill="var(--ink-3)">DISTANCE BETWEEN THE FIGURES&#8217; POPULATION PATTERNS</text>
-      <text x="20" y="38" class="svg-small" fill="var(--ink-2)">relative to the population&#8217;s own magnitude · darker is further apart · 0.000 means the two patterns are identical</text>
+      <text x="20" y="38" class="svg-small" fill="var(--ink-2)">relative to the population&#8217;s own magnitude · darker is further apart · stop-averaged readout</text>
       <text x="158" y="62" text-anchor="middle" class="svg-label" fill="var(--ink)">shape.L1</text>
       <text x="64" y="102" text-anchor="end" class="svg-small" fill="var(--ink-2)">T</text>
       <text x="92" y="74" text-anchor="middle" class="svg-small" fill="var(--ink-2)">T</text>
       <rect x="70" y="76" width="44" height="44" fill="none" stroke="var(--rule)"/>
       <line x1="70" y1="76" x2="114" y2="120" stroke="var(--rule)"/>
-      <rect x="114" y="76" width="44" height="44" fill="var(--web)" opacity="0.119"/>
+      <rect x="114" y="76" width="44" height="44" fill="var(--web)" opacity="0.715"/>
       <rect x="114" y="76" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="136" y="102" text-anchor="middle" class="svg-mono" fill="var(--ink)" font-weight="400">0.054</text>
-      <rect x="158" y="76" width="44" height="44" fill="var(--web)" opacity="0.950"/>
+      <text x="136" y="102" text-anchor="middle" class="svg-mono" fill="var(--paper)">0.236</text>
+      <rect x="158" y="76" width="44" height="44" fill="var(--web)" opacity="0.955"/>
       <rect x="158" y="76" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="180" y="102" text-anchor="middle" class="svg-mono" fill="var(--paper)" font-weight="400">0.427</text>
-      <rect x="202" y="76" width="44" height="44" fill="var(--web)" opacity="0.979"/>
+      <text x="180" y="102" text-anchor="middle" class="svg-mono" fill="var(--paper)">0.315</text>
+      <rect x="202" y="76" width="44" height="44" fill="var(--web)" opacity="0.948"/>
       <rect x="202" y="76" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="224" y="102" text-anchor="middle" class="svg-mono" fill="var(--paper)" font-weight="400">0.441</text>
+      <text x="224" y="102" text-anchor="middle" class="svg-mono" fill="var(--paper)">0.313</text>
       <text x="64" y="146" text-anchor="end" class="svg-small" fill="var(--ink-2)">⊥</text>
       <text x="136" y="74" text-anchor="middle" class="svg-small" fill="var(--ink-2)">⊥</text>
-      <rect x="70" y="120" width="44" height="44" fill="var(--web)" opacity="0.119"/>
+      <rect x="70" y="120" width="44" height="44" fill="var(--web)" opacity="0.715"/>
       <rect x="70" y="120" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="92" y="146" text-anchor="middle" class="svg-mono" fill="var(--ink)" font-weight="400">0.054</text>
+      <text x="92" y="146" text-anchor="middle" class="svg-mono" fill="var(--paper)">0.236</text>
       <rect x="114" y="120" width="44" height="44" fill="none" stroke="var(--rule)"/>
       <line x1="114" y1="120" x2="158" y2="164" stroke="var(--rule)"/>
-      <rect x="158" y="120" width="44" height="44" fill="var(--web)" opacity="0.916"/>
+      <rect x="158" y="120" width="44" height="44" fill="var(--web)" opacity="0.697"/>
       <rect x="158" y="120" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="180" y="146" text-anchor="middle" class="svg-mono" fill="var(--paper)" font-weight="400">0.412</text>
-      <rect x="202" y="120" width="44" height="44" fill="var(--web)" opacity="0.935"/>
+      <text x="180" y="146" text-anchor="middle" class="svg-mono" fill="var(--paper)">0.230</text>
+      <rect x="202" y="120" width="44" height="44" fill="var(--web)" opacity="0.673"/>
       <rect x="202" y="120" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="224" y="146" text-anchor="middle" class="svg-mono" fill="var(--paper)" font-weight="400">0.421</text>
+      <text x="224" y="146" text-anchor="middle" class="svg-mono" fill="var(--paper)">0.222</text>
       <text x="64" y="190" text-anchor="end" class="svg-small" fill="var(--ink-2)">⊢</text>
       <text x="180" y="74" text-anchor="middle" class="svg-small" fill="var(--ink-2)">⊢</text>
-      <rect x="70" y="164" width="44" height="44" fill="var(--web)" opacity="0.950"/>
+      <rect x="70" y="164" width="44" height="44" fill="var(--web)" opacity="0.955"/>
       <rect x="70" y="164" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="92" y="190" text-anchor="middle" class="svg-mono" fill="var(--paper)" font-weight="400">0.427</text>
-      <rect x="114" y="164" width="44" height="44" fill="var(--web)" opacity="0.916"/>
+      <text x="92" y="190" text-anchor="middle" class="svg-mono" fill="var(--paper)">0.315</text>
+      <rect x="114" y="164" width="44" height="44" fill="var(--web)" opacity="0.697"/>
       <rect x="114" y="164" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="136" y="190" text-anchor="middle" class="svg-mono" fill="var(--paper)" font-weight="400">0.412</text>
+      <text x="136" y="190" text-anchor="middle" class="svg-mono" fill="var(--paper)">0.230</text>
       <rect x="158" y="164" width="44" height="44" fill="none" stroke="var(--rule)"/>
       <line x1="158" y1="164" x2="202" y2="208" stroke="var(--rule)"/>
-      <rect x="202" y="164" width="44" height="44" fill="var(--web)" opacity="0.180"/>
+      <rect x="202" y="164" width="44" height="44" fill="var(--web)" opacity="0.512"/>
       <rect x="202" y="164" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="224" y="190" text-anchor="middle" class="svg-mono" fill="var(--ink)" font-weight="400">0.081</text>
+      <text x="224" y="190" text-anchor="middle" class="svg-mono" fill="var(--ink)">0.169</text>
       <text x="64" y="234" text-anchor="end" class="svg-small" fill="var(--ink-2)">⊣</text>
       <text x="224" y="74" text-anchor="middle" class="svg-small" fill="var(--ink-2)">⊣</text>
-      <rect x="70" y="208" width="44" height="44" fill="var(--web)" opacity="0.979"/>
+      <rect x="70" y="208" width="44" height="44" fill="var(--web)" opacity="0.948"/>
       <rect x="70" y="208" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="92" y="234" text-anchor="middle" class="svg-mono" fill="var(--paper)" font-weight="400">0.441</text>
-      <rect x="114" y="208" width="44" height="44" fill="var(--web)" opacity="0.935"/>
+      <text x="92" y="234" text-anchor="middle" class="svg-mono" fill="var(--paper)">0.313</text>
+      <rect x="114" y="208" width="44" height="44" fill="var(--web)" opacity="0.673"/>
       <rect x="114" y="208" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="136" y="234" text-anchor="middle" class="svg-mono" fill="var(--paper)" font-weight="400">0.421</text>
-      <rect x="158" y="208" width="44" height="44" fill="var(--web)" opacity="0.180"/>
+      <text x="136" y="234" text-anchor="middle" class="svg-mono" fill="var(--paper)">0.222</text>
+      <rect x="158" y="208" width="44" height="44" fill="var(--web)" opacity="0.512"/>
       <rect x="158" y="208" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="180" y="234" text-anchor="middle" class="svg-mono" fill="var(--ink)" font-weight="400">0.081</text>
+      <text x="180" y="234" text-anchor="middle" class="svg-mono" fill="var(--ink)">0.169</text>
       <rect x="202" y="208" width="44" height="44" fill="none" stroke="var(--rule)"/>
       <line x1="202" y1="208" x2="246" y2="252" stroke="var(--rule)"/>
-      <text x="158" y="272" text-anchor="middle" class="svg-small" fill="var(--ink-3)">population separation 0.306</text>
-      <text x="388" y="62" text-anchor="middle" class="svg-label" fill="var(--ink)">convergence.L1</text>
+      <text x="158" y="270" text-anchor="middle" class="svg-small" fill="var(--ink-3)">population separation 0.247</text>
+      <text x="388" y="62" text-anchor="middle" class="svg-label" fill="var(--ink)">shape.L3</text>
       <text x="294" y="102" text-anchor="end" class="svg-small" fill="var(--ink-2)">T</text>
       <text x="322" y="74" text-anchor="middle" class="svg-small" fill="var(--ink-2)">T</text>
       <rect x="300" y="76" width="44" height="44" fill="none" stroke="var(--rule)"/>
       <line x1="300" y1="76" x2="344" y2="120" stroke="var(--rule)"/>
-      <rect x="344" y="76" width="44" height="44" fill="var(--schema)" opacity="0.073"/>
+      <rect x="344" y="76" width="44" height="44" fill="var(--web)" opacity="0.764"/>
       <rect x="344" y="76" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="366" y="102" text-anchor="middle" class="svg-mono" fill="var(--ink)" font-weight="400">0.033</text>
-      <rect x="388" y="76" width="44" height="44" fill="var(--schema)" opacity="0.073"/>
+      <text x="366" y="102" text-anchor="middle" class="svg-mono" fill="var(--paper)">0.252</text>
+      <rect x="388" y="76" width="44" height="44" fill="var(--web)" opacity="0.812"/>
       <rect x="388" y="76" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="410" y="102" text-anchor="middle" class="svg-mono" fill="var(--ink)" font-weight="400">0.033</text>
-      <rect x="432" y="76" width="44" height="44" fill="var(--schema)" opacity="0.074"/>
+      <text x="410" y="102" text-anchor="middle" class="svg-mono" fill="var(--paper)">0.268</text>
+      <rect x="432" y="76" width="44" height="44" fill="var(--web)" opacity="0.809"/>
       <rect x="432" y="76" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="454" y="102" text-anchor="middle" class="svg-mono" fill="var(--ink)" font-weight="400">0.033</text>
+      <text x="454" y="102" text-anchor="middle" class="svg-mono" fill="var(--paper)">0.267</text>
       <text x="294" y="146" text-anchor="end" class="svg-small" fill="var(--ink-2)">⊥</text>
       <text x="366" y="74" text-anchor="middle" class="svg-small" fill="var(--ink-2)">⊥</text>
-      <rect x="300" y="120" width="44" height="44" fill="var(--schema)" opacity="0.073"/>
+      <rect x="300" y="120" width="44" height="44" fill="var(--web)" opacity="0.764"/>
       <rect x="300" y="120" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="322" y="146" text-anchor="middle" class="svg-mono" fill="var(--ink)" font-weight="400">0.033</text>
+      <text x="322" y="146" text-anchor="middle" class="svg-mono" fill="var(--paper)">0.252</text>
       <rect x="344" y="120" width="44" height="44" fill="none" stroke="var(--rule)"/>
       <line x1="344" y1="120" x2="388" y2="164" stroke="var(--rule)"/>
-      <rect x="388" y="120" width="44" height="44" fill="var(--schema)" opacity="0.002"/>
+      <rect x="388" y="120" width="44" height="44" fill="var(--web)" opacity="0.488"/>
       <rect x="388" y="120" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="410" y="146" text-anchor="middle" class="svg-mono" fill="var(--ink)" font-weight="400">0.001</text>
-      <rect x="432" y="120" width="44" height="44" fill="var(--schema)" opacity="0.004"/>
+      <text x="410" y="146" text-anchor="middle" class="svg-mono" fill="var(--ink)">0.161</text>
+      <rect x="432" y="120" width="44" height="44" fill="var(--web)" opacity="0.452"/>
       <rect x="432" y="120" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="454" y="146" text-anchor="middle" class="svg-mono" fill="var(--ink)" font-weight="400">0.002</text>
+      <text x="454" y="146" text-anchor="middle" class="svg-mono" fill="var(--ink)">0.149</text>
       <text x="294" y="190" text-anchor="end" class="svg-small" fill="var(--ink-2)">⊢</text>
       <text x="410" y="74" text-anchor="middle" class="svg-small" fill="var(--ink-2)">⊢</text>
-      <rect x="300" y="164" width="44" height="44" fill="var(--schema)" opacity="0.073"/>
+      <rect x="300" y="164" width="44" height="44" fill="var(--web)" opacity="0.812"/>
       <rect x="300" y="164" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="322" y="190" text-anchor="middle" class="svg-mono" fill="var(--ink)" font-weight="400">0.033</text>
-      <rect x="344" y="164" width="44" height="44" fill="var(--schema)" opacity="0.002"/>
+      <text x="322" y="190" text-anchor="middle" class="svg-mono" fill="var(--paper)">0.268</text>
+      <rect x="344" y="164" width="44" height="44" fill="var(--web)" opacity="0.488"/>
       <rect x="344" y="164" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="366" y="190" text-anchor="middle" class="svg-mono" fill="var(--ink)" font-weight="400">0.001</text>
+      <text x="366" y="190" text-anchor="middle" class="svg-mono" fill="var(--ink)">0.161</text>
       <rect x="388" y="164" width="44" height="44" fill="none" stroke="var(--rule)"/>
       <line x1="388" y1="164" x2="432" y2="208" stroke="var(--rule)"/>
-      <rect x="432" y="164" width="44" height="44" fill="var(--schema)" opacity="0.006"/>
+      <rect x="432" y="164" width="44" height="44" fill="var(--web)" opacity="0.509"/>
       <rect x="432" y="164" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="454" y="190" text-anchor="middle" class="svg-mono" fill="var(--ink)" font-weight="400">0.003</text>
+      <text x="454" y="190" text-anchor="middle" class="svg-mono" fill="var(--ink)">0.168</text>
       <text x="294" y="234" text-anchor="end" class="svg-small" fill="var(--ink-2)">⊣</text>
       <text x="454" y="74" text-anchor="middle" class="svg-small" fill="var(--ink-2)">⊣</text>
-      <rect x="300" y="208" width="44" height="44" fill="var(--schema)" opacity="0.074"/>
+      <rect x="300" y="208" width="44" height="44" fill="var(--web)" opacity="0.809"/>
       <rect x="300" y="208" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="322" y="234" text-anchor="middle" class="svg-mono" fill="var(--ink)" font-weight="400">0.033</text>
-      <rect x="344" y="208" width="44" height="44" fill="var(--schema)" opacity="0.004"/>
+      <text x="322" y="234" text-anchor="middle" class="svg-mono" fill="var(--paper)">0.267</text>
+      <rect x="344" y="208" width="44" height="44" fill="var(--web)" opacity="0.452"/>
       <rect x="344" y="208" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="366" y="234" text-anchor="middle" class="svg-mono" fill="var(--ink)" font-weight="400">0.002</text>
-      <rect x="388" y="208" width="44" height="44" fill="var(--schema)" opacity="0.006"/>
+      <text x="366" y="234" text-anchor="middle" class="svg-mono" fill="var(--ink)">0.149</text>
+      <rect x="388" y="208" width="44" height="44" fill="var(--web)" opacity="0.509"/>
       <rect x="388" y="208" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="410" y="234" text-anchor="middle" class="svg-mono" fill="var(--ink)" font-weight="400">0.003</text>
+      <text x="410" y="234" text-anchor="middle" class="svg-mono" fill="var(--ink)">0.168</text>
       <rect x="432" y="208" width="44" height="44" fill="none" stroke="var(--rule)"/>
       <line x1="432" y1="208" x2="476" y2="252" stroke="var(--rule)"/>
-      <text x="388" y="272" text-anchor="middle" class="svg-small" fill="var(--ink-3)">population separation 0.018</text>
+      <text x="388" y="270" text-anchor="middle" class="svg-small" fill="var(--ink-3)">population separation 0.211</text>
       <text x="618" y="62" text-anchor="middle" class="svg-label" fill="var(--ink)">convergence.L2</text>
       <text x="524" y="102" text-anchor="end" class="svg-small" fill="var(--ink-2)">T</text>
       <text x="552" y="74" text-anchor="middle" class="svg-small" fill="var(--ink-2)">T</text>
       <rect x="530" y="76" width="44" height="44" fill="none" stroke="var(--rule)"/>
       <line x1="530" y1="76" x2="574" y2="120" stroke="var(--rule)"/>
-      <rect x="574" y="76" width="44" height="44" fill="var(--schema)" opacity="0.080"/>
+      <rect x="574" y="76" width="44" height="44" fill="var(--schema)" opacity="0.033"/>
       <rect x="574" y="76" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="596" y="102" text-anchor="middle" class="svg-mono" fill="var(--ink)" font-weight="400">0.036</text>
-      <rect x="618" y="76" width="44" height="44" fill="var(--schema)" opacity="0.080"/>
+      <text x="596" y="102" text-anchor="middle" class="svg-mono" fill="var(--ink)">0.011</text>
+      <rect x="618" y="76" width="44" height="44" fill="var(--schema)" opacity="0.033"/>
       <rect x="618" y="76" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="640" y="102" text-anchor="middle" class="svg-mono" fill="var(--ink)" font-weight="400">0.036</text>
-      <rect x="662" y="76" width="44" height="44" fill="var(--schema)" opacity="0.080"/>
+      <text x="640" y="102" text-anchor="middle" class="svg-mono" fill="var(--ink)">0.011</text>
+      <rect x="662" y="76" width="44" height="44" fill="var(--schema)" opacity="0.033"/>
       <rect x="662" y="76" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="684" y="102" text-anchor="middle" class="svg-mono" fill="var(--ink)" font-weight="400">0.036</text>
+      <text x="684" y="102" text-anchor="middle" class="svg-mono" fill="var(--ink)">0.011</text>
       <text x="524" y="146" text-anchor="end" class="svg-small" fill="var(--ink-2)">⊥</text>
       <text x="596" y="74" text-anchor="middle" class="svg-small" fill="var(--ink-2)">⊥</text>
-      <rect x="530" y="120" width="44" height="44" fill="var(--schema)" opacity="0.080"/>
+      <rect x="530" y="120" width="44" height="44" fill="var(--schema)" opacity="0.033"/>
       <rect x="530" y="120" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="552" y="146" text-anchor="middle" class="svg-mono" fill="var(--ink)" font-weight="400">0.036</text>
+      <text x="552" y="146" text-anchor="middle" class="svg-mono" fill="var(--ink)">0.011</text>
       <rect x="574" y="120" width="44" height="44" fill="none" stroke="var(--rule)"/>
       <line x1="574" y1="120" x2="618" y2="164" stroke="var(--rule)"/>
-      <rect x="618" y="120" width="44" height="44" fill="var(--schema)" opacity="0.000"/>
+      <rect x="618" y="120" width="44" height="44" fill="var(--schema)" opacity="0.012"/>
       <rect x="618" y="120" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="640" y="146" text-anchor="middle" class="svg-mono" fill="var(--warn)" font-weight="700">0.000</text>
-      <rect x="662" y="120" width="44" height="44" fill="var(--schema)" opacity="0.000"/>
+      <text x="640" y="146" text-anchor="middle" class="svg-mono" fill="var(--ink)">0.004</text>
+      <rect x="662" y="120" width="44" height="44" fill="var(--schema)" opacity="0.012"/>
       <rect x="662" y="120" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="684" y="146" text-anchor="middle" class="svg-mono" fill="var(--warn)" font-weight="700">0.000</text>
+      <text x="684" y="146" text-anchor="middle" class="svg-mono" fill="var(--ink)">0.004</text>
       <text x="524" y="190" text-anchor="end" class="svg-small" fill="var(--ink-2)">⊢</text>
       <text x="640" y="74" text-anchor="middle" class="svg-small" fill="var(--ink-2)">⊢</text>
-      <rect x="530" y="164" width="44" height="44" fill="var(--schema)" opacity="0.080"/>
+      <rect x="530" y="164" width="44" height="44" fill="var(--schema)" opacity="0.033"/>
       <rect x="530" y="164" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="552" y="190" text-anchor="middle" class="svg-mono" fill="var(--ink)" font-weight="400">0.036</text>
-      <rect x="574" y="164" width="44" height="44" fill="var(--schema)" opacity="0.000"/>
+      <text x="552" y="190" text-anchor="middle" class="svg-mono" fill="var(--ink)">0.011</text>
+      <rect x="574" y="164" width="44" height="44" fill="var(--schema)" opacity="0.012"/>
       <rect x="574" y="164" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="596" y="190" text-anchor="middle" class="svg-mono" fill="var(--warn)" font-weight="700">0.000</text>
+      <text x="596" y="190" text-anchor="middle" class="svg-mono" fill="var(--ink)">0.004</text>
       <rect x="618" y="164" width="44" height="44" fill="none" stroke="var(--rule)"/>
       <line x1="618" y1="164" x2="662" y2="208" stroke="var(--rule)"/>
-      <rect x="662" y="164" width="44" height="44" fill="var(--schema)" opacity="0.000"/>
+      <rect x="662" y="164" width="44" height="44" fill="var(--schema)" opacity="0.015"/>
       <rect x="662" y="164" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="684" y="190" text-anchor="middle" class="svg-mono" fill="var(--warn)" font-weight="700">0.000</text>
+      <text x="684" y="190" text-anchor="middle" class="svg-mono" fill="var(--ink)">0.005</text>
       <text x="524" y="234" text-anchor="end" class="svg-small" fill="var(--ink-2)">⊣</text>
       <text x="684" y="74" text-anchor="middle" class="svg-small" fill="var(--ink-2)">⊣</text>
-      <rect x="530" y="208" width="44" height="44" fill="var(--schema)" opacity="0.080"/>
+      <rect x="530" y="208" width="44" height="44" fill="var(--schema)" opacity="0.033"/>
       <rect x="530" y="208" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="552" y="234" text-anchor="middle" class="svg-mono" fill="var(--ink)" font-weight="400">0.036</text>
-      <rect x="574" y="208" width="44" height="44" fill="var(--schema)" opacity="0.000"/>
+      <text x="552" y="234" text-anchor="middle" class="svg-mono" fill="var(--ink)">0.011</text>
+      <rect x="574" y="208" width="44" height="44" fill="var(--schema)" opacity="0.012"/>
       <rect x="574" y="208" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="596" y="234" text-anchor="middle" class="svg-mono" fill="var(--warn)" font-weight="700">0.000</text>
-      <rect x="618" y="208" width="44" height="44" fill="var(--schema)" opacity="0.000"/>
+      <text x="596" y="234" text-anchor="middle" class="svg-mono" fill="var(--ink)">0.004</text>
+      <rect x="618" y="208" width="44" height="44" fill="var(--schema)" opacity="0.015"/>
       <rect x="618" y="208" width="44" height="44" fill="none" stroke="var(--rule)"/>
-      <text x="640" y="234" text-anchor="middle" class="svg-mono" fill="var(--warn)" font-weight="700">0.000</text>
+      <text x="640" y="234" text-anchor="middle" class="svg-mono" fill="var(--ink)">0.005</text>
       <rect x="662" y="208" width="44" height="44" fill="none" stroke="var(--rule)"/>
       <line x1="662" y1="208" x2="706" y2="252" stroke="var(--rule)"/>
-      <text x="618" y="272" text-anchor="middle" class="svg-small" fill="var(--ink-3)">population separation 0.018</text>
-      <text x="20" y="302" class="svg-small" fill="var(--warn)" font-weight="600">At the Web&#8217;s top Level the three rotations are one pattern. Four figures in, two distinguishable things out.</text>
+      <text x="618" y="270" text-anchor="middle" class="svg-small" fill="var(--ink-3)">population separation 0.008</text>
+      <text x="20" y="302" class="svg-small" fill="var(--ink-2)">All four figures separate in the shape Space now, the 180° pairs included. Convergence still merges everything into one pattern.</text>
     </svg>
     </div>
-    <figcaption><b>Figure 14.</b> The local patch (left, amber) separates a horizontal bar from a vertical one and barely notices the 180° rotations. Convergence (centre and right, teal) loses even that: by the top Level ⊥, ⊢ and ⊣ are identical to machine precision, and only T remains apart.</figcaption>
+    <figcaption><b>Figure 14.</b> The 64×64 expansion changed this picture. With nine Columns the shape Space put T and ⊥ at 0.054 and all but merged them; with 4096 Columns each computing a different 4-of-25 conjunction it puts them at 0.236, and every pair is separated. Across three further seeds T vs ⊥ came out 0.215, 0.227 and 0.224, so it is a property of the expansion rather than of one wiring.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="plate">
+    <svg viewBox="0 0 800 328" role="img" aria-label="Four readouts of the same run">
+      <text x="20" y="22" class="svg-title" fill="var(--ink-3)">FOUR READOUTS OF THE SAME RUN</text>
+      <text x="20" y="38" class="svg-small" fill="var(--ink-2)">bar = population separation over all four figures · notch = the worst single pair</text>
+      <text x="20" y="54" class="svg-small" fill="var(--ink-2)">nothing about the network changes between the rows; only the question asked of the traversal does</text>
+      <text x="20" y="72" class="svg-small" fill="var(--warn)" font-weight="600">The gap between the first two rows is what averaging over the stops was discarding.</text>
+      <line x1="250" y1="88" x2="250" y2="244" stroke="var(--rule)" stroke-width="1"/>
+      <text x="250" y="82" text-anchor="middle" class="svg-mono" fill="var(--ink-3)">0.00</text>
+      <line x1="339" y1="88" x2="339" y2="244" stroke="var(--rule)" stroke-width="1"/>
+      <text x="339" y="82" text-anchor="middle" class="svg-mono" fill="var(--ink-3)">0.25</text>
+      <line x1="428" y1="88" x2="428" y2="244" stroke="var(--rule)" stroke-width="1"/>
+      <text x="428" y="82" text-anchor="middle" class="svg-mono" fill="var(--ink-3)">0.50</text>
+      <line x1="517" y1="88" x2="517" y2="244" stroke="var(--rule)" stroke-width="1"/>
+      <text x="517" y="82" text-anchor="middle" class="svg-mono" fill="var(--ink-3)">0.75</text>
+      <line x1="607" y1="88" x2="607" y2="244" stroke="var(--rule)" stroke-width="1"/>
+      <text x="607" y="82" text-anchor="middle" class="svg-mono" fill="var(--ink-3)">1.00</text>
+      <text x="238" y="109" text-anchor="end" class="svg-label" fill="var(--ink)">averaged over stops</text>
+      <text x="238" y="123" text-anchor="end" class="svg-small" fill="var(--ink-3)">the old readout</text>
+      <rect x="250" y="96" width="50.1" height="22" rx="2" fill="var(--rule-2)"/>
+      <line x1="287" y1="91" x2="287" y2="123" stroke="var(--ink)" stroke-width="2" opacity=".8"/>
+      <text x="310" y="112" class="svg-mono" fill="var(--ink-2)">0.141</text>
+      <text x="238" y="149" text-anchor="end" class="svg-label" fill="var(--ink)">ordered traversal</text>
+      <text x="238" y="163" text-anchor="end" class="svg-small" fill="var(--ink-3)">stop k stays at position k</text>
+      <rect x="250" y="136" width="84.9" height="22" rx="2" fill="var(--web)"/>
+      <line x1="318" y1="131" x2="318" y2="163" stroke="var(--ink)" stroke-width="2" opacity=".8"/>
+      <text x="345" y="152" class="svg-mono" fill="var(--ink-2)">0.238</text>
+      <text x="238" y="189" text-anchor="end" class="svg-label" fill="var(--ink)">Index bindings</text>
+      <text x="238" y="203" text-anchor="end" class="svg-small" fill="var(--ink-3)">content paired with position</text>
+      <rect x="250" y="176" width="257.6" height="22" rx="2" fill="var(--index)"/>
+      <line x1="426" y1="171" x2="426" y2="203" stroke="var(--ink)" stroke-width="2" opacity=".8"/>
+      <text x="518" y="192" class="svg-mono" fill="var(--ink-2)">0.723</text>
+      <text x="238" y="229" text-anchor="end" class="svg-label" fill="var(--ink)">Schema states</text>
+      <text x="238" y="243" text-anchor="end" class="svg-small" fill="var(--ink-3)">content-blind: a reference, not a claim</text>
+      <rect x="250" y="216" width="364.2" height="22" rx="2" fill="var(--schema)"/>
+      <line x1="498" y1="211" x2="498" y2="243" stroke="var(--ink)" stroke-width="2" opacity=".8"/>
+      <text x="624" y="232" class="svg-mono" fill="var(--ink-2)">1.022</text>
+      <text x="20" y="272" class="svg-small" fill="var(--ink-2)">Per Level the ordered traversal is 1.5× to 2.6× the average, and it gains most exactly where the average was weakest:</text>
+      <text x="20" y="286" class="svg-small" fill="var(--ink-2)">T against ⊥, the 180° pair, goes from 0.153 to 0.280 and becomes the <tspan font-style="italic">largest</tspan> distance rather than a middling one.</text>
+    </svg>
+    </div>
+    <figcaption><b>Figure 15.</b> The network is identical in all four rows. Only the question asked of the traversal changes. The Schema row is content-blind by construction, so it is a reference point — what the arrangement is worth when nothing has diluted it — rather than a claim about recognition.</figcaption>
   </figure>
 
   <div class="cards">
@@ -2053,79 +2098,88 @@ separation[c] = gap[c] / scale[c]        (0 if the Column never moved)</pre>
     </div>
     <div class="card index">
       <h5>Completion</h5>
-      <p class="sub">0.857 · 6 of 7 bindings</p>
-      <p>A partial cue settles onto a stored entry and reinstates the rest. Bindings stay
-      individually addressable, so "did the entries merge?" is a question the tests can
-      actually ask.</p>
+      <p class="sub">1.000 · 7 of 7 bindings</p>
+      <p>Every binding comes back from its positional cue. It was 0.857 when content was
+      81 numbers wide; a 4096-wide content makes the stored bindings easier to keep
+      apart.</p>
     </div>
     <div class="card web">
       <h5>Position variance</h5>
       <p class="sub">1.1 × 10⁻¹⁶</p>
-      <p>Machine epsilon. The same figure at all 64 origins produces the same response,
-      so ADR-0004 holds at the boundary — and the factorial design's second factor no
-      longer varies at all.</p>
+      <p>Machine epsilon. The same figure at every origin produces the same response, so
+      ADR-0004 holds at the boundary — and the factorial design's second factor no longer
+      varies at all.</p>
     </div>
   </div>
 
   <h4>What the run says</h4>
 
+
   <div class="note warn">
-    <span class="tag">The local-feature shortcut is real, and it is not the shortcut we assumed</span>
+    <span class="tag">The summed encoding is blind to a 180° rotation, and that has not changed</span>
     <p>
-      §6.5 warned that a junction detector could separate T from ⊥ with one local
-      feature. The shape Space does score highest, and at its <em>lowest</em> Level, so
-      something local is doing work. But the distance matrix says what: at shape.L1, T
-      from ⊢ is <b>0.427</b> while T from ⊥ is <b>0.054</b>, and ⊢ from ⊣ is
-      <b>0.081</b>. What the patch separates is a horizontal bar from a vertical one.
-    </p>
-    <p>
-      And the blindness to the 180° rotations is exact rather than approximate.
       Summed over a presentation, one fixed window around every cell of a figure computes
       that figure's <b>local autocorrelation</b> — entry <i>d</i> counts the cell pairs
       separated by offset <i>d</i>. An autocorrelation is centrally symmetric, because the
       pairs at +<i>d</i> are the pairs at −<i>d</i>, so the summed code is identical for
       any figure and its 180° rotation. T and ⊥ both sum to
-      <span class="svg-mono">1 2 1 / 4 7 4 / 1 2 1</span>; ⊢ and ⊣ both sum to its
-      transpose. A larger patch would not help. The blindness is in the summing.
-    </p>
-    <p>
-      The residual 0.054 is therefore not partial credit. With feedback off and the
-      Columns reset between stops, ⊥'s response is the vertical flip of T's to 1.2 ×
-      10⁻¹⁶, and the whole measured distance is how far T's own response happens to be
-      from flip-symmetric. This is the same theorem already recorded for
+      <code>1 2 1 / 4 7 4 / 1 2 1</code>; ⊢ and ⊣ both sum to its
+      transpose. Widening the window does not help, and grading it by eccentricity does
+      not help: a weighted sum is still a sum, and a symmetric profile keeps the
+      symmetry. This is the same theorem already recorded for
       <code>Object.relations()</code>, whose unordered multiset of offsets is closed under
-      reflection — arriving at the boundary, where nobody had looked for it.
+      reflection.
     </p>
     <p>
-      What survives is <em>which</em> patches occurred and in what order: the per-stop
-      patches all differ, and so do their multisets. That is the traversal, and it belongs
-      to the Schema and the Index. One honest caveat for §6: a model keeping a bag of
-      local patches rather than their sum <em>could</em> separate this confusion set with
-      purely local features. The argument holds against summed convergence, not against
-      every local-feature account.
-    </p>
-  </div>
-
-  <div class="note">
-    <span class="tag">The colour Space is completely silent — 0 of 192 Columns</span>
-    <p>
-      Every part of every figure is one colour, so the colour encoder emits the same
-      vector at every stop of every presentation and nothing downstream of it ever
-      varies. Honest rather than broken, but it means the confusion set exercises one
-      sensory Space and no more — and since a Cardinal Node requires three Spaces
-      meeting, this experiment cannot produce one.
+      Which makes the shape Space's 0.236 for T against ⊥ worth being precise about. The
+      summed <em>drive</em> is still identical. The <em>response</em> is not, because 4096
+      Columns each computing a nonlinear function of a different 4-of-25 subset is no
+      longer a sum — it is close to keeping the bag of local windows rather than adding
+      them up. That was flagged as the one thing a local-feature account could still do,
+      and the expansion turned the caveat into the mechanism.
     </p>
   </div>
 
   <div class="note warn">
-    <span class="tag">Three of the four figures collapse at the top of the Web</span>
+    <span class="tag">The readout was losing more than the network was</span>
     <p>
-      At convergence.L2 the distance between ⊥, ⊢ and ⊣ is <b>exactly zero</b> — not
-      small, zero to machine precision. Only T stands apart, at 0.036. The Level whose
-      output the Index binds as content therefore holds two things where the task has
-      four. This is the sharpest single statement of the baseline: with arbitrary
-      connectivity and no learning, convergence does not merely fail to sharpen the
-      distinction, it destroys most of what the Level below still had.
+      Figure 15 is the result of this section. The same run, read as an ordered traversal
+      instead of a stop-average, separates the figures 1.7× better overall and 2.6× better
+      at the Hub — and the gain is largest on exactly the pair the average is provably
+      blind to. Nothing was added to the network to achieve that. A measurement was
+      removed.
+    </p>
+    <p>
+      The Index reading found the same failure in a second disguise. Content is 4096
+      numbers and a Schema state is 50, so a raw concatenation is <b>98.8% content by
+      dimension</b>: measured that way the binding scored 0.107 while the structural half
+      sitting beside it scored 1.02. Each half is now scaled to unit length first. An
+      unweighted aggregate lets size decide the answer, whether the size is a Column count
+      or a dimension count.
+    </p>
+  </div>
+
+  <div class="note">
+    <span class="tag">The colour Space is completely silent — 0 of 12 288 Columns</span>
+    <p>
+      Every part of every figure is one colour, so the colour encoder emits the same
+      vector at every stop and nothing downstream of it ever varies. Honest rather than
+      broken, but it has a cost the Hub pays: half of every convergence Column's fan-in
+      comes from colour.L3, so the Hub is being asked to converge over one Space while
+      sampling two.
+    </p>
+  </div>
+
+  <div class="note warn">
+    <span class="tag">Convergence still represents almost nothing</span>
+    <p>
+      0.008 against the shape Space's 0.248, with every one of its 8192 Columns active,
+      and all six figure distances between 0.004 and 0.011. It is not dead; it is
+      undifferentiated. The ordered traversal lifts it to 0.021, which is the largest
+      proportional gain in the run and still two orders of magnitude below what the
+      Schema carries. Whether that is the wiring — nothing narrows, half the fan-in is
+      silent, competition is confined to a cluster — or the absence of a learning rule is
+      the first thing a learning experiment has to separate.
     </p>
   </div>
 
@@ -2181,15 +2235,30 @@ separation[c] = gap[c] / scale[c]        (0 if the Column never moved)</pre>
   <div class="note warn">
     <span class="tag">What the baseline has already put on that list</span>
     <p>
-      Two findings from Figure 14 belong here rather than in the run notes, because they
-      are about the architecture and not about one experiment. First, <b>a per-Column
-      readout cannot answer whether a Level represents a figure</b>, and every claim in
-      §10 about "which structure a recruited unit was promoted into" will need a
-      population readout to be checked at all. Second, the Web's top Level currently
-      merges three of four figures into one pattern, which means the content the Index is
-      handed is already impoverished before any learning question is asked. Whether that
-      is the wiring above or the absence of a rule is the first thing a learning
-      experiment has to separate.
+      Three findings belong here rather than in the run notes, because they are about the
+      architecture and not about one experiment.
+    </p>
+    <p>
+      <b>A readout can lose more than a network does.</b> Reading a presentation as an
+      ordered traversal rather than its average separates the figures 1.7× better with no
+      change to anything that runs, and the gain is largest on the pair the average is
+      provably blind to. Every claim in §10 about which structure a recruited unit was
+      promoted into will need a readout that survives a traversal, or it cannot be checked
+      at all.
+    </p>
+    <p>
+      <b>Expansion did work that no learning rule was asked to do.</b> The same confusion
+      set, the same absence of learning, and a 4096-Column Level in place of a 9-Column
+      one moved T against ⊥ from 0.054 to 0.236. That is the null moving, not the result —
+      and it raises the bar a local rule has to clear rather than lowering it.
+    </p>
+    <p>
+      <b>The Hub is the weak point, and its weakness is diagnosable.</b> Convergence
+      represents almost nothing while every one of its Columns is active. Three candidate
+      causes are all visible in the wiring rather than hypothetical: no Level narrows, half
+      its fan-in comes from a silent Space, and competition is confined to a cluster.
+      Separating those from "there is no learning rule yet" is the first thing a learning
+      experiment has to do.
     </p>
   </div>
 </section>
