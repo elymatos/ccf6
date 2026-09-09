@@ -133,6 +133,33 @@ class Web:
         if self.convergence is not None:
             self.convergence.step(convergence_drive, p)
 
+    def learn(self, drive: dict[str, np.ndarray], rule, p: dict) -> int:
+        """One recruitment step across every Space, after the Web has settled."""
+        changed = 0
+        for name in self._convergence_sources:
+            changed += self.spaces[name].learn(drive.get(name), rule, p)
+        if self.convergence is not None:
+            sources = np.concatenate(
+                [transmit(self.spaces[n].top.l5, p) for n in self._convergence_sources]
+            )
+            changed += self.convergence.learn(sources, rule, p)
+        return changed
+
+    def recruitment_report(self, threshold: float = 0.5) -> dict:
+        """How much of the population has been spent, and where."""
+        from ccf6.learning import committed
+
+        return {
+            f"{level.name}": {
+                "committed": int(committed(level, threshold).sum()),
+                "columns": level.n,
+                "wins_max": int(level.wins.max()),
+                "plasticity_min": float(level.plasticity.min()),
+            }
+            for space in self.spaces.values()
+            for level in space.levels
+        }
+
     def describe(self) -> dict:
         return {
             "spaces": {name: space.describe() for name, space in self.spaces.items()},

@@ -1,8 +1,8 @@
 {
-  "number": "004",
-  "name": "Structure baseline",
+  "number": "005",
+  "name": "Recruitment",
   "kind": "structure_baseline",
-  "question": "With no learning, how well does anything here separate four figures that share one feature bag, shown in four colours? T, ⊥, ⊢ and ⊣ have identical parts and differ only in arrangement; crossing them with colour gives the Hub a conjunction to form.",
+  "question": "Can convergence, competition and recruitment under a local rule build conjunction units the baseline does not have? The Hub's conjunction selectivity of 0.061 and its population separation of 0.029 are the null.",
   "ticks": 150,
   "visiting_order": "raster",
   "figures": [
@@ -40,7 +40,12 @@
     "seed": 20260908,
     "convergence_fanin": 12,
     "space_side": 64,
-    "cluster": 8
+    "cluster": 8,
+    "learning": {
+      "rate": 0.05,
+      "commitment": 0.02,
+      "floor": 0.05
+    }
   },
   "parameters": {},
   "max_origins": 4,
@@ -49,5 +54,6 @@
     2,
     3,
     4
-  ]
+  ],
+  "epochs": 8
 }

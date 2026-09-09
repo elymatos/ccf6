@@ -44,6 +44,23 @@ def two_way_selectivity(responses: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return first, second
 
 
+def conjunction_selectivity(responses: np.ndarray) -> np.ndarray:
+    """How much of each Column's variance neither factor explains on its own.
+
+    This is the measurement a Hub exists to be judged by. A Column that follows shape
+    scores its variance under shape; one that follows colour scores it under colour; a
+    Column that answers to a *particular shape in a particular colour* and not to that
+    shape in another colour has variance that neither main effect predicts. That
+    residual is the conjunction.
+
+    With one presentation per cell there is no replication, so everything the two main
+    effects leave over is the interaction. Returns a vector in [0, 1] per Column, and
+    the three parts sum to 1 wherever a Column moved at all.
+    """
+    first, second = two_way_selectivity(responses)
+    return np.clip(1.0 - first - second, 0.0, 1.0) * (first + second > 0)
+
+
 def figure_separation(responses: np.ndarray) -> np.ndarray:
     """How far apart the figures' responses are, per Column, relative to their size.
 
@@ -120,6 +137,7 @@ def summarise_by_level(
     responses: np.ndarray | None = None,
     figures: list[str] | None = None,
     traces: np.ndarray | None = None,
+    conjunction: np.ndarray | None = None,
 ) -> dict[str, dict[str, float]]:
     """Per-Level maxima and means, which is what tells you whether depth did anything.
 
@@ -143,6 +161,9 @@ def summarise_by_level(
             f"{b}_selectivity_mean": float(second[idx].mean()),
             "active_columns": int((first[idx] + second[idx] > 1e-9).sum()),
         }
+        if conjunction is not None:
+            summary[level_name]["conjunction_selectivity_max"] = float(conjunction[idx].max())
+            summary[level_name]["conjunction_selectivity_mean"] = float(conjunction[idx].mean())
         if separation is not None:
             summary[level_name]["separation_max"] = float(separation[idx].max())
             summary[level_name]["separation_mean"] = float(separation[idx].mean())

@@ -25,6 +25,7 @@ import numpy as np
 
 from ccf6.ego import Presentation, Step
 from ccf6.index import Index
+from ccf6.learning import Recruitment
 from ccf6.schema import Schema
 from ccf6.thalamus import Thalamus
 from ccf6.web import Web
@@ -141,6 +142,9 @@ class Architecture:
             if name in ("colour", "shape", "convergence")
         }
     )
+    #: The recruitment rule, or None for a network that does not learn. A run with this
+    #: unset is the baseline every learning claim is measured against.
+    learning: dict | None = None
     #: Which structures to build. A question about one need not run the others.
     structures: tuple[str, ...] = ("web", "schema", "index")
     seed: int = 20260908
@@ -177,6 +181,10 @@ class Network:
         self.schema_state: np.ndarray | None = None
         if "schema" in arch.structures:
             self.schema = Schema(tuple(arch.schema_periods), arch.schema_width)
+
+        self.rule: Recruitment | None = (
+            Recruitment(**arch.learning) if arch.learning else None
+        )
 
         self.index: Index | None = None
         if "index" in arch.structures:
@@ -240,6 +248,8 @@ class Network:
             drive = self.thalamus.project(signals)
             for _ in range(ticks):
                 self.web.step(drive, p)
+            if self.rule is not None:
+                self.web.learn(drive, self.rule, p)
 
         if self.index is not None:
             self.index.write(self.web.content(p), self.schema_state)
@@ -268,6 +278,8 @@ class Network:
 
     def describe(self) -> dict:
         out: dict = {"structures": list(self.arch.structures)}
+        if self.rule is not None:
+            out["learning"] = self.rule.describe()
         if self.web is not None:
             out["web"] = self.web.describe()
         if self.schema is not None:

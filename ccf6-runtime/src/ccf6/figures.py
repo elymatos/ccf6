@@ -58,9 +58,29 @@ TEE_LEFT = _figure("⊣", "column", "left")
 
 FIGURES = {"T": TEE, "T-up": TEE_UP, "T-right": TEE_RIGHT, "T-left": TEE_LEFT}
 
+#: Colours a figure can be shown in. Index 0 is the World's background and is excluded:
+#: a figure the colour of the ground is not a figure. Crossing these against FIGURES is
+#: what gives a Hub a conjunction to form. With one colour it has none, because half of
+#: every convergence Column's fan-in comes from a Space that never varies.
+COLOURS = (1, 2, 3, 4)
+
 
 def named(names: list[str]) -> list[Object]:
     unknown = [n for n in names if n not in FIGURES]
     if unknown:
         raise KeyError(f"unknown figures {unknown}; declared: {sorted(FIGURES)}")
     return [FIGURES[n] for n in names]
+
+
+def in_colour(obj: Object, colour: int) -> Object:
+    """The same arrangement, shown in another colour.
+
+    Shape and colour stay orthogonal by construction. The shape encoder reads a
+    foreground mask and cannot see colour at all, and the colour encoder is handed the
+    colour at the stop and knows nothing of the arrangement. So neither Space can solve
+    the other's factor, and a Column that responds to one shape in one colour and to
+    nothing else had to build the conjunction itself.
+    """
+    if colour < 1:
+        raise ValueError(f"colour {colour} is the World's background; a figure needs its own")
+    return Object(obj.name, tuple((offset, colour) for offset, _ in obj.parts))

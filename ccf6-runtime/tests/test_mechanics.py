@@ -373,3 +373,106 @@ def test_a_binding_is_not_decided_by_which_half_has_more_dimensions():
 
     assert np.linalg.norm(bindings[:400]) == pytest.approx(1.0)
     assert np.linalg.norm(bindings[400:]) == pytest.approx(1.0)
+
+
+def _learning_space(cluster=4, **kwargs):
+    from ccf6.space import Space
+
+    return Space(
+        "a", (8, 8), 2, 16, cortical_area="parietal", modality="visual",
+        local_levels=0, pooling=3, fanin=4, cluster=cluster,
+        rng=np.random.default_rng(0), input_mode="sparse", **kwargs
+    )
+
+
+def test_recruitment_moves_a_winner_toward_the_input_that_made_it_win():
+    """Strengthening: the change at a connection depends on its two ends and nothing else."""
+    from ccf6.learning import Recruitment
+
+    space = _learning_space()
+    level = space.levels[0]
+    level.l23[:] = 0.0
+    level.l23[5] = 1.0                       # Column 5 wins its cluster
+    drawn = level.w_input.cols[level.input_by_target[5]]
+
+    # Two of the Column's four sources are active. Those two should gain at the
+    # expense of the two that were silent.
+    source = np.zeros(16)
+    source[drawn[:2]] = 1.0
+
+    before = level.w_input.weights[level.input_by_target[5]].copy()
+    changed = Recruitment(rate=0.5, commitment=0.0).apply(level, source)
+    after = level.w_input.weights[level.input_by_target[5]]
+
+    assert changed == 1
+    assert (after[:2] > before[:2]).all()
+    assert (after[2:] < before[2:]).all()
+    # Total drive is preserved, so winning cannot make a Column louder rather than
+    # better matched.
+    assert after.sum() == pytest.approx(before.sum())
+
+
+def test_a_uniform_input_teaches_a_winner_nothing():
+    """The rule learns which of a Column's sources matter, not how loud they were.
+
+    A source pattern that is flat across everything a Column draws from carries no
+    information about which connection deserves the weight, and leaves it unchanged.
+    """
+    from ccf6.learning import Recruitment
+
+    space = _learning_space()
+    level = space.levels[0]
+    level.l23[:] = 0.0
+    level.l23[5] = 1.0
+
+    before = level.w_input.weights[level.input_by_target[5]].copy()
+    Recruitment(rate=0.5, commitment=0.0).apply(level, np.ones(16))
+    assert level.w_input.weights[level.input_by_target[5]] == pytest.approx(before)
+
+
+def test_a_column_that_keeps_winning_commits_and_stops_changing():
+    """Recruitment: the population is fixed, so recruiting is spending one of it."""
+    from ccf6.learning import Recruitment, committed
+
+    space = _learning_space()
+    level = space.levels[0]
+    rule = Recruitment(rate=0.5, commitment=0.5)
+    source = np.ones(16)
+
+    for _ in range(10):
+        level.l23[:] = 0.0
+        level.l23[5] = 1.0
+        rule.apply(level, source)
+
+    assert level.wins[5] == 10
+    assert level.plasticity[5] == pytest.approx(0.5 ** 10)
+    assert committed(level)[5]
+    assert not committed(level)[6]           # a Column that never won is still free
+
+
+def test_a_cluster_whose_winner_is_barely_awake_teaches_nothing():
+    """Letting a silent cluster learn would commit Columns to noise."""
+    from ccf6.learning import Recruitment
+
+    space = _learning_space()
+    level = space.levels[0]
+    level.l23[:] = 0.001
+    assert Recruitment(rate=0.5, floor=0.05).apply(level, np.ones(16)) == 0
+    assert level.wins.sum() == 0
+
+
+def test_resetting_a_network_does_not_untrain_it():
+    """Activity is per presentation; weights and commitment are what a run accumulates."""
+    from ccf6.learning import Recruitment
+
+    space = _learning_space()
+    level = space.levels[0]
+    level.l23[:] = 0.0
+    level.l23[5] = 1.0
+    Recruitment(rate=0.5, commitment=0.5).apply(level, np.ones(16))
+    trained = level.w_input.weights[level.input_by_target[5]].copy()
+
+    space.reset()
+    assert level.l23.sum() == 0.0
+    assert level.plasticity[5] == pytest.approx(0.5)
+    assert level.w_input.weights[level.input_by_target[5]] == pytest.approx(trained)
