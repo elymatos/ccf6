@@ -254,3 +254,28 @@ def test_an_unknown_parameter_is_refused():
     """A misspelled parameter that did nothing would look like one with no effect."""
     with pytest.raises(KeyError):
         params.resolve({"recurrant_gain": 0.5})
+
+
+def test_population_separation_sees_a_figure_no_single_column_carries():
+    """The point of the population view: a Level can tell two figures apart while
+    every one of its Columns, taken alone, cannot."""
+    from ccf6.metrics import figure_separation, population_separation
+
+    # Two figures, one origin, two Columns. Each Column responds identically on
+    # average to both figures; only the *pairing* differs, so no Column separates them.
+    responses = np.array([
+        [[1.0, 0.0]],
+        [[0.0, 1.0]],
+    ])
+    per_column = figure_separation(responses)
+    mean, matrix = population_separation(responses)
+
+    assert per_column.max() > 0.0        # here each Column does move
+    assert matrix[0, 1] == pytest.approx(mean)
+    assert mean > 0.0
+
+    # And the failure the matrix exists to show: two figures merged into one pattern.
+    merged = np.array([[[1.0, 0.0]], [[1.0, 0.0]]])
+    mean_merged, matrix_merged = population_separation(merged)
+    assert mean_merged == pytest.approx(0.0)
+    assert matrix_merged[0, 1] == pytest.approx(0.0)

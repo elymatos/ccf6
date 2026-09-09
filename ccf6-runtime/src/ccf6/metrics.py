@@ -76,12 +76,49 @@ def figure_separation(responses: np.ndarray) -> np.ndarray:
     return out
 
 
+def population_separation(responses: np.ndarray) -> tuple[float, np.ndarray]:
+    """How far apart the figures are as *patterns over a whole population*.
+
+    `figure_separation` scores one Column at a time, and a Column is not where a figure
+    lives. What stands for a figure at a Level is the pattern across every Column that
+    reached it, so a per-Column score answers a different question: not "does this Level
+    tell the figures apart" but "does this Column, alone, tell them apart".
+
+    The difference is not cosmetic, and it runs the wrong way with depth. A Level doing
+    its job concentrates a figure onto fewer Columns, which lowers the per-Column mean
+    exactly when the Level has got better. Averaging over Columns therefore penalizes
+    the convergence the Web exists to perform.
+
+    So: the mean Euclidean distance between the figures' mean population vectors,
+    divided by the population's own rms magnitude. Returns that mean and the full
+    pairwise matrix, because a mean cannot show *which* figures a Level has merged, and
+    merging two of four is the failure worth seeing.
+    """
+    means = responses.mean(axis=1)                       # (n_figures, n_columns)
+    n = means.shape[0]
+    matrix = np.zeros((n, n))
+    if n < 2:
+        return 0.0, matrix
+
+    scale = float(np.linalg.norm(means) / np.sqrt(n))
+    if scale <= 1e-12:
+        return 0.0, matrix
+
+    for a in range(n):
+        for b in range(a + 1, n):
+            d = float(np.linalg.norm(means[a] - means[b]) / scale)
+            matrix[a, b] = matrix[b, a] = d
+    return float(matrix[np.triu_indices(n, 1)].mean()), matrix
+
+
 def summarise_by_level(
     first: np.ndarray,
     second: np.ndarray,
     labels: list[str],
     names: tuple[str, str] = ("shape", "position"),
     separation: np.ndarray | None = None,
+    responses: np.ndarray | None = None,
+    figures: list[str] | None = None,
 ) -> dict[str, dict[str, float]]:
     """Per-Level maxima and means, which is what tells you whether depth did anything.
 
@@ -108,4 +145,15 @@ def summarise_by_level(
         if separation is not None:
             summary[level_name]["separation_max"] = float(separation[idx].max())
             summary[level_name]["separation_mean"] = float(separation[idx].mean())
+        if responses is not None:
+            mean, matrix = population_separation(responses[:, :, idx])
+            summary[level_name]["population_separation"] = mean
+            # Which figures a Level has merged, not merely how much it separates on
+            # average. Labelled by figure so the matrix cannot be read in the wrong
+            # order once it is out of this function.
+            summary[level_name]["figure_distances"] = {
+                f"{figures[a]} vs {figures[b]}": float(matrix[a, b])
+                for a in range(matrix.shape[0])
+                for b in range(a + 1, matrix.shape[0])
+            } if figures else matrix.tolist()
     return summary

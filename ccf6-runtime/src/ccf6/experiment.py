@@ -17,7 +17,12 @@ import numpy as np
 
 from ccf6 import figures, params
 from ccf6.ego import Presentation
-from ccf6.metrics import figure_separation, summarise_by_level, two_way_selectivity
+from ccf6.metrics import (
+    figure_separation,
+    population_separation,
+    summarise_by_level,
+    two_way_selectivity,
+)
 from ccf6.network import Architecture, Network
 from ccf6.thalamus import ENCODERS, Thalamus
 from ccf6.world import PALETTE, World
@@ -138,6 +143,7 @@ def run_structure_baseline(definition: dict) -> dict:
 
     shape_sel, position_sel = two_way_selectivity(responses)
     separation = figure_separation(responses)
+    population, distances = population_separation(responses)
     labels = network.column_labels()
     active = int((shape_sel + position_sel > 1e-9).sum())
 
@@ -151,11 +157,13 @@ def run_structure_baseline(definition: dict) -> dict:
                 "position_selectivity_mean": float(position_sel.mean()) if labels else 0.0,
                 "separation_max": float(separation.max(initial=0.0)),
                 "separation_mean": float(separation.mean()) if labels else 0.0,
+                "population_separation": population,
                 "active_columns": active,
                 "silent_columns": len(labels) - active,
             },
             "by_level": summarise_by_level(
-                shape_sel, position_sel, labels, ("shape", "position"), separation
+                shape_sel, position_sel, labels, ("shape", "position"), separation,
+                responses, names,
             ),
             "presentation": {
                 "figures": names,
@@ -164,6 +172,11 @@ def run_structure_baseline(definition: dict) -> dict:
                 "parts_per_figure": len(shapes[0].parts),
                 "relations_per_figure": len(shapes[0].parts) - 1,
                 "visiting_order": order,
+            },
+            "figure_distances": {
+                f"{names[a]} vs {names[b]}": float(distances[a, b])
+                for a in range(len(names))
+                for b in range(a + 1, len(names))
             },
         },
         "responses": responses,
