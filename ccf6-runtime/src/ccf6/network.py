@@ -39,7 +39,7 @@ class Architecture:
     levels: int = 3
     convergence_levels: int = 2
     #: Local pooling assumes a Grid's neighbourhood means something. For a Space over
-    #: colour or local form it does not — adjacency there is an artefact of laying the
+    #: colour or local shape it does not — adjacency there is an artefact of laying the
     #: dimension out on a square. Only a genuinely spatial Space should pool locally, so
     #: the default is none, and `pooling` waits for one that has a real neighbourhood.
     local_levels: int = 0
@@ -59,7 +59,7 @@ class Architecture:
     spaces: dict[str, dict[str, str | None]] = field(
         default_factory=lambda: {
             name: dict(sited) for name, sited in Web.DEFAULT_SITING.items()
-            if name in ("colour", "form", "convergence")
+            if name in ("colour", "shape", "convergence")
         }
     )
     #: Which structures to build. A question about one need not run the others.

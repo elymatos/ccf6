@@ -12,7 +12,7 @@ import pytest
 from ccf6 import figures, params
 from ccf6.space import Space, relax, transmit
 from ccf6.metrics import two_way_selectivity
-from ccf6.thalamus import LocalistColour, LocalForm, LocalistPosition, PopulationColour, Thalamus
+from ccf6.thalamus import LocalistColour, LocalShape, LocalistPosition, PopulationColour, Thalamus
 from ccf6.world import Object, World
 
 
@@ -60,7 +60,7 @@ def test_what_the_boundary_encodes_is_the_same_at_every_world_position(p):
     Column, for every figure in the confusion set.
     """
     world = World(12)
-    encoder = LocalForm(radius=1)
+    encoder = LocalShape(radius=1)
     for shape in figures.named(sorted(figures.FIGURES)):
         encoded = set()
         for i in range(12):
@@ -156,9 +156,9 @@ def test_the_thalamus_carries_no_state_between_samples():
     assert thalamus.project({"colour": 3})["colour"].tolist() == first.tolist()
 
 
-def test_a_form_encoder_reports_the_neighbourhood_it_was_given():
-    """Local form is a sensory code: what is here, never where here is."""
-    encoder = LocalForm(radius=1)
+def test_a_shape_encoder_reports_the_neighbourhood_it_was_given():
+    """Local shape is a sensory code: what is here, never where here is."""
+    encoder = LocalShape(radius=1)
     patch = np.arange(9, dtype=float).reshape(3, 3) / 8.0
     assert encoder.encode(patch).tolist() == patch.ravel().tolist()
     with pytest.raises(ValueError):
@@ -229,12 +229,12 @@ def test_a_space_declares_where_it_sits_and_how_its_content_arrives():
     from ccf6.network import Architecture, Network
     from ccf6.thalamus import LocalistColour, LocalistPosition
 
-    thalamus = Thalamus({"colour": PopulationColour(8, 64), "form": LocalForm()})
+    thalamus = Thalamus({"colour": PopulationColour(8, 64), "shape": LocalShape()})
     network = Network(Architecture(), thalamus)
     spaces = network.web.spaces
     assert spaces["colour"].cortical_area == "temporal"
     # Two Spaces, one Modality: distinctness is a matter of dimension, not of channel.
-    assert spaces["colour"].modality == spaces["form"].modality == "visual"
+    assert spaces["colour"].modality == spaces["shape"].modality == "visual"
     # A convergence Space is fed by other Spaces, so no channel is its own.
     assert spaces["convergence"].modality is None
     assert spaces["convergence"].cortical_area == "frontal"

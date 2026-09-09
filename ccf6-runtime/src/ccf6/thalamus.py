@@ -64,7 +64,7 @@ class PopulationColour:
         return np.exp(-0.5 * (circular / self.width) ** 2)
 
 
-class LocalForm:
+class LocalShape:
     """The colour neighbourhood at the stop Ego is looking from.
 
     Nine Columns for a 3x3 patch, one per cell, each carrying whether that cell differs
@@ -73,11 +73,21 @@ class LocalForm:
     with before any arrangement is available. It is a *sensory* code: it says what is
     here, not where here is.
 
-    It reads colour rather than contrast (ADR-0009), so a figure at the World frame
-    encodes exactly as it does in the middle. That change does not touch the shortcut
-    this encoder affords: a junction patch is oriented, so a T's patch already differs
-    from a bottom's. The shortcut is meant to stay visible. It comes from locality, and
-    it is the number a relational-learning claim has to beat.
+    The window is padded rather than clipped, so a figure at the World frame encodes
+    exactly as it does in the middle.
+
+    **What this encoder cannot see, and it is not a matter of degree.** Summed over a
+    presentation, one fixed window around every one of a figure's cells computes that
+    figure's local autocorrelation: entry *d* counts the cell pairs separated by offset
+    *d*. An autocorrelation is centrally symmetric, since the pairs at +d are the pairs
+    at -d, so the summed code is **identical for any figure and its 180-degree
+    rotation** — T and a bottom sum to the same nine numbers, as do the two side-facing
+    ones. A larger radius does not help; the blindness is in the summing.
+
+    The per-stop patches do all differ, and so do their multisets, so the distinction
+    survives in *which* patches occurred and in what order. That is the traversal, and
+    it belongs to the Schema and the Index. What this encoder affords on its own is bar
+    orientation, which the sum does carry.
     """
 
     def __init__(self, radius: int = 1):
@@ -115,7 +125,7 @@ class LocalistPosition:
 ENCODERS = {
     "localist_colour": LocalistColour,
     "population_colour": PopulationColour,
-    "local_form": LocalForm,
+    "local_shape": LocalShape,
     "localist_position": LocalistPosition,
 }
 

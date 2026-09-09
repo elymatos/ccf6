@@ -56,7 +56,7 @@ def build(definition: dict) -> tuple[Network, World, dict]:
               else encoder(arch.n_colours))
     available = {
         "colour": colour,
-        "form": ENCODERS["local_form"](),
+        "shape": ENCODERS["local_shape"](),
         "position": ENCODERS["localist_position"](arch.world_size),
     }
     # Only the Spaces an experiment declared get an encoder: the Thalamus projects to
@@ -78,7 +78,7 @@ def _signals(world: World, patch_radius: int = 1):
     def at(step):
         i, j = step.position
         window = padded[i:i + 2 * patch_radius + 1, j:j + 2 * patch_radius + 1]
-        return {"colour": step.colour, "form": window, "position": step.position}
+        return {"colour": step.colour, "shape": window, "position": step.position}
 
     return at
 
