@@ -74,9 +74,9 @@ class LocalForm:
     here, not where here is.
 
     It reads colour rather than contrast (ADR-0009), so a figure at the World frame
-    encodes exactly as it does in the middle. The local-feature shortcut this affords —
-    a junction patch is oriented, so a T's patch already differs from a bottom's — is
-    unaffected by that change and is meant to stay visible: it comes from locality, and
+    encodes exactly as it does in the middle. That change does not touch the shortcut
+    this encoder affords: a junction patch is oriented, so a T's patch already differs
+    from a bottom's. The shortcut is meant to stay visible. It comes from locality, and
     it is the number a relational-learning claim has to beat.
     """
 

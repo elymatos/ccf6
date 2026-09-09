@@ -73,24 +73,24 @@ conjunction of its source Spaces constitutes. A Hub carries no Modality. A Web h
 most one, and it is where the Web's Spaces converge.
 *Avoid: association area, integration layer, convergence Space.*
 
-**Web** — The organization of Spaces that converges over **co-occurrence**: features
+**Web** — The organization of Spaces that converges over **co-occurrence**. Features
 drive conjunctions, conjunctions drive categories, and many different inputs come to
-drive one shared response, which is what makes a category exist at all. It is an
-organization *of* Spaces, not a replacement for them — Space, Modality, Cortical Area,
-Convergence Node, Cardinal Node and Hub all keep their meanings inside it. The Web is
-slow and overlapping; what it cannot do is keep two similar things apart.
+drive one shared response, which is what makes a category exist at all. A Web organizes
+Spaces rather than replacing them, so Space, Modality, Cortical Area, Convergence Node,
+Cardinal Node and Hub all keep their meanings inside it. The Web is slow and
+overlapping. What it cannot do is keep two similar things apart.
 *Avoid: hierarchy, semantic network, taxonomy.*
 
-**Schema** — The structure that converges over **transitions**: a state advanced by a
-Relation, and nothing else. It is blind to what occupies a position, which is what lets
-one skeleton transfer to new material. A Schema is not a Space — it is not a code for a
-conceptual dimension and is not driven by the Thalamus — and it holds no Levels.
+**Schema** — The structure that converges over **transitions**. It is a state advanced
+by a Relation and nothing else, blind to what occupies a position, which is what lets one
+skeleton transfer to new material. A Schema is not a Space. It is not a code for a
+conceptual dimension, the Thalamus does not drive it, and it holds no Levels.
 *Avoid: map, cognitive map, frame, grid.* See *Collisions*.
 
-**Index** — The structure that **binds** a Content code to a Schema state — *this thing,
-here* — and completes the pair from either half. It is fast, sparse and separating,
+**Index** — The structure that **binds** a Content code to a Schema state, meaning *this
+thing, here*, and completes the pair from either half. It is fast, sparse and separating,
 written in one exposure, and it holds bindings rather than a hierarchy of Levels. Its
-pressure is the opposite of the Web's: the Web must merge similar things, the Index must
+pressure runs opposite to the Web's. The Web must merge similar things; the Index must
 keep them apart. *Avoid: memory, store, lookup table, Hub.* See *Collisions*.
 
 **Presentation** — A figure as the sequence of stops that shows it. An arrangement is
@@ -114,7 +114,7 @@ same Object. *Avoid: shape, pattern, item.*
 
 **Part** — One cell of an Object, held as an offset from the Object's own origin and a
 colour. Parts carry no World coordinates, which is what makes an Object the same Object
-wherever it is placed. **Figure** is the informal word for an Object being shown, and
+wherever it is placed. **Figure** is the informal word for an Object being shown and
 carries no separate meaning. *Avoid: element, component, feature.*
 
 **Ego** — The position in the World from which sampling occurs. Sampling is egocentric;
@@ -148,15 +148,15 @@ code: this content, at this structural position. *Avoid: binding tuple, pair.*
 and pattern completion from a partial cue. *Avoid: database, store.*
 
 In CCF6 the **Schema**'s state carries `g`, the **Web**'s content carries `x`, and the
-**Index** carries `p` and is the site of `M`. This is a mapping between the two
-vocabularies, not an identity: `g`, `x` and `p` remain descriptions of population
+**Index** carries `p` and is the site of `M`. This maps the two vocabularies onto each
+other without making them identical. `g`, `x` and `p` remain descriptions of population
 activity, while Space, Column and Cardinal Node remain structure.
 
-The mapping was once *position Space → g, colour Space → x, Hub → p*. It changed when
-the Hub's two jobs were separated: a structural code must be **updated by Relations** or
-it is not one, so a coordinate supplied by an encoder cannot carry `g` however
-position-like it looks, and a conjunctive code must **separate** where the Hub's job is
-to **merge**. The Hub keeps the convergence job; the Index takes the binding job.
+The mapping was once *position Space → g, colour Space → x, Hub → p*. It changed when the
+Hub's two jobs were separated. A structural code must be **updated by Relations** or it
+is not one, so a coordinate supplied by an encoder cannot carry `g` however position-like
+it looks. And a conjunctive code must **separate** where the Hub's job is to **merge**.
+The Hub keeps the convergence job; the Index takes the binding job.
 
 ---
 
@@ -186,33 +186,32 @@ Column, **Level** is a hierarchical stage inside a Space. See both entries above
 held by **Modality** — one word making three claims at once. Resolved rather than open:
 "area" appears only as **Cortical Area**, always qualified, and never on its own.
 
-**schema** — In symbolic AI and in parts of cognitive psychology, a preloaded
-relational template supplied to the system in advance; one of CCF6's source traditions
-explicitly warns that such structures must not be foundational objects. In CCF6 a Schema
-is a **recruitment product**: whatever relational structure it holds was built from
-Relations the system was shown, and never installed. The word is kept because it is the
-ordinary term for a reusable relational structure, and the collision is recorded rather
-than dodged.
+**schema** — In symbolic AI and in parts of cognitive psychology, a relational template
+supplied to the system in advance. One of CCF6's source traditions warns explicitly that
+such structures must not be foundational objects. In CCF6 a Schema is a **recruitment
+product**: whatever relational structure it holds was built from Relations the system was
+shown, never installed. The word is kept because it is the ordinary term for a reusable
+relational structure, and the collision is recorded rather than dodged.
 
 **index** — In databases, a lookup structure over records. In CCF6, the structure that
-binds a Content code to a Schema state and completes the pair from either half. The two
-share the sense of *a pointer into something larger*, which is why the word was chosen,
-but a CCF6 Index stores bindings rather than addresses and is written by exposure rather
-than maintained. It is also not TEM's `M`: `M` is the population-level description of
-the connectivity, the Index is the structure that holds it.
+binds a Content code to a Schema state and completes the pair from either half. Both
+senses mean *a pointer into something larger*, which is why the word was chosen. A CCF6
+Index stores bindings rather than addresses, and exposure writes it rather than
+maintenance. It is also not TEM's `M`. `M` describes the connectivity at population
+level; the Index is the structure holding it.
 
 **web** — In the neurocognitive-linguistics tradition, the distributed subnetwork that
-realizes one concept — roughly the set of Columns a Cardinal Node is an entry point to.
-In CCF6, the whole slow, co-occurrence-converging organization of Spaces containing many
-such subnetworks. Same word, two scales. CCF6 uses **Web** for the organization only,
-and says *the Columns reachable through a Cardinal Node* for the other sense.
+realizes one concept, roughly the set of Columns a Cardinal Node is an entry point to. In
+CCF6, the whole slow co-occurrence-converging organization of Spaces, containing many
+such subnetworks. Same word, two scales. CCF6 says **Web** for the organization only, and
+*the Columns reachable through a Cardinal Node* for the other sense.
 
 **learning** — Open, and mostly terminological. The foundation is described as having
 **no learning**, meaning nothing in the Web or the Schema changes, nothing is recruited
 and nothing is promoted. The Index nonetheless writes a binding on every exposure. Both
-statements are true and the word is doing two jobs: *slow structural change* and *any
-change to connectivity at all*. Whether the Index's one-shot write counts as learning is
-not settled here.
+statements are true, because the word is doing two jobs: *slow structural change*, and
+*any change to connectivity at all*. Whether the Index's one-shot write counts as
+learning is not settled here.
 
 **cardinal / multimodal** — Open. A Cardinal Node is defined by spanning three or more
 **Spaces**. It was previously said to be multimodal by definition, but the split shows

@@ -46,18 +46,18 @@
             </tbody>
         </table>
         <p class="muted" style="max-width:70ch;margin:14px 0 0">
-            <strong>Figure separation</strong> is the headline number: how far apart the
-            figures' responses are, relative to how large those responses are. Zero means
-            the figures are indistinguishable here, and it is what a learning rule has to
-            beat.
+            <strong>Figure separation</strong> is the headline number. It is how far
+            apart the figures' responses are, relative to how large those responses are.
+            Zero means the figures are indistinguishable here, and it is what a learning
+            rule has to beat.
         </p>
         <p class="muted" style="max-width:70ch;margin:10px 0 0">
-            <strong>Shape</strong> and <strong>position</strong> were crossed factorially,
-            but since the boundary became translation invariant (ADR-0009) position
-            contributes exactly zero variance — so that ratio is 1.000 wherever a Column
-            moves at all and 0.000 where it does not. It is kept because a value other than
-            those two would mean translation invariance had broken, and shown small
-            because it no longer separates anything.
+            <strong>Shape</strong> and <strong>position</strong> were crossed
+            factorially. Since the boundary became translation invariant (ADR-0009)
+            position contributes exactly zero variance, so that ratio reads 1.000
+            wherever a Column moves at all and 0.000 where it does not. Any other value
+            would mean translation invariance had broken, which is why it is still here,
+            and it separates nothing, which is why it is small.
         </p>
     </div>
 </section>

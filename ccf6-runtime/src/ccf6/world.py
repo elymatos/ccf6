@@ -4,13 +4,14 @@ A World is a square grid of colour indices. Colour 0 is white, and white is an
 ordinary colour rather than a gap — a blank cell is a fact, not an absence.
 
 What reaches the Thalamus is the colour field, at unit strength. It was once the
-*contrast* field — how much a cell differs from its neighbours — on the premise that a
-framework meant to record relations should be shown relations rather than things. That
-premise moved (ADR-0009): contrast is not translation invariant, because a figure
+*contrast* field, how much a cell differs from its neighbours, on the premise that a
+framework meant to record relations should be shown relations rather than things.
+
+That premise moved (ADR-0009). Contrast is not translation invariant, because a figure
 touching the World's frame scores lower than the same figure in the middle, and it was
 also serving as drive magnitude, so it carried that non-invariance into every Space at
-once. The relational quantity supplied at the boundary is now the **Relation** between
-two sampled World positions, and nothing else.
+once. The only relational quantity supplied at the boundary now is the **Relation**
+between two sampled World positions.
 
 `contrast()` survives as something one can compute *about* a World and draw. Nothing in
 the encoding path calls it.
@@ -99,7 +100,7 @@ class World:
         input code (ADR-0009). Counting an absent neighbour as not-differing makes a
         figure touching the frame score *lower* than the same figure in the middle. One
         Object at its 80 fitting origins in a 12x12 World has nine distinct contrast
-        signatures. The full divisor removed the inflation, not the dependence.
+        signatures. The full divisor removed the inflation. It left the dependence.
         """
         differing = np.zeros((self.size, self.size), dtype=np.float64)
         for di, dj in NEIGHBOUR_OFFSETS:
@@ -121,8 +122,8 @@ class World:
         does not depend on where the Object was put (ADR-0004).
 
         A mask rather than the colour indices, because a Column adds its inputs and a
-        raw index would drive one colour seven times harder than another — the same
-        confusion of strength with identity that ADR-0009 removed. What colour a cell is
+        raw index would drive one colour seven times harder than another. That is the
+        same confusion of strength with identity ADR-0009 removed. What colour a cell is
         belongs to the colour Space; whether a cell is filled belongs here.
         """
         return np.pad((self.cells != self.background).astype(np.float64), radius)
