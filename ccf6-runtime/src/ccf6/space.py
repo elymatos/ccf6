@@ -23,7 +23,7 @@ import numpy as np
 
 from ccf6.connections import (
     Connections,
-    global_competition,
+    clustered_competition,
     local_pooling,
     neighbourhood,
     sparse_nonlocal,
@@ -106,6 +106,7 @@ class Space:
         local_levels: int,
         pooling: int,
         fanin: int,
+        cluster: int,
         rng: np.random.Generator,
         input_mode: str = "identity",
     ):
@@ -124,6 +125,7 @@ class Space:
         self._input_mode = input_mode
         self._local_levels = local_levels
         self._pooling = pooling
+        self._cluster = cluster
         self.levels = [Level(f"{name}.L{i + 1}", shape) for i in range(n_levels)]
 
         for index, level in enumerate(self.levels):
@@ -135,7 +137,8 @@ class Space:
                 level.w_input = sparse_nonlocal(level.n, level.n, fanin, rng)
 
             is_top = index == len(self.levels) - 1
-            level.w_lateral = global_competition(level.n) if is_top else neighbourhood(shape)
+            level.w_lateral = (clustered_competition(shape, cluster) if is_top
+                               else neighbourhood(shape))
 
         # Feedback is reciprocal: whatever a Level draws from below, it feeds back to.
         # Running the same connections backwards is what keeps that structural rather
@@ -198,8 +201,8 @@ class Space:
                 "source": source,
                 "rule": rule,
                 "receptive_field": int(receptive),
-                "competition": "every other Column" if index == len(self.levels) - 1
-                               else "8 grid neighbours",
+                "competition": f"every other Column in its {self._cluster}x{self._cluster} cluster"
+                               if index == len(self.levels) - 1 else "8 grid neighbours",
                 "competitors": int(level.w_lateral.fan_in().mean()),
                 "feedback_from": self.levels[index + 1].name if level.w_feedback else None,
                 **counts,

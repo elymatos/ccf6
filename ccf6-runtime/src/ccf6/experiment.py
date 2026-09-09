@@ -65,8 +65,11 @@ def build(definition: dict) -> tuple[Network, World, dict]:
     return Network(arch, thalamus), World(arch.world_size), params.resolve(definition.get("parameters"))
 
 
-def _signals(world: World, patch_radius: int = 1):
+def _signals(world: World, patch_radius: int):
     """What the Thalamus is handed at one stop: what is here, not where here is.
+
+    `patch_radius` comes from the shape encoder rather than being fixed here, so
+    widening the window is one change in one place.
 
     The field is read from the World *as it stands when this is built*, so it must be
     rebuilt after every placement. A closure over a stale field would hand the network
@@ -103,6 +106,9 @@ def run_structure_baseline(definition: dict) -> dict:
     shapes = figures.named(definition.get("figures", sorted(figures.FIGURES)))
     names = definition.get("figures", sorted(figures.FIGURES))
 
+    shape_encoder = network.thalamus.encoders.get("shape")
+    radius = getattr(shape_encoder, "radius", 1)
+
     origins = [
         (i, j)
         for i in range(arch.world_size)
@@ -111,6 +117,15 @@ def run_structure_baseline(definition: dict) -> dict:
     ]
     if not origins:
         raise ValueError("no World position holds every figure; enlarge the World")
+
+    # Every origin gives a bit-identical response — the boundary is translation
+    # invariant to machine precision — so running all of them buys nothing but cost.
+    # An experiment declares how many to keep; `invariance_origins` is the separate,
+    # cheap check that the claim still holds over all of them.
+    limit = definition.get("max_origins")
+    if limit:
+        step = max(1, len(origins) // int(limit))
+        origins = origins[::step][: int(limit)]
 
     responses = np.zeros((len(shapes), len(origins), max(network.response_vector().size, 1)))
     snapshots, schema_states, stops = [], {}, 0
@@ -126,7 +141,7 @@ def run_structure_baseline(definition: dict) -> dict:
             # Built after placement: the field is a property of the World as it now
             # stands, not as it stood when the run began.
             responses[si, oi] = network.present(
-                presentation, _signals(world), ticks, p
+                presentation, _signals(world, radius), ticks, p
             )
             stops += len(presentation.steps)
             if network.schema is not None:

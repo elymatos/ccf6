@@ -51,6 +51,14 @@ class Architecture:
     #: spoke would leave most of its Columns sampling only silent sources and its output
     #: would fall below the transmission threshold before reaching its own top.
     convergence_fanin: int = 12
+    #: Every Space is this many Columns a side, at every Level. A Space's width is a
+    #: declared quantity rather than a consequence of what feeds it: the encoder no
+    #: longer sizes the Grid, so Level 1 is a sparse expansion of the boundary instead
+    #: of a copy of it.
+    space_side: int = 64
+    #: The unit of competition inside a Level. Columns in one cluster compete for the
+    #: right to represent; Columns in different clusters do not compete at all.
+    cluster: int = 8
     #: Module periods for the Schema. Capacity along one axis is their least common
     #: multiple, so coprime periods buy a large field from a few small modules.
     schema_periods: tuple[int, ...] = (3, 4, 5)
@@ -89,6 +97,8 @@ class Network:
                 pooling=arch.pooling,
                 fanin=arch.fanin,
                 convergence_fanin=arch.convergence_fanin,
+                cluster=arch.cluster,
+                side=arch.space_side,
                 rng=rng,
             )
 
