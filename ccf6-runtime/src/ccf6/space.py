@@ -109,6 +109,7 @@ class Space:
         cluster: int,
         rng: np.random.Generator,
         input_mode: str = "identity",
+        boundary: str = "Thalamus",
     ):
         if cortical_area not in CORTICAL_AREAS:
             raise ValueError(
@@ -123,6 +124,10 @@ class Space:
         self.cortical_area = cortical_area
         self.modality = modality
         self._input_mode = input_mode
+        # What feeds Level 1, for the record a run writes. It cannot be inferred from
+        # `input_mode` any more: a sensory Space samples its encoder sparsely too, now
+        # that the Grid is declared rather than sized by the encoder.
+        self._boundary_source = boundary
         self._local_levels = local_levels
         self._pooling = pooling
         self._cluster = cluster
@@ -182,7 +187,7 @@ class Space:
         for index, level in enumerate(self.levels):
             counts = level.w_input.describe()
             if index == 0:
-                source = "Thalamus" if self._input_mode == "identity" else "tops of other Spaces"
+                source = self._boundary_source
                 rule = ("one-to-one" if self._input_mode == "identity"
                         else f"sparse non-local, {counts['fan_in']} drawn from anywhere")
                 receptive = 1

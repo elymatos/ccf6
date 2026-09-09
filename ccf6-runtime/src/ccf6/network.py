@@ -30,6 +30,77 @@ from ccf6.thalamus import Thalamus
 from ccf6.web import Web
 
 
+def _unit(rows: np.ndarray) -> np.ndarray:
+    """Each row scaled to unit length, leaving an all-zero row alone."""
+    norms = np.linalg.norm(rows, axis=-1, keepdims=True)
+    return np.divide(rows, norms, out=np.zeros_like(rows), where=norms > 1e-12)
+
+
+@dataclass(frozen=True)
+class Traversal:
+    """What one presentation left behind, stop by stop.
+
+    A figure is a traversal rather than a state, so a readout that averages the stops
+    away can answer questions about content and none about arrangement. That is not a
+    matter of degree: the average of the local neighbourhoods around every cell of a
+    figure is that figure's autocorrelation, and an autocorrelation is centrally
+    symmetric, so an averaged readout cannot tell a figure from its 180-degree rotation
+    however well the network represented it.
+
+    Keeping the stops is what lets a measurement ask a different question. `mean` is the
+    old readout, kept so the two can be compared rather than swapped.
+    """
+
+    responses: np.ndarray       # (stops, Web Columns)
+    contents: np.ndarray        # (stops, content size)
+    schema_states: np.ndarray   # (stops, Schema size)
+
+    @property
+    def mean(self) -> np.ndarray:
+        """The stop-average: what the run reported before there was anything else."""
+        return self.responses.mean(axis=0) if self.responses.size else self.responses
+
+    @property
+    def sequence(self) -> np.ndarray:
+        """Every stop's response, in order, as one vector.
+
+        Order is carried by position, so two traversals of the same cells in different
+        orders are different vectors — which is the whole point.
+        """
+        return self.responses.ravel()
+
+    @property
+    def structure(self) -> np.ndarray:
+        """The Schema states in order: the structural code with nothing attached.
+
+        Content-blind by construction, so on its own this is not recognition — two
+        figures made of different cells have different walks whatever occupies them.
+        It is the reference point: what the arrangement is worth when nothing has
+        diluted it.
+        """
+        return self.schema_states.ravel()
+
+    @property
+    def bindings(self) -> np.ndarray:
+        """The Index's side: content and Schema state per stop, paired by position.
+
+        Concatenating rather than multiplying keeps the pairing — stop *k* holds its own
+        content beside its own position — without the cost of an outer product.
+
+        **Each half is normalised first, and that is not cosmetic.** Content is 4096
+        numbers and a Schema state is 50, so a raw concatenation is 98.8% content by
+        dimension. Measured that way the binding scored 0.107 while the structural half
+        alone scored 1.02: the arrangement was present and outvoted. That is the same
+        failure as averaging over Columns, wearing a different hat — an unweighted
+        aggregate lets dimension count decide the answer.
+        """
+        if not self.responses.size:
+            return np.zeros(0)
+        return np.concatenate(
+            [_unit(self.contents), _unit(self.schema_states)], axis=1
+        ).ravel()
+
+
 @dataclass
 class Architecture:
     """Everything about the network's shape that an experiment declares."""
@@ -121,21 +192,37 @@ class Network:
         if self.index is not None:
             self.index.reset()
 
+    def traverse(
+        self, presentation: Presentation, signals, ticks: int, p: dict
+    ) -> Traversal:
+        """Run one whole presentation and keep what every stop left behind.
+
+        Reading only the final stop would measure that cell's neighbourhood and call it
+        the figure, and since the figures differ in which cell comes last, that artefact
+        would masquerade as selectivity. Averaging the stops avoids that and introduces
+        a worse problem of its own (see `Traversal`). So neither is chosen here: the
+        traversal is returned whole and the measurements decide what to ask of it.
+        """
+        responses, contents, states = [], [], []
+        for index, step in enumerate(presentation.steps):
+            self.stop(step, signals(step), ticks, p, first=index == 0)
+            responses.append(self.response_vector())
+            contents.append(
+                self.web.content(p) if self.web is not None else np.zeros(0)
+            )
+            states.append(
+                self.schema_state if self.schema_state is not None else np.zeros(0)
+            )
+        if not responses:
+            return Traversal(np.zeros((0, self.response_vector().size)),
+                             np.zeros((0, 0)), np.zeros((0, 0)))
+        return Traversal(np.stack(responses), np.stack(contents), np.stack(states))
+
     def present(
         self, presentation: Presentation, signals, ticks: int, p: dict
     ) -> np.ndarray:
-        """Run one whole presentation and report the response to the figure.
-
-        The response is averaged over the stops rather than read off the last one. A
-        figure is the whole traversal, so scoring the state left at the final stop would
-        measure that cell's neighbourhood and call it the figure — and since the figures
-        differ in which cell comes last, that artefact would masquerade as selectivity.
-        """
-        seen = []
-        for index, step in enumerate(presentation.steps):
-            self.stop(step, signals(step), ticks, p, first=index == 0)
-            seen.append(self.response_vector())
-        return np.mean(seen, axis=0) if seen else self.response_vector()
+        """The stop-averaged response. Kept so old and new readouts stay comparable."""
+        return self.traverse(presentation, signals, ticks, p).mean
 
     def stop(self, step: Step, signals: dict, ticks: int, p: dict, *, first: bool) -> None:
         """One stop of a presentation.

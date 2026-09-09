@@ -119,6 +119,7 @@ def summarise_by_level(
     separation: np.ndarray | None = None,
     responses: np.ndarray | None = None,
     figures: list[str] | None = None,
+    traces: np.ndarray | None = None,
 ) -> dict[str, dict[str, float]]:
     """Per-Level maxima and means, which is what tells you whether depth did anything.
 
@@ -145,6 +146,13 @@ def summarise_by_level(
         if separation is not None:
             summary[level_name]["separation_max"] = float(separation[idx].max())
             summary[level_name]["separation_mean"] = float(separation[idx].mean())
+        if traces is not None:
+            # The same population measure over the ordered traversal instead of its
+            # average: stop k's activity stays at position k, so two traversals of one
+            # figure's cells in different orders are different vectors.
+            ordered = traces[:, :, :, idx].reshape(traces.shape[0], traces.shape[1], -1)
+            mean, matrix = population_separation(ordered)
+            summary[level_name]["traversal_separation"] = mean
         if responses is not None:
             mean, matrix = population_separation(responses[:, :, idx])
             summary[level_name]["population_separation"] = mean

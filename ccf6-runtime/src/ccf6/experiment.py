@@ -128,6 +128,9 @@ def run_structure_baseline(definition: dict) -> dict:
         origins = origins[::step][: int(limit)]
 
     responses = np.zeros((len(shapes), len(origins), max(network.response_vector().size, 1)))
+    traces: list[list[np.ndarray]] = [[] for _ in shapes]
+    bindings: list[list[np.ndarray]] = [[] for _ in shapes]
+    structures: list[list[np.ndarray]] = [[] for _ in shapes]
     snapshots, schema_states, stops = [], {}, 0
     of_interest = [tuple(pos) for pos in definition.get("snapshot_positions", [origins[0]])]
 
@@ -140,9 +143,13 @@ def run_structure_baseline(definition: dict) -> dict:
             network.reset()
             # Built after placement: the field is a property of the World as it now
             # stands, not as it stood when the run began.
-            responses[si, oi] = network.present(
+            traversal = network.traverse(
                 presentation, _signals(world, radius), ticks, p
             )
+            responses[si, oi] = traversal.mean
+            traces[si].append(traversal.responses)
+            bindings[si].append(traversal.bindings)
+            structures[si].append(traversal.structure)
             stops += len(presentation.steps)
             if network.schema is not None:
                 for step in presentation.steps:
@@ -156,9 +163,19 @@ def run_structure_baseline(definition: dict) -> dict:
                     **network.snapshot(),
                 })
 
+    # (figures, origins, stops, Columns) and (figures, origins, stops x binding width).
+    trace = np.stack([np.stack(rows) for rows in traces])
+    binding = np.stack([np.stack(rows) for rows in bindings])
+    structure = np.stack([np.stack(rows) for rows in structures])
+
     shape_sel, position_sel = two_way_selectivity(responses)
     separation = figure_separation(responses)
     population, distances = population_separation(responses)
+    traversal_sep, traversal_distances = population_separation(
+        trace.reshape(trace.shape[0], trace.shape[1], -1)
+    )
+    binding_sep, binding_distances = population_separation(binding)
+    structure_sep, structure_distances = population_separation(structure)
     labels = network.column_labels()
     active = int((shape_sel + position_sel > 1e-9).sum())
 
@@ -178,8 +195,27 @@ def run_structure_baseline(definition: dict) -> dict:
             },
             "by_level": summarise_by_level(
                 shape_sel, position_sel, labels, ("shape", "position"), separation,
-                responses, names,
+                responses, names, trace,
             ),
+            # The same figures, the same run, three ways of reading it. Reported side
+            # by side rather than one replacing another, because the gap between them
+            # is the result: it says what the averaging was discarding.
+            "readouts": {
+                readout: {
+                    "population_separation": value,
+                    "figure_distances": {
+                        f"{names[a]} vs {names[b]}": float(matrix[a, b])
+                        for a in range(len(names))
+                        for b in range(a + 1, len(names))
+                    },
+                }
+                for readout, value, matrix in (
+                    ("averaged_over_stops", population, distances),
+                    ("ordered_traversal", traversal_sep, traversal_distances),
+                    ("index_bindings", binding_sep, binding_distances),
+                    ("schema_states", structure_sep, structure_distances),
+                )
+            },
             "presentation": {
                 "figures": names,
                 "origins": len(origins),
@@ -195,6 +231,8 @@ def run_structure_baseline(definition: dict) -> dict:
             },
         },
         "responses": responses,
+        "trace": trace,
+        "binding": binding,
         "shape_selectivity": shape_sel,
         "position_selectivity": position_sel,
         "separation": separation,
@@ -301,6 +339,8 @@ def execute(definition: dict, artifact_root: str | Path = "artifacts") -> Path:
         shape_selectivity=result["shape_selectivity"],
         position_selectivity=result["position_selectivity"],
         separation=result["separation"],
+        trace=result["trace"],
+        binding=result["binding"],
         labels=np.array(result["labels"]),
     )
     return out

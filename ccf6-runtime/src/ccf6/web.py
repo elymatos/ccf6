@@ -71,6 +71,7 @@ class Web:
                 cluster=cluster,
                 rng=rng,
                 input_mode="sparse",
+                boundary="Thalamus",
             )
             self._convergence_sources.append(name)
 
@@ -91,6 +92,7 @@ class Web:
                 cluster=cluster,
                 rng=rng,
                 input_mode="sparse",
+                boundary="tops of other Spaces",
             )
             self.spaces["convergence"] = self.convergence
 
