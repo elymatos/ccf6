@@ -22,10 +22,10 @@ visits its parts. `of_contrast` remains for the case where the question really i
 wherever there is structure", and it takes its threshold explicitly so that nobody
 acquires a segmenter by accident.
 
-A stop carries **what is at a position and how it was reached, and no magnitude**. The
-boundary drives at unit strength (ADR-0009): a separate strength channel was free to
-carry information the signal did not, and did — contrast varies with a figure's distance
-from the World frame, so it was smuggling position into every Space.
+A stop carries what is at a position and how it was reached. It carries **no
+magnitude**. The boundary drives at unit strength (ADR-0009), because a separate strength
+channel was free to carry information the signal did not, and did. Contrast varies with a
+figure's distance from the World frame, so it was smuggling position into every Space.
 """
 
 from __future__ import annotations

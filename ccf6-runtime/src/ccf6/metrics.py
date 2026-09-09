@@ -53,11 +53,11 @@ def figure_separation(responses: np.ndarray) -> np.ndarray:
     0.0 where it does not. It no longer distinguishes a Space that separates the
     confusion set from one that barely twitches.
 
-    This does: average the pairwise distance between the figures' mean responses and
+    This one can. Average the pairwise distance between the figures' mean responses and
     divide by the population's own magnitude, so a large but undifferentiated response
     scores low. Zero means the figures are indistinguishable here. It is the number a
-    learning rule has to beat, and unlike a variance ratio it cannot be inflated by the
-    other factor going quiet.
+    learning rule has to beat, and unlike a variance ratio the other factor going quiet
+    cannot inflate it.
     """
     means = responses.mean(axis=1)                      # (n_figures, n_columns)
     n = means.shape[0]
