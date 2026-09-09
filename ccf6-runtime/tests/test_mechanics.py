@@ -325,3 +325,51 @@ def test_population_separation_sees_a_figure_no_single_column_carries():
     mean_merged, matrix_merged = population_separation(merged)
     assert mean_merged == pytest.approx(0.0)
     assert matrix_merged[0, 1] == pytest.approx(0.0)
+
+
+def test_a_traversal_keeps_what_the_average_throws_away():
+    """The readout, not the network, was losing the arrangement.
+
+    Two traversals of the same stops in opposite orders leave the same average and
+    different sequences. If the sequence did not separate them, no measurement built on
+    it could tell a figure from its 180-degree rotation.
+    """
+    from ccf6.network import Traversal
+
+    a = Traversal(np.array([[1.0, 0.0], [0.0, 1.0]]), np.zeros((2, 1)), np.zeros((2, 1)))
+    b = Traversal(np.array([[0.0, 1.0], [1.0, 0.0]]), np.zeros((2, 1)), np.zeros((2, 1)))
+
+    assert a.mean.tolist() == b.mean.tolist()          # the average cannot tell them apart
+    assert a.sequence.tolist() != b.sequence.tolist()  # the order can
+
+
+def test_the_index_readout_pairs_content_with_the_position_it_was_bound_at():
+    """Concatenating per stop keeps the pairing an outer product would cost more to keep."""
+    from ccf6.network import Traversal
+
+    t = Traversal(
+        np.zeros((2, 1)),
+        np.array([[3.0, 4.0], [0.0, 5.0]]),
+        np.array([[6.0], [8.0]]),
+    )
+    # Stop 0's content and position, then stop 1's: the pairing is carried by order.
+    assert t.bindings.tolist() == pytest.approx([0.6, 0.8, 1.0, 0.0, 1.0, 1.0])
+
+
+def test_a_binding_is_not_decided_by_which_half_has_more_dimensions():
+    """Content is 4096 numbers and a Schema state is 50.
+
+    Concatenated raw, a binding is 98.8% content by dimension, so a Level whose content
+    is undifferentiated outvotes the arrangement that is right there beside it. Each
+    half is scaled to unit length first, which is the same lesson as not averaging over
+    Columns: an unweighted aggregate lets size decide the answer.
+    """
+    from ccf6.network import Traversal
+
+    wide = np.zeros((1, 400))
+    wide[0, 0] = 1.0
+    narrow = np.array([[3.0, 4.0]])
+    bindings = Traversal(np.zeros((1, 1)), wide, narrow).bindings
+
+    assert np.linalg.norm(bindings[:400]) == pytest.approx(1.0)
+    assert np.linalg.norm(bindings[400:]) == pytest.approx(1.0)
