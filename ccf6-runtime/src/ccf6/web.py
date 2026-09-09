@@ -47,6 +47,8 @@ class Web:
         pooling: int,
         fanin: int,
         convergence_fanin: int,
+        cluster: int,
+        side: int,
         rng: np.random.Generator,
     ):
         self.spaces: dict[str, Space] = {}
@@ -58,7 +60,7 @@ class Web:
             size = input_sizes[name]
             self.spaces[name] = Space(
                 name,
-                _grid_for(size),
+                (side, side),
                 levels,
                 size,
                 cortical_area=sited["cortical_area"],
@@ -66,7 +68,9 @@ class Web:
                 local_levels=local_levels,
                 pooling=pooling,
                 fanin=fanin,
+                cluster=cluster,
                 rng=rng,
+                input_mode="sparse",
             )
             self._convergence_sources.append(name)
 
@@ -76,7 +80,7 @@ class Web:
             sited = siting["convergence"]
             self.convergence = Space(
                 "convergence",
-                _grid_for(fan_in_size),
+                (side, side),
                 convergence_levels,
                 fan_in_size,
                 cortical_area=sited["cortical_area"],
@@ -84,6 +88,7 @@ class Web:
                 local_levels=0,        # convergence is non-local at every Level
                 pooling=pooling,
                 fanin=convergence_fanin,
+                cluster=cluster,
                 rng=rng,
                 input_mode="sparse",
             )
@@ -160,13 +165,9 @@ class Web:
 def _grid_for(size: int) -> tuple[int, int]:
     """The nearest square Grid that holds `size` Columns.
 
-    Grid position is mechanical rather than decorative — lateral competition is defined
-    over grid neighbourhood — so a Space needs a shape even when its dimension has no
-    natural two-dimensional layout.
-
-    The Grid is sized by what feeds the Space, so Level 1 matches its encoder exactly
-    and no Column is left unwired. A Space too small for its own fan-in is refused at
-    construction rather than papered over: that is the failure §8.1 exists to prevent.
+    No longer used to size a Space — every Space now declares one side (§ the 64x64
+    decision), so a Space's width is independent of what feeds it. Kept because it is
+    still the right answer for anything sized by its contents rather than declared.
     """
     side = int(np.ceil(np.sqrt(size)))
     return (side, side)

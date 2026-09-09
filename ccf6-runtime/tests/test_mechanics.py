@@ -121,16 +121,22 @@ def test_transmission_removes_the_activation_floor(p):
     assert transmit(resting, p).sum() == pytest.approx(0.0)
 
 
-def test_the_top_level_competes_globally_and_lower_levels_locally():
-    """H2/G1: once convergence stops being spatial, competition cannot stay spatial."""
+def test_the_top_level_competes_by_cluster_and_lower_levels_by_neighbourhood():
+    """H2/G1: once convergence stops being spatial, competition cannot stay spatial.
+
+    But it cannot stay all-to-all either: that grows as the square of the population.
+    The cluster is the unit of competition at the top.
+    """
     space = Space(
         "a", (8, 8), 3, 64,
         cortical_area="parietal", modality="visual",
-        local_levels=2, pooling=3, fanin=12, rng=np.random.default_rng(0),
+        local_levels=2, pooling=3, fanin=12, cluster=4, rng=np.random.default_rng(0),
     )
     lateral = [level.w_lateral.fan_in() for level in space.levels]
     assert lateral[0][0] == 3             # corner Column of an 8-neighbourhood
-    assert lateral[-1][0] == 63           # every other Column at the top
+    assert lateral[-1][0] == 15           # every other Column of its 4x4 cluster
+    # Four clusters tile an 8x8 Level, and nothing crosses between them.
+    assert space.levels[-1].w_lateral.nnz == 4 * (16 * 15)
 
 
 def test_swapping_the_colour_encoder_changes_nothing_downstream():
@@ -156,13 +162,53 @@ def test_the_thalamus_carries_no_state_between_samples():
     assert thalamus.project({"colour": 3})["colour"].tolist() == first.tolist()
 
 
-def test_a_shape_encoder_reports_the_neighbourhood_it_was_given():
-    """Local shape is a sensory code: what is here, never where here is."""
-    encoder = LocalShape(radius=1)
-    patch = np.arange(9, dtype=float).reshape(3, 3) / 8.0
-    assert encoder.encode(patch).tolist() == patch.ravel().tolist()
+def test_a_shape_encoder_grades_its_window_by_eccentricity():
+    """Local shape is a sensory code: what is here, never where here is.
+
+    Ego is focused somewhere, and the rest of what is in view is not silent, so the
+    window falls off with distance from the focus rather than stopping at its edge.
+    """
+    encoder = LocalShape(radius=2, eccentricity=(1.0, 0.6, 0.2))
+    assert encoder.size == 25
+    window = encoder.encode(np.ones((5, 5))).reshape(5, 5)
+    assert window[2, 2] == pytest.approx(1.0)     # the focused cell
+    assert window[1, 2] == pytest.approx(0.6)     # one of the 8 neighbours
+    assert window[2, 1] == pytest.approx(0.6)
+    assert window[0, 0] == pytest.approx(0.2)     # the ring beyond
     with pytest.raises(ValueError):
-        encoder.encode(np.zeros((5, 5)))
+        encoder.encode(np.zeros((3, 3)))
+    with pytest.raises(ValueError):
+        LocalShape(radius=3, eccentricity=(1.0, 0.6, 0.2))
+
+
+def test_the_graded_window_is_blind_to_a_180_degree_rotation_when_summed():
+    """Not a defect of the profile: a wider or graded window is a wider sum.
+
+    Summed over a figure's cells, a fixed window computes that figure's local
+    autocorrelation, and an autocorrelation is centrally symmetric. So the summed code
+    cannot tell a figure from its 180-degree rotation, at any radius. The distinction
+    lives in *which* windows occurred and in what order, which is the traversal.
+    """
+    from ccf6 import figures
+    from ccf6.ego import Presentation
+    from ccf6.world import World
+
+    encoder = LocalShape(radius=2)
+    def summed(name):
+        obj = figures.FIGURES[name]
+        world = World(12)
+        world.place_object(obj, (5, 5))
+        padded = world.foreground(encoder.radius)
+        steps = Presentation.of_object(world, obj, (5, 5), "raster").steps
+        side = encoder.side
+        return sum(
+            encoder.encode(padded[i:i + side, j:j + side])
+            for i, j in (s.position for s in steps)
+        )
+
+    assert summed("T") == pytest.approx(summed("T-up"))          # 180 degrees: blind
+    assert summed("T-right") == pytest.approx(summed("T-left"))  # 180 degrees: blind
+    assert not np.allclose(summed("T"), summed("T-right"))       # 90 degrees: separable
 
 
 def test_the_confusion_set_shares_one_feature_bag():
@@ -230,7 +276,7 @@ def test_a_space_declares_where_it_sits_and_how_its_content_arrives():
     from ccf6.thalamus import LocalistColour, LocalistPosition
 
     thalamus = Thalamus({"colour": PopulationColour(8, 64), "shape": LocalShape()})
-    network = Network(Architecture(), thalamus)
+    network = Network(Architecture(space_side=8, cluster=4), thalamus)
     spaces = network.web.spaces
     assert spaces["colour"].cortical_area == "temporal"
     # Two Spaces, one Modality: distinctness is a matter of dimension, not of channel.
@@ -244,10 +290,10 @@ def test_a_space_outside_the_declared_anatomy_is_refused():
     """An invented Cortical Area would look like a claim CCF6 has not made."""
     with pytest.raises(ValueError):
         Space("a", (2, 2), 1, 4, cortical_area="occipital", modality="visual",
-              local_levels=0, pooling=2, fanin=2, rng=np.random.default_rng(0))
+              local_levels=0, pooling=2, fanin=2, cluster=2, rng=np.random.default_rng(0))
     with pytest.raises(ValueError):
         Space("a", (2, 2), 1, 4, cortical_area="parietal", modality="olfactory",
-              local_levels=0, pooling=2, fanin=2, rng=np.random.default_rng(0))
+              local_levels=0, pooling=2, fanin=2, cluster=2, rng=np.random.default_rng(0))
 
 
 def test_an_unknown_parameter_is_refused():

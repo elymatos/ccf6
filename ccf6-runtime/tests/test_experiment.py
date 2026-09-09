@@ -20,7 +20,10 @@ BASELINE = {
     "kind": "structure_baseline",
     "question": "With no learning, how selective does any Column become?",
     "ticks": 20,
-    "architecture": {"world_size": 8, "levels": 2, "convergence_levels": 1, "seed": 1},
+    # A small Space on purpose: these tests are about mechanics and artifacts, not
+    # scale, and the declared 64x64 would make every one of them a minute long.
+    "architecture": {"world_size": 8, "levels": 2, "convergence_levels": 1,
+                     "space_side": 8, "cluster": 4, "seed": 1},
     "parameters": {},
 }
 

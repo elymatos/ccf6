@@ -162,12 +162,49 @@ def neighbourhood(shape: tuple[int, int]) -> Connections:
     )
 
 
-def global_competition(n: int) -> Connections:
-    """All-to-all competition, for a population whose Columns are not grid neighbours.
+def clustered_competition(shape: tuple[int, int], side: int) -> Connections:
+    """All-to-all competition inside a cluster, and none across clusters.
 
     Once convergence stops being spatial, competition cannot stay spatial either: two
-    Columns standing for different things have no reason to be adjacent.
+    Columns standing for different things have no reason to be grid neighbours. But
+    competing every Column against every other grows as the square of the population,
+    and at 64x64 that is 16.8 million connections for one Level — the failure §8.1
+    exists to prevent, arriving in the one place the code still allowed it.
+
+    A cluster is the unit of competition instead: Columns inside one compete for the
+    right to represent, Columns in different clusters do not compete at all. Cost falls
+    from n(n-1) to n(m-1) for a cluster of m.
+
+    **The known artefact.** A partition has edges, so two adjacent Columns either side of
+    a cluster boundary never compete however similar they are. An overlapping rule would
+    not have that property, and would cost more. Recorded rather than hidden.
     """
-    rows = np.repeat(np.arange(n), n - 1)
-    cols = np.concatenate([np.delete(np.arange(n), i) for i in range(n)])
-    return Connections(n, n, rows, cols, np.full(rows.size, 1.0 / max(n - 1, 1)))
+    h, w = shape
+    if side < 2:
+        raise ValueError(f"a cluster of {side} has nothing to compete: give it at least 2 a side")
+    rows, cols, weights = [], [], []
+    for top in range(0, h, side):
+        for left in range(0, w, side):
+            members = np.array([
+                i * w + j
+                for i in range(top, min(top + side, h))
+                for j in range(left, min(left + side, w))
+            ])
+            m = members.size
+            if m < 2:
+                continue
+            a = np.repeat(members, m)
+            b = np.tile(members, m)
+            keep = a != b
+            rows.append(a[keep])
+            cols.append(b[keep])
+            weights.append(np.full(int(keep.sum()), 1.0 / (m - 1)))
+    if not rows:
+        return Connections(h * w, h * w, np.array([], dtype=np.int64),
+                           np.array([], dtype=np.int64), np.array([]))
+    return Connections(
+        h * w, h * w,
+        np.concatenate(rows).astype(np.int64),
+        np.concatenate(cols).astype(np.int64),
+        np.concatenate(weights),
+    )

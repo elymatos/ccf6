@@ -65,41 +65,62 @@ class PopulationColour:
 
 
 class LocalShape:
-    """The colour neighbourhood at the stop Ego is looking from.
+    """The neighbourhood the stop is looked at from, graded by eccentricity.
 
-    Nine Columns for a 3x3 patch, one per cell, each carrying whether that cell differs
-    from the World's background. This is what distinguishes the end of a stroke from its
-    middle and from a junction — the local evidence a convergence hierarchy has to work
-    with before any arrangement is available. It is a *sensory* code: it says what is
-    here, not where here is.
+    Ego is focused somewhere, but the rest of what is in view is not silent. So the
+    window is larger than the focus and its drive falls off with distance: full at the
+    cell being looked at, less on the ring of 8 neighbours, less again beyond. A fovea
+    with a periphery, and the 8 neighbours that make a stroke a stroke rather than a
+    dot are the innermost ring.
 
-    The window is padded rather than clipped, so a figure at the World frame encodes
-    exactly as it does in the middle.
+    The window is **ego-centric**: it is centred on the stop and padded rather than
+    clipped, so a figure at the World frame encodes exactly as it does in the middle and
+    the same figure at any origin encodes identically. Retinotopy would be a different
+    Space, and `LocalistPosition` is it.
+
+    The eccentricity profile is a declared constant (ADR-0006), fixed for the life of a
+    run and identical at every stop. It is therefore not a magnitude channel in the sense
+    ADR-0009 removed: it carries nothing about what is being shown, cannot vary with the
+    stimulus, and has no way to smuggle position into a Space.
 
     **What this encoder cannot see, and it is not a matter of degree.** Summed over a
     presentation, one fixed window around every one of a figure's cells computes that
     figure's local autocorrelation: entry *d* counts the cell pairs separated by offset
-    *d*. An autocorrelation is centrally symmetric, since the pairs at +d are the pairs
-    at -d, so the summed code is **identical for any figure and its 180-degree
-    rotation** — T and a bottom sum to the same nine numbers, as do the two side-facing
-    ones. A larger radius does not help; the blindness is in the summing.
+    *d*, weighted by the profile. An autocorrelation is centrally symmetric, and a
+    symmetric profile keeps it so, so the summed code is **identical for any figure and
+    its 180-degree rotation** — T and a bottom sum to the same numbers. Widening the
+    window or grading it does not help: the blindness is in the summing, and a wider
+    window is a wider sum.
 
-    The per-stop patches do all differ, and so do their multisets, so the distinction
-    survives in *which* patches occurred and in what order. That is the traversal, and
-    it belongs to the Schema and the Index. What this encoder affords on its own is bar
-    orientation, which the sum does carry.
+    The per-stop windows do all differ, and so do their multisets, so the distinction
+    survives in *which* windows occurred and in what order. That is the traversal, and it
+    belongs to the Schema and the Index.
     """
 
-    def __init__(self, radius: int = 1):
+    #: Drive by ring: the focused cell, its 8 neighbours, then the next ring out.
+    ECCENTRICITY: tuple[float, ...] = (1.0, 0.6, 0.2)
+
+    def __init__(self, radius: int = 2, eccentricity: tuple[float, ...] | None = None):
         self.radius = radius
         self.side = 2 * radius + 1
         self.size = self.side * self.side
+        profile = tuple(eccentricity if eccentricity is not None else self.ECCENTRICITY)
+        if len(profile) < radius + 1:
+            raise ValueError(
+                f"a radius of {radius} needs {radius + 1} eccentricity values, got {len(profile)}"
+            )
+        self.eccentricity = profile[: radius + 1]
+        offsets = np.arange(-radius, radius + 1)
+        rings = np.maximum(np.abs(offsets)[:, None], np.abs(offsets)[None, :])
+        self._weights = np.asarray(self.eccentricity)[rings]
 
     def encode(self, value: np.ndarray) -> np.ndarray:
-        patch = np.asarray(value, dtype=np.float64).ravel()
-        if patch.size != self.size:
-            raise ValueError(f"expected a {self.side}x{self.side} patch, got {patch.size} values")
-        return patch
+        window = np.asarray(value, dtype=np.float64)
+        if window.size != self.size:
+            raise ValueError(
+                f"expected a {self.side}x{self.side} window, got {window.size} values"
+            )
+        return (window.reshape(self.side, self.side) * self._weights).ravel()
 
 
 class LocalistPosition:
