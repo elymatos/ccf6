@@ -993,7 +993,7 @@
       <g>
         <rect x="300" y="44" width="280" height="62" rx="5" fill="var(--web-soft)" stroke="var(--web)" stroke-width="1.6"/>
         <text x="314" y="64" class="svg-label" fill="var(--web)">web.py · space.py</text>
-        <text x="314" y="81" class="svg-small" fill="var(--ink-2)">Spaces of Levels of Columns; colour, form,</text>
+        <text x="314" y="81" class="svg-small" fill="var(--ink-2)">Spaces of Levels of Columns; colour, shape,</text>
         <text x="314" y="94" class="svg-small" fill="var(--ink-2)">and a convergence Space fed by their tops</text>
 
         <rect x="300" y="118" width="280" height="62" rx="5" fill="var(--schema-soft)" stroke="var(--schema)" stroke-width="1.6"/>
@@ -1087,7 +1087,7 @@
     size: int
     def encode(self, value) -&gt; np.ndarray: ...
 
-Thalamus.project({"colour": 1, "form": patch}) → {"colour": vec(64), "form": vec(9)}</pre>
+Thalamus.project({"colour": 1, "shape": patch}) → {"colour": vec(64), "shape": vec(9)}</pre>
   <p>
     That narrow interface is the whole reason it is a separate structure rather than
     wiring inside a Space: swapping a localist code for a population code changes this
@@ -1105,7 +1105,7 @@ Thalamus.project({"colour": 1, "form": patch}) → {"colour": vec(64), "form": v
       <text x="20" y="38" class="svg-small" fill="var(--ink-2)">each turns one World signal into a Level-1 activation vector · its <tspan class="svg-mono">size</tspan> fixes the Grid of the Space it feeds</text>
 
       <rect x="20" y="56" width="380" height="152" rx="6" fill="var(--web-soft)" stroke="var(--web)" stroke-width="1.6"/>
-      <text x="36" y="78" class="svg-label" fill="var(--web)">local_form · LocalForm</text>
+      <text x="36" y="78" class="svg-label" fill="var(--web)">local_shape · LocalShape</text>
       <text x="36" y="96" class="svg-small" fill="var(--ink-2)">the 3×3 neighbourhood at the stop,</text>
       <text x="36" y="110" class="svg-small" fill="var(--ink-2)">as a foreground mask</text>
       <text x="36" y="128" class="svg-small" fill="var(--ink-2)">one Column per cell → <tspan class="svg-mono" font-weight="700">size 9</tspan></text>
@@ -1286,7 +1286,7 @@ Thalamus.project({"colour": 1, "form": patch}) → {"colour": vec(64), "form": v
         <text x="640" y="112" class="svg-small" fill="var(--ink-3)">a Space is a stack of</text>
         <text x="640" y="124" class="svg-small" fill="var(--ink-3)">Levels over one</text>
         <text x="640" y="136" class="svg-small" fill="var(--ink-3)">conceptual dimension</text>
-        <text x="640" y="156" class="svg-small" fill="var(--ink-3)">— colour, form, position,</text>
+        <text x="640" y="156" class="svg-small" fill="var(--ink-3)">— colour, shape, position,</text>
         <text x="640" y="168" class="svg-small" fill="var(--ink-3)">sited in a Cortical Area</text>
         <text x="640" y="180" class="svg-small" fill="var(--ink-3)">and carrying one Modality</text>
 
@@ -1312,7 +1312,7 @@ Thalamus.project({"colour": 1, "form": patch}) → {"colour": vec(64), "form": v
     <span class="tag">An open question the glossary records rather than settles</span>
     <p>
       A Cardinal Node was once said to be multimodal by definition. Splitting Space from
-      Modality showed those are not the same requirement: colour and form are both
+      Modality showed those are not the same requirement: colour and shape are both
       <b>visual</b>, so a Column spanning them is cross-Space and single-Modality. Whether
       cardinality also requires crossing Modalities — and so whether the current experiment
       can produce a Cardinal Node at all — is not settled.
@@ -1326,7 +1326,7 @@ Thalamus.project({"colour": 1, "form": patch}) → {"colour": vec(64), "form": v
     picture of the other.</b> The World is 12×12 and holds no Columns at all. A Space's
     Grid is sized by whatever feeds it — its encoder, or the Spaces below it — and its
     two-dimensional shape exists for one mechanical reason, that lateral competition is
-    defined over grid neighbourhood. Only the form Space's 3×3 happens to correspond to
+    defined over grid neighbourhood. Only the shape Space's 3×3 happens to correspond to
     anything spatial, and only because its encoder is a 3×3 patch.
   </p>
 
@@ -1369,7 +1369,7 @@ Thalamus.project({"colour": 1, "form": patch}) → {"colour": vec(64), "form": v
       <g transform="translate(330,44)">
         <rect x="0" y="0" width="33" height="33" fill="var(--web-soft)" stroke="var(--web)" stroke-width="1.4"/>
         <g stroke="var(--rule-2)" stroke-width=".6" opacity=".7"><path d="M11 0 v33 M22 0 v33 M0 11 h33 M0 22 h33"/></g>
-        <text x="16" y="51" text-anchor="middle" class="svg-label" fill="var(--web)">form</text>
+        <text x="16" y="51" text-anchor="middle" class="svg-label" fill="var(--web)">shape</text>
         <text x="16" y="65" text-anchor="middle" class="svg-label" fill="var(--web)">3 × 3</text>
         <text x="16" y="82" text-anchor="middle" class="svg-small" fill="var(--ink-3)">9 per Level</text>
         <text x="16" y="96" text-anchor="middle" class="svg-small" fill="var(--ink-3)">× 3 = 27</text>
@@ -1401,7 +1401,7 @@ Thalamus.project({"colour": 1, "form": patch}) → {"colour": vec(64), "form": v
 
       <rect x="20" y="236" width="760" height="46" rx="5" fill="var(--paper)" stroke="var(--rule-2)" stroke-dasharray="5 3"/>
       <text x="36" y="256" class="svg-small" fill="var(--ink-2)"><tspan font-weight="700">381 Columns in the Web</tspan> (192 + 27 + 162), 50 in the Schema. The Index binds a content vector of 81 to a Schema state of 50.</text>
-      <text x="36" y="272" class="svg-small" fill="var(--ink-3)">The figure spans 3 × 5 World cells; the form encoder sees 3 × 3 of them at a time. Neither number sets any Space&#8217;s Grid but form&#8217;s.</text>
+      <text x="36" y="272" class="svg-small" fill="var(--ink-3)">The figure spans 3 × 5 World cells; the shape encoder sees 3 × 3 of them at a time. Neither number sets any Space&#8217;s Grid but shape&#8217;s.</text>
     </svg>
     </div>
     <figcaption>
@@ -1503,7 +1503,7 @@ Thalamus.project({"colour": 1, "form": patch}) → {"colour": vec(64), "form": v
     <figcaption>
       <b>Figure 10.</b> The convergence Space is wired the same way with two numbers
       changed: its Level 1 draws 12 sources at random from the 73 Columns formed by
-      concatenating colour.L3 (64) and form.L3 (9), for 972 connections, and it pools
+      concatenating colour.L3 (64) and shape.L3 (9), for 972 connections, and it pools
       locally at no Level.
     </figcaption>
   </figure>
@@ -1512,14 +1512,14 @@ Thalamus.project({"colour": 1, "form": patch}) → {"colour": vec(64), "form": v
     <span class="tag">What this wiring cannot do, and why it is the next thing to change</span>
     <p>
       <b>Nothing narrows.</b> Every Level of the colour Space has exactly as many Columns
-      as the Level below it — 64, 64, 64 — and the form Space is 9, 9, 9. A convergence
+      as the Level below it — 64, 64, 64 — and the shape Space is 9, 9, 9. A convergence
       hierarchy that never reduces its width has no structural pressure to concentrate
       anything; whatever concentration occurs must come entirely from competition.
     </p>
     <p>
       <b>Sparsity means different things at different widths.</b> Drawing 4 of 64, two
       Columns share 0.25 sources on average, which is genuinely separating. Drawing 4 of
-      9, they share 1.8 of 4 — nearly half — so the form Space's Columns are near-copies
+      9, they share 1.8 of 4 — nearly half — so the shape Space's Columns are near-copies
       of one another by construction. The same declared fan-in is sparse in one Space and
       dense in the other, which is an argument for fan-in as a <em>fraction</em>, or for
       Spaces wide enough that a constant makes sense.
@@ -1792,7 +1792,7 @@ separation[c] = gap[c] / scale[c]        (0 if the Column never moved)</pre>
     from scoring well. It also fixes the scale: for four figures, the largest value a
     Column can reach is <b>0.5</b>, attained when it answers to exactly one figure and is
     silent for the other three. A Column that fires equally for all four scores 0. That
-    ceiling is what the numbers below should be read against — form.L1's best Column, at
+    ceiling is what the numbers below should be read against — shape.L1's best Column, at
     0.304, is at 61% of it; the Web's top Level reaches 4.7%.
   </p>
 
@@ -1818,17 +1818,17 @@ separation[c] = gap[c] / scale[c]        (0 if the Column never moved)</pre>
       <line x1="150" y1="81" x2="150" y2="102" stroke="var(--rule-2)" stroke-width="2.5" opacity=".6"/>
       <text x="160" y="96" class="svg-mono" fill="var(--ink-2)">0.000 / 0.000</text>
       <text x="780" y="96" text-anchor="end" class="svg-small" fill="var(--ink-3)">0 / 192 moved</text>
-      <text x="138" y="125" text-anchor="end" class="svg-small" fill="var(--ink)" font-weight="600">form.L1</text>
+      <text x="138" y="125" text-anchor="end" class="svg-small" fill="var(--ink)" font-weight="600">shape.L1</text>
       <rect x="150" y="113" width="121.7" height="17" rx="2" fill="var(--web)"/>
       <line x1="399" y1="111" x2="399" y2="132" stroke="var(--web)" stroke-width="2.5" opacity=".6"/>
       <text x="409" y="126" class="svg-mono" fill="var(--ink-2)">0.148 / 0.304</text>
       <text x="780" y="126" text-anchor="end" class="svg-small" fill="var(--ink-3)">9 / 9 moved</text>
-      <text x="138" y="155" text-anchor="end" class="svg-small" fill="var(--ink)" font-weight="600">form.L2</text>
+      <text x="138" y="155" text-anchor="end" class="svg-small" fill="var(--ink)" font-weight="600">shape.L2</text>
       <rect x="150" y="143" width="58.4" height="17" rx="2" fill="var(--web)"/>
       <line x1="377" y1="141" x2="377" y2="162" stroke="var(--web)" stroke-width="2.5" opacity=".6"/>
       <text x="387" y="156" class="svg-mono" fill="var(--ink-2)">0.071 / 0.277</text>
       <text x="780" y="156" text-anchor="end" class="svg-small" fill="var(--ink-3)">8 / 9 moved</text>
-      <text x="138" y="185" text-anchor="end" class="svg-small" fill="var(--ink)" font-weight="600">form.L3</text>
+      <text x="138" y="185" text-anchor="end" class="svg-small" fill="var(--ink)" font-weight="600">shape.L3</text>
       <rect x="150" y="173" width="40.8" height="17" rx="2" fill="var(--web)"/>
       <line x1="239" y1="171" x2="239" y2="192" stroke="var(--web)" stroke-width="2.5" opacity=".6"/>
       <text x="249" y="186" class="svg-mono" fill="var(--ink-2)">0.050 / 0.108</text>
@@ -1848,7 +1848,7 @@ separation[c] = gap[c] / scale[c]        (0 if the Column never moved)</pre>
       <text x="20" y="318" class="svg-small" fill="var(--warn)" font-weight="600">And neither column of numbers can say whether the <tspan font-style="italic">Level</tspan> tells the figures apart. Only the population can. See Figure 14.</text>
     </svg>
     </div>
-    <figcaption><b>Figure 13.</b> Experiment 004, run 004-20260909T142128. Every number is read from the artifact, not recomputed here.</figcaption>
+    <figcaption><b>Figure 13.</b> Experiment 004, run 004-20260909T171333. Every number is read from the artifact, not recomputed here.</figcaption>
   </figure>
 
   <h4>A Column is not where a figure lives</h4>
@@ -1875,7 +1875,7 @@ separation[c] = gap[c] / scale[c]        (0 if the Column never moved)</pre>
     <svg viewBox="0 0 800 318" role="img" aria-label="Pairwise distances between the four figures at three Levels">
       <text x="20" y="22" class="svg-title" fill="var(--ink-3)">DISTANCE BETWEEN THE FIGURES&#8217; POPULATION PATTERNS</text>
       <text x="20" y="38" class="svg-small" fill="var(--ink-2)">relative to the population&#8217;s own magnitude · darker is further apart · 0.000 means the two patterns are identical</text>
-      <text x="158" y="62" text-anchor="middle" class="svg-label" fill="var(--ink)">form.L1</text>
+      <text x="158" y="62" text-anchor="middle" class="svg-label" fill="var(--ink)">shape.L1</text>
       <text x="64" y="102" text-anchor="end" class="svg-small" fill="var(--ink-2)">T</text>
       <text x="92" y="74" text-anchor="middle" class="svg-small" fill="var(--ink-2)">T</text>
       <rect x="70" y="76" width="44" height="44" fill="none" stroke="var(--rule)"/>
@@ -2073,13 +2073,36 @@ separation[c] = gap[c] / scale[c]        (0 if the Column never moved)</pre>
     <span class="tag">The local-feature shortcut is real, and it is not the shortcut we assumed</span>
     <p>
       §6.5 warned that a junction detector could separate T from ⊥ with one local
-      feature. The form Space does score highest, and at its <em>lowest</em> Level, so the
-      trap is real. But the distance matrix says what it actually separates: at form.L1,
-      T from ⊢ is <b>0.427</b> while T from ⊥ is <b>0.054</b>, and ⊢ from ⊣ is
-      <b>0.081</b>. The 3×3 patch is telling a horizontal bar from a vertical one. It is
-      almost blind to the two rotations that turn a bar into the same bar. A learning
-      rule therefore has two different numbers to beat, and the low one is the one that
-      matters.
+      feature. The shape Space does score highest, and at its <em>lowest</em> Level, so
+      something local is doing work. But the distance matrix says what: at shape.L1, T
+      from ⊢ is <b>0.427</b> while T from ⊥ is <b>0.054</b>, and ⊢ from ⊣ is
+      <b>0.081</b>. What the patch separates is a horizontal bar from a vertical one.
+    </p>
+    <p>
+      And the blindness to the 180° rotations is exact rather than approximate.
+      Summed over a presentation, one fixed window around every cell of a figure computes
+      that figure's <b>local autocorrelation</b> — entry <i>d</i> counts the cell pairs
+      separated by offset <i>d</i>. An autocorrelation is centrally symmetric, because the
+      pairs at +<i>d</i> are the pairs at −<i>d</i>, so the summed code is identical for
+      any figure and its 180° rotation. T and ⊥ both sum to
+      <span class="svg-mono">1 2 1 / 4 7 4 / 1 2 1</span>; ⊢ and ⊣ both sum to its
+      transpose. A larger patch would not help. The blindness is in the summing.
+    </p>
+    <p>
+      The residual 0.054 is therefore not partial credit. With feedback off and the
+      Columns reset between stops, ⊥'s response is the vertical flip of T's to 1.2 ×
+      10⁻¹⁶, and the whole measured distance is how far T's own response happens to be
+      from flip-symmetric. This is the same theorem already recorded for
+      <code>Object.relations()</code>, whose unordered multiset of offsets is closed under
+      reflection — arriving at the boundary, where nobody had looked for it.
+    </p>
+    <p>
+      What survives is <em>which</em> patches occurred and in what order: the per-stop
+      patches all differ, and so do their multisets. That is the traversal, and it belongs
+      to the Schema and the Index. One honest caveat for §6: a model keeping a bag of
+      local patches rather than their sum <em>could</em> separate this confusion set with
+      purely local features. The argument holds against summed convergence, not against
+      every local-feature account.
     </p>
   </div>
 

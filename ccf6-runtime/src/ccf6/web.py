@@ -31,7 +31,7 @@ class Web:
     #: Spaces to build, so a Space that is not sited is not built.
     DEFAULT_SITING: dict[str, dict[str, str | None]] = {
         "colour": {"cortical_area": "temporal", "modality": "visual"},
-        "form": {"cortical_area": "temporal", "modality": "visual"},
+        "shape": {"cortical_area": "temporal", "modality": "visual"},
         "position": {"cortical_area": "parietal", "modality": "visual"},
         "convergence": {"cortical_area": "frontal", "modality": None},
     }
