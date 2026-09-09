@@ -2,7 +2,7 @@
   "number": "004",
   "name": "Structure baseline",
   "kind": "structure_baseline",
-  "question": "With no learning, how well does any Column separate four figures that share one feature bag? T, ⊥, ⊢ and ⊣ have identical parts and differ only in arrangement, so this is the null a local rule must beat.",
+  "question": "With no learning, how well does anything here separate four figures that share one feature bag, shown in four colours? T, ⊥, ⊢ and ⊣ have identical parts and differ only in arrangement; crossing them with colour gives the Hub a conjunction to form.",
   "ticks": 150,
   "visiting_order": "raster",
   "figures": [
@@ -43,5 +43,11 @@
     "cluster": 8
   },
   "parameters": {},
-  "max_origins": 4
+  "max_origins": 4,
+  "colours": [
+    1,
+    2,
+    3,
+    4
+  ]
 }

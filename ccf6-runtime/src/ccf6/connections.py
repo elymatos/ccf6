@@ -55,6 +55,22 @@ class Connections:
         contributions = self.weights * target[self.rows]
         return np.bincount(self.cols, weights=contributions, minlength=self.n_in)
 
+    def by_target(self) -> np.ndarray | None:
+        """Connection indices grouped by target Column, as (n_out, fan-in).
+
+        None where fan-in is not uniform, because the grouping is a rectangle. Built
+        once and cached by the Level: a rule that searched `rows` on every stop would be
+        quadratic in the population it exists to keep sparse.
+        """
+        counts = np.bincount(self.rows, minlength=self.n_out)
+        if counts.size == 0 or counts.min() != counts.max():
+            # Local pooling gives edge Columns fewer sources than middle ones. Nothing
+            # is wrong with that wiring; it just cannot be indexed as a rectangle, and
+            # the caller decides whether to learn on this Level at all.
+            return None
+        order = np.argsort(self.rows, kind="stable")
+        return order.reshape(self.n_out, int(counts.max()))
+
     def fan_in(self) -> np.ndarray:
         """How many Columns send into each target."""
         return np.bincount(self.rows, minlength=self.n_out)

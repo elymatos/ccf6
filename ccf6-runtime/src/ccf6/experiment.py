@@ -18,6 +18,7 @@ import numpy as np
 from ccf6 import figures, params
 from ccf6.ego import Presentation
 from ccf6.metrics import (
+    conjunction_selectivity,
     figure_separation,
     population_separation,
     summarise_by_level,
@@ -105,6 +106,11 @@ def run_structure_baseline(definition: dict) -> dict:
     order = definition.get("visiting_order", "raster")
     shapes = figures.named(definition.get("figures", sorted(figures.FIGURES)))
     names = definition.get("figures", sorted(figures.FIGURES))
+    # Shape crossed with colour. One colour leaves the Hub nothing to do: half of every
+    # convergence Column's fan-in comes from a Space that never varies, so the run
+    # would report the Hub converging badly over a factor it was never shown.
+    colours = [int(c) for c in definition.get("colours", figures.COLOURS)]
+    stimuli = [[figures.in_colour(shape, c) for c in colours] for shape in shapes]
 
     shape_encoder = network.thalamus.encoders.get("shape")
     radius = getattr(shape_encoder, "radius", 1)
@@ -127,75 +133,136 @@ def run_structure_baseline(definition: dict) -> dict:
         step = max(1, len(origins) // int(limit))
         origins = origins[::step][: int(limit)]
 
-    responses = np.zeros((len(shapes), len(origins), max(network.response_vector().size, 1)))
-    traces: list[list[np.ndarray]] = [[] for _ in shapes]
-    bindings: list[list[np.ndarray]] = [[] for _ in shapes]
-    structures: list[list[np.ndarray]] = [[] for _ in shapes]
+    signals = _signals
+
+    # Training, then measurement, and never both at once. A rule that was still
+    # changing weights while the responses were being collected would report a network
+    # that no longer exists, and recurrence cannot be detected in a single pass anyway.
+    epochs = int(definition.get("epochs", 0)) if network.rule is not None else 0
+    for _ in range(epochs):
+        for si in range(len(shapes)):
+            for ci in range(len(colours)):
+                for origin in origins:
+                    world.clear()
+                    world.place_object(stimuli[si][ci], origin)
+                    network.reset()
+                    network.traverse(
+                        Presentation.of_object(world, stimuli[si][ci], origin, order),
+                        signals(world, radius), ticks, p,
+                    )
+    trained = network.web.recruitment_report() if epochs else {}
+    network.rule = None                     # frozen for the measurement pass
+
+    width = max(network.response_vector().size, 1)
+    n_shapes, n_colours, n_origins = len(shapes), len(colours), len(origins)
+    # (shape, colour, origin, Column). Three factors, and the first two are the
+    # factorial the Hub is measured on.
+    responses = np.zeros((n_shapes, n_colours, n_origins, width))
+    traces: list[np.ndarray] = []
+    bindings: list[np.ndarray] = []
+    structures: list[np.ndarray] = []
     snapshots, schema_states, stops = [], {}, 0
     of_interest = [tuple(pos) for pos in definition.get("snapshot_positions", [origins[0]])]
 
-    for si, shape in enumerate(shapes):
-        for oi, origin in enumerate(origins):
-            world.clear()
-            world.place_object(shape, origin)
-            presentation = Presentation.of_object(world, shape, origin, order)
+    for si in range(n_shapes):
+        for ci in range(n_colours):
+            shape = stimuli[si][ci]
+            for oi, origin in enumerate(origins):
+                world.clear()
+                world.place_object(shape, origin)
+                presentation = Presentation.of_object(world, shape, origin, order)
 
-            network.reset()
-            # Built after placement: the field is a property of the World as it now
-            # stands, not as it stood when the run began.
-            traversal = network.traverse(
-                presentation, _signals(world, radius), ticks, p
-            )
-            responses[si, oi] = traversal.mean
-            traces[si].append(traversal.responses)
-            bindings[si].append(traversal.bindings)
-            structures[si].append(traversal.structure)
-            stops += len(presentation.steps)
-            if network.schema is not None:
-                for step in presentation.steps:
-                    schema_states.setdefault(step.position, None)
-            if origin in of_interest and si < 4:
-                snapshots.append({
-                    "figure": names[si],
-                    "origin": list(origin),
-                    "world": world.cells.tolist(),
-                    "presentation": presentation.describe(),
-                    **network.snapshot(),
-                })
+                network.reset()
+                # Built after placement: the field is a property of the World as it now
+                # stands, not as it stood when the run began.
+                traversal = network.traverse(
+                    presentation, _signals(world, radius), ticks, p
+                )
+                responses[si, ci, oi] = traversal.mean
+                traces.append(traversal.responses)
+                bindings.append(traversal.bindings)
+                structures.append(traversal.structure)
+                stops += len(presentation.steps)
+                if network.schema is not None:
+                    for step in presentation.steps:
+                        schema_states.setdefault(step.position, None)
+                if origin in of_interest and ci == 0 and si < 4:
+                    snapshots.append({
+                        "figure": names[si],
+                        "colour": colours[ci],
+                        "origin": list(origin),
+                        "world": world.cells.tolist(),
+                        "presentation": presentation.describe(),
+                        **network.snapshot(),
+                    })
 
-    # (figures, origins, stops, Columns) and (figures, origins, stops x binding width).
-    trace = np.stack([np.stack(rows) for rows in traces])
-    binding = np.stack([np.stack(rows) for rows in bindings])
-    structure = np.stack([np.stack(rows) for rows in structures])
+    n_stops = traces[0].shape[0]
+    trace = np.stack(traces).reshape(n_shapes, n_colours, n_origins, n_stops, width)
+    binding = np.stack(bindings).reshape(n_shapes, n_colours, n_origins, -1)
+    structure = np.stack(structures).reshape(n_shapes, n_colours, n_origins, -1)
 
-    shape_sel, position_sel = two_way_selectivity(responses)
-    separation = figure_separation(responses)
-    population, distances = population_separation(responses)
+    # Three ways to group the same 64 presentations. Averaging over colours asks what a
+    # Column does about shape; averaging over shapes asks what it does about colour; the
+    # 16 cells kept apart ask what it does about the pairing.
+    by_shape = responses.mean(axis=1)
+    by_colour = responses.mean(axis=0)
+    by_conjunction = responses.reshape(n_shapes * n_colours, n_origins, width)
+    trace_by_conjunction = trace.reshape(n_shapes * n_colours, n_origins, n_stops, width)
+    stimulus_names = [f"{names[si]}/{colours[ci]}" for si in range(n_shapes) for ci in range(n_colours)]
+
+    # Shape against colour, with the origins averaged away: they contribute no variance.
+    factorial = responses.mean(axis=2)
+    shape_sel, colour_sel = two_way_selectivity(factorial)
+    conjunction_sel = conjunction_selectivity(factorial)
+    # Shape against position, which is the invariance check rather than the task.
+    _, position_sel = two_way_selectivity(responses.mean(axis=1))
+
+    separation = figure_separation(by_shape)
+    population, distances = population_separation(by_conjunction)
+    shape_pop, shape_distances = population_separation(by_shape)
+    colour_pop, _ = population_separation(by_colour)
     traversal_sep, traversal_distances = population_separation(
-        trace.reshape(trace.shape[0], trace.shape[1], -1)
+        trace_by_conjunction.reshape(n_shapes * n_colours, n_origins, -1)
     )
-    binding_sep, binding_distances = population_separation(binding)
-    structure_sep, structure_distances = population_separation(structure)
+    binding_sep, binding_distances = population_separation(
+        binding.reshape(n_shapes * n_colours, n_origins, -1)
+    )
+    structure_sep, structure_distances = population_separation(
+        structure.reshape(n_shapes * n_colours, n_origins, -1)
+    )
     labels = network.column_labels()
-    active = int((shape_sel + position_sel > 1e-9).sum())
+    active = int((shape_sel + colour_sel > 1e-9).sum())
+    rule_description = definition.get("architecture", {}).get("learning") or {}
 
     result = {
         "summary": {
+            "recruitment": {
+                "epochs": epochs,
+                "rule": rule_description,
+                "by_level": trained,
+            },
             "overall": {
                 "columns": len(labels),
                 "shape_selectivity_max": float(shape_sel.max(initial=0.0)),
                 "shape_selectivity_mean": float(shape_sel.mean()) if labels else 0.0,
+                "colour_selectivity_max": float(colour_sel.max(initial=0.0)),
+                "colour_selectivity_mean": float(colour_sel.mean()) if labels else 0.0,
+                "conjunction_selectivity_max": float(conjunction_sel.max(initial=0.0)),
+                "conjunction_selectivity_mean": float(conjunction_sel.mean()) if labels else 0.0,
                 "position_selectivity_max": float(position_sel.max(initial=0.0)),
                 "position_selectivity_mean": float(position_sel.mean()) if labels else 0.0,
                 "separation_max": float(separation.max(initial=0.0)),
                 "separation_mean": float(separation.mean()) if labels else 0.0,
                 "population_separation": population,
+                "shape_separation": shape_pop,
+                "colour_separation": colour_pop,
                 "active_columns": active,
                 "silent_columns": len(labels) - active,
             },
             "by_level": summarise_by_level(
-                shape_sel, position_sel, labels, ("shape", "position"), separation,
-                responses, names, trace,
+                shape_sel, colour_sel, labels, ("shape", "colour"), separation,
+                by_conjunction, stimulus_names, trace_by_conjunction,
+                conjunction=conjunction_sel,
             ),
             # The same figures, the same run, three ways of reading it. Reported side
             # by side rather than one replacing another, because the gap between them
@@ -204,9 +271,9 @@ def run_structure_baseline(definition: dict) -> dict:
                 readout: {
                     "population_separation": value,
                     "figure_distances": {
-                        f"{names[a]} vs {names[b]}": float(matrix[a, b])
-                        for a in range(len(names))
-                        for b in range(a + 1, len(names))
+                        f"{stimulus_names[a]} vs {stimulus_names[b]}": float(matrix[a, b])
+                        for a in range(len(stimulus_names))
+                        for b in range(a + 1, len(stimulus_names))
                     },
                 }
                 for readout, value, matrix in (
@@ -218,22 +285,28 @@ def run_structure_baseline(definition: dict) -> dict:
             },
             "presentation": {
                 "figures": names,
+                "colours": colours,
+                "stimuli": len(stimulus_names),
                 "origins": len(origins),
                 "stops_per_figure": len(shapes[0].parts),
                 "parts_per_figure": len(shapes[0].parts),
                 "relations_per_figure": len(shapes[0].parts) - 1,
                 "visiting_order": order,
             },
-            "figure_distances": {
-                f"{names[a]} vs {names[b]}": float(distances[a, b])
+            "shape_distances": {
+                f"{names[a]} vs {names[b]}": float(shape_distances[a, b])
                 for a in range(len(names))
                 for b in range(a + 1, len(names))
             },
         },
         "responses": responses,
-        "trace": trace,
+        # Every origin gives a bit-identical response, so one is kept rather than all:
+        # the others would quadruple the artifact and add nothing to read.
+        "trace": trace[:, :, :1],
         "binding": binding,
         "shape_selectivity": shape_sel,
+        "colour_selectivity": colour_sel,
+        "conjunction_selectivity": conjunction_sel,
         "position_selectivity": position_sel,
         "separation": separation,
         "labels": labels,
@@ -341,6 +414,8 @@ def execute(definition: dict, artifact_root: str | Path = "artifacts") -> Path:
         separation=result["separation"],
         trace=result["trace"],
         binding=result["binding"],
+        colour_selectivity=result["colour_selectivity"],
+        conjunction_selectivity=result["conjunction_selectivity"],
         labels=np.array(result["labels"]),
     )
     return out

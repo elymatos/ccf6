@@ -62,6 +62,26 @@ def relax(current: np.ndarray, drive: np.ndarray, tau: float, p: dict) -> np.nda
     return current + (target - current) * alpha
 
 
+def _clusters(shape: tuple[int, int], side: int) -> np.ndarray:
+    """The Columns of each cluster, as (n_clusters, members per cluster).
+
+    Requires the cluster to tile the Grid exactly, so that every Column competes in one
+    and no Column competes in none.
+    """
+    h, w = shape
+    if h % side or w % side:
+        raise ValueError(f"a cluster of {side} does not tile a {h}x{w} Grid exactly")
+    blocks = []
+    for top in range(0, h, side):
+        for left in range(0, w, side):
+            blocks.append([
+                i * w + j
+                for i in range(top, top + side)
+                for j in range(left, left + side)
+            ])
+    return np.asarray(blocks, dtype=np.int64)
+
+
 class Level:
     """One Grid of Columns, and the connections arriving at it."""
 
@@ -72,12 +92,22 @@ class Level:
         self.l4 = np.zeros(self.n)
         self.l23 = np.zeros(self.n)
         self.l5 = np.zeros(self.n)
+        #: How much of a Column's plasticity is left. 1.0 is free, 0.0 is committed.
+        #: Recruitment spends it; nothing gives it back.
+        self.plasticity = np.ones(self.n)
+        self.wins = np.zeros(self.n, dtype=np.int64)
+        #: Filled in by the Space: which Columns compete with which, and where each
+        #: Column's inbound connections sit in the weight array.
+        self.cluster_members: np.ndarray | None = None
+        self.input_by_target: np.ndarray | None = None
         # Filled in by the connectivity builders.
         self.w_input: Connections | None = None      # into L4, from below or Thalamus
         self.w_feedback: Connections | None = None   # into L2/3, from the Level above
         self.w_lateral: Connections | None = None    # into L2/3, inhibitory, same Level
 
     def reset(self) -> None:
+        """Activity only. Weights, plasticity and wins survive a presentation, which is
+        the difference between resetting a network and untraining it."""
         self.l4[:] = 0.0
         self.l23[:] = 0.0
         self.l5[:] = 0.0
@@ -144,6 +174,10 @@ class Space:
             is_top = index == len(self.levels) - 1
             level.w_lateral = (clustered_competition(shape, cluster) if is_top
                                else neighbourhood(shape))
+
+        for level in self.levels:
+            level.cluster_members = _clusters(shape, cluster)
+            level.input_by_target = level.w_input.by_target()
 
         # Feedback is reciprocal: whatever a Level draws from below, it feeds back to.
         # Running the same connections backwards is what keeps that structural rather
@@ -250,3 +284,17 @@ class Space:
 
         for level, (l4, l23, l5) in zip(self.levels, next_state):
             level.l4, level.l23, level.l5 = l4, l23, l5
+
+    def learn(self, drive_in: np.ndarray | None, rule, p: dict) -> int:
+        """Apply the recruitment rule once, after this Space has settled.
+
+        Once per stop rather than once per tick. A rule that fired every tick would
+        strengthen the same conjunction 150 times for one exposure and call it
+        recurrence, which is the thing recruitment is supposed to detect.
+        """
+        changed = 0
+        for index, level in enumerate(self.levels):
+            source = (drive_in if drive_in is not None else np.zeros(level.w_input.n_in)) \
+                if index == 0 else transmit(self.levels[index - 1].l5, p)
+            changed += rule.apply(level, source)
+        return changed
