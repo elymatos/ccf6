@@ -11,8 +11,14 @@ use Tests\TestCase;
  *
  * Artifacts are not version-controlled, so the tests that need a current-contract run
  * skip when there is none rather than failing on a fresh clone. The tests that only
- * need the page not to fall over run against whatever is on disk, including runs from
- * a superseded architecture.
+ * need the page not to fall over run against whatever is on disk.
+ *
+ * The superseded-architecture test is the exception. Runs from the previous substrate
+ * were deleted once they became confusing, and no future run will be written against an
+ * old contract, so nothing on disk exercises that path any more. It builds its own run
+ * directory instead. What it asserts is that a connectivity record without `structures`
+ * is reported rather than drawn, and that claim is about the contract, not about any
+ * particular old run.
  */
 class WorkbenchTest extends TestCase
 {
@@ -78,18 +84,31 @@ class WorkbenchTest extends TestCase
 
     public function test_a_run_from_a_superseded_architecture_says_so_rather_than_failing(): void
     {
-        foreach ($this->runs() as $run) {
-            $path = base_path('artifacts/'.$run.'/connectivity.json');
-            $connectivity = file_exists($path)
-                ? json_decode(file_get_contents($path), true)['connectivity'] ?? []
-                : [];
-            if (! array_key_exists('structures', $connectivity)) {
-                $this->get('/runs/'.$run)->assertOk()->assertSee('predates the current architecture');
+        $root = sys_get_temp_dir().'/ccf6-superseded-'.getmypid();
+        $run = '001-20260907T205400-7f76d3f788715d4d';
+        mkdir($root.'/'.$run, 0777, true);
 
-                return;
-            }
+        // The shape an artifact had before the Web, Schema and Index existed: Areas
+        // instead of structures. The absence of `structures` is the whole signal.
+        file_put_contents($root.'/'.$run.'/connectivity.json', json_encode([
+            'connectivity' => ['areas' => ['colour' => ['levels' => 3]]],
+            'palette' => ['white', 'red'],
+        ]));
+        file_put_contents($root.'/'.$run.'/manifest.json', json_encode([
+            'name' => 'Colour selectivity baseline',
+            'kind' => 'colour_selectivity_baseline',
+            'started' => '2026-09-07T20:54:00+00:00',
+        ]));
+        file_put_contents($root.'/'.$run.'/summary.json', json_encode(['overall' => []]));
+
+        try {
+            config(['ccf6.artifact_root' => $root]);
+            $this->get('/runs/'.$run)->assertOk()->assertSee('predates the current architecture');
+        } finally {
+            array_map('unlink', glob($root.'/'.$run.'/*'));
+            rmdir($root.'/'.$run);
+            rmdir($root);
         }
-        $this->markTestSkipped('no superseded artifact on disk');
     }
 
     public function test_a_missing_run_is_a_404(): void
