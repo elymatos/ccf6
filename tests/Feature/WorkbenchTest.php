@@ -145,6 +145,27 @@ class WorkbenchTest extends TestCase
         }
     }
 
+    public function test_coordinated_presentations_render_order_trajectories_and_failures(): void
+    {
+        [$root, $run] = $this->runExperiment('004-coordinated-presentation.json');
+        $presentations = file($root.'/'.$run.'/presentations.jsonl', FILE_IGNORE_NEW_LINES);
+        $first = json_decode($presentations[0], true);
+
+        try {
+            config(['ccf6.artifact_root' => $root]);
+            $this->get('/runs/'.$run)
+                ->assertSee('Presentation trajectories')
+                ->assertSee('Sequence-sensitive: pass')
+                ->assertSee($first['id'])
+                ->assertSee($first['samples'][0]['id'])
+                ->assertSee($first['samples'][1]['id'])
+                ->assertSee($first['samples'][1]['duration_ticks'].' ticks')
+                ->assertSee('Settling failures');
+        } finally {
+            $this->removeArtifactRoot($root, $run);
+        }
+    }
+
     public function test_zero_rest_network_identifies_a_max_tick_failure(): void
     {
         $definitionPath = sys_get_temp_dir().'/ccf6-failing-network-'.getmypid().'.json';
