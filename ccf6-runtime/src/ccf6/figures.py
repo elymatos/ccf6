@@ -1,22 +1,9 @@
-"""The figures an experiment can show.
+"""The figures used to probe learned conjunctions and categories.
 
-Objects are part-relative and carry no origin (ADR-0004), so the same arrangement at a
-different World position is the same Object. The set below is chosen to discriminate
-rather than to illustrate: T, ⊥, ⊢ and ⊣ have an identical feature bag — one
-horizontal stroke, one vertical stroke, one junction — and differ only in the
-arrangement. A structure that converges over co-occurring features sees the same bundle
-four times, so anything that separates them separated them relationally.
-
-Because the four are rotations of one another, they also make the signed-invariance
-rule concrete: translation must preserve identity here, and rotation must destroy it.
-A rotation-invariant system could not tell T from ⊥ and would make the set unlearnable.
-
-**A limit this set exposes.** `Object.relations()` stores the *unordered multiset* of
-pairwise offsets, and that multiset is closed under reflection whenever the bar is
-symmetric — so T and ⊥ store identically, as do ⊢ and ⊣. The bag keeps which offsets
-occur and throws away how they were traversed. The arrangement lives in the traversal,
-which is why the Schema is advanced by a sequence of Relations rather than handed a set
-of them. See the premise tests for both halves of this.
+Objects carry no origin, so one arrangement can be presented at varied positions. The
+four figures share the same coarse feature inventory while differing in arrangement.
+They expose whether the network develops stable, context-sensitive convergence rather
+than succeeding from a unique feature supplied at the boundary.
 """
 
 from __future__ import annotations
@@ -58,10 +45,8 @@ TEE_LEFT = _figure("⊣", "column", "left")
 
 FIGURES = {"T": TEE, "T-up": TEE_UP, "T-right": TEE_RIGHT, "T-left": TEE_LEFT}
 
-#: Colours a figure can be shown in. Index 0 is the World's background and is excluded:
-#: a figure the colour of the ground is not a figure. Crossing these against FIGURES is
-#: what gives a Hub a conjunction to form. With one colour it has none, because half of
-#: every convergence Column's fan-in comes from a Space that never varies.
+#: Colours crossed with figures so association Columns can encounter recurring
+#: conjunctions. Index 0 is the World's background and is excluded.
 COLOURS = (1, 2, 3, 4)
 
 
@@ -75,11 +60,8 @@ def named(names: list[str]) -> list[Object]:
 def in_colour(obj: Object, colour: int) -> Object:
     """The same arrangement, shown in another colour.
 
-    Shape and colour stay orthogonal by construction. The shape encoder reads a
-    foreground mask and cannot see colour at all, and the colour encoder is handed the
-    colour at the stop and knows nothing of the arrangement. So neither Space can solve
-    the other's factor, and a Column that responds to one shape in one colour and to
-    nothing else had to build the conjunction itself.
+    Shape and colour stay orthogonal at the sensory boundary. A Column responding to
+    their conjunction must therefore receive and integrate both pathways.
     """
     if colour < 1:
         raise ValueError(f"colour {colour} is the World's background; a figure needs its own")

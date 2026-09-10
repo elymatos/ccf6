@@ -8,7 +8,7 @@
     @if ($runs->isEmpty())
         <div class="panel muted">
             No artifacts yet. Run one:
-            <code>PYTHONPATH=ccf6-runtime/src python3 -m ccf6 experiments/004-structure-baseline.json artifacts</code>
+            <code>PYTHONPATH=ccf6-runtime/src python3 -m ccf6 experiments/001-cardinal-recruitment.json artifacts</code>
         </div>
     @else
         <div class="panel">

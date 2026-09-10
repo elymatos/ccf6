@@ -18,11 +18,9 @@ def two_way_selectivity(responses: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     factors vary independently and the decomposition can say which one a Column
     follows. Returns two vectors of length n_columns, each in [0, 1].
 
-    The factors are whatever the experiment crossed — shape against position, or
-    content against place. Keeping the names out of here is what lets one measurement
-    serve both generalizations the architecture distinguishes: a readout that could
-    not separate them would report structural transfer when only abstraction over
-    instances had occurred.
+    The factors are whatever the experiment crossed. Keeping their names out of this
+    calculation lets the same measurement evaluate different sensory and conceptual
+    populations.
 
     A Column that never moved has no variance to explain and scores zero on both,
     rather than being credited with perfect selectivity for nothing.
@@ -47,7 +45,7 @@ def two_way_selectivity(responses: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 def conjunction_selectivity(responses: np.ndarray) -> np.ndarray:
     """How much of each Column's variance neither factor explains on its own.
 
-    This is the measurement a Hub exists to be judged by. A Column that follows shape
+    This measures whether an association Column integrates two factors. A Column that follows shape
     scores its variance under shape; one that follows colour scores it under colour; a
     Column that answers to a *particular shape in a particular colour* and not to that
     shape in another colour has variance that neither main effect predicts. That
@@ -67,7 +65,7 @@ def figure_separation(responses: np.ndarray) -> np.ndarray:
     Needed because the two-way ratio went degenerate. Once the boundary became
     translation invariant (ADR-0009) the second factor contributes *exactly* zero
     variance, so `shape / (shape + position)` is 1.0 wherever a Column moves at all and
-    0.0 where it does not. It no longer distinguishes a Space that separates the
+    0.0 where it does not. It no longer distinguishes a Population that separates the
     confusion set from one that barely twitches.
 
     This one can. Average the pairwise distance between the figures' mean responses and
@@ -104,7 +102,7 @@ def population_separation(responses: np.ndarray) -> tuple[float, np.ndarray]:
     The difference is not cosmetic, and it runs the wrong way with depth. A Level doing
     its job concentrates a figure onto fewer Columns, which lowers the per-Column mean
     exactly when the Level has got better. Averaging over Columns therefore penalizes
-    the convergence the Web exists to perform.
+    successful convergence.
 
     So: the mean Euclidean distance between the figures' mean population vectors,
     divided by the population's own rms magnitude. Returns that mean and the full

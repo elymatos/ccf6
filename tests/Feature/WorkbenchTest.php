@@ -13,12 +13,9 @@ use Tests\TestCase;
  * skip when there is none rather than failing on a fresh clone. The tests that only
  * need the page not to fall over run against whatever is on disk.
  *
- * The superseded-architecture test is the exception. Runs from the previous substrate
- * were deleted once they became confusing, and no future run will be written against an
- * old contract, so nothing on disk exercises that path any more. It builds its own run
- * directory instead. What it asserts is that a connectivity record without `structures`
- * is reported rather than drawn, and that claim is about the contract, not about any
- * particular old run.
+ * The superseded-architecture test builds its own old-contract artifact because no
+ * future run will write one. The page must preserve such artifacts without interpreting
+ * them through the current architecture.
  */
 class WorkbenchTest extends TestCase
 {
@@ -37,7 +34,7 @@ class WorkbenchTest extends TestCase
                 continue;
             }
             $connectivity = json_decode(file_get_contents($path), true)['connectivity'] ?? [];
-            if (array_key_exists('structures', $connectivity)) {
+            if (($connectivity['model'] ?? null) === 'ncl-column-network-v1') {
                 return $run;
             }
         }
@@ -67,19 +64,18 @@ class WorkbenchTest extends TestCase
         if ($run === null) {
             $this->markTestSkipped(
                 'no current-contract artifact on disk; run: PYTHONPATH=ccf6-runtime/src '
-                .'python3 -m ccf6 experiments/004-structure-baseline.json artifacts'
+                .'python3 -m ccf6 experiments/001-cardinal-recruitment.json artifacts'
             );
         }
 
         $summary = json_decode(file_get_contents(base_path('artifacts/'.$run.'/summary.json')), true);
         $this->get('/runs/'.$run)
             ->assertOk()
-            ->assertSee('The Web')
-            ->assertSee('The Schema')
-            ->assertSee('The Index')
-            ->assertSee((string) $summary['overall']['columns'])
+            ->assertSee('Recruitment and cardinal candidates')
+            ->assertSee('Partial cues and reciprocal reactivation')
+            ->assertSee(number_format($summary['overall']['columns']))
             ->assertSee(number_format($summary['overall']['shape_selectivity_max'], 4))
-            ->assertSee(number_format($summary['schema']['path_consistency_error'], 9));
+            ->assertSee(number_format($summary['completion']['shape_cue_concept_similarity'], 4));
     }
 
     public function test_a_run_from_a_superseded_architecture_says_so_rather_than_failing(): void
@@ -88,8 +84,7 @@ class WorkbenchTest extends TestCase
         $run = '001-20260907T205400-7f76d3f788715d4d';
         mkdir($root.'/'.$run, 0777, true);
 
-        // The shape an artifact had before the Web, Schema and Index existed: Areas
-        // instead of structures. The absence of `structures` is the whole signal.
+        // Any connectivity record without the current model contract is historical.
         file_put_contents($root.'/'.$run.'/connectivity.json', json_encode([
             'connectivity' => ['areas' => ['colour' => ['levels' => 3]]],
             'palette' => ['white', 'red'],

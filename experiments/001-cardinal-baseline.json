@@ -1,0 +1,37 @@
+{
+  "number": "001-baseline",
+  "name": "Cardinal recruitment baseline",
+  "kind": "cardinal_recruitment",
+  "question": "Before learning, how much apparent convergence, partial-cue recognition and reciprocal reactivation arise from the declared random connectivity alone?",
+  "ticks": 30,
+  "visiting_order": "raster",
+  "figures": [
+    "T",
+    "T-up",
+    "T-right",
+    "T-left"
+  ],
+  "colours": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "max_origins": 2,
+  "epochs": 0,
+  "architecture": {
+    "world_size": 12,
+    "n_colours": 8,
+    "side": 16,
+    "cluster": 4,
+    "fanin": 4,
+    "association_fanin": 12,
+    "seed": 20260909,
+    "learning": {
+      "rate": 0.05,
+      "commitment": 0.02,
+      "floor": 0.05
+    }
+  },
+  "parameters": {}
+}

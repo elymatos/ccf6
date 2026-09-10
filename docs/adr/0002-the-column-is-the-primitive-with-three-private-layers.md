@@ -1,6 +1,6 @@
 # 0002 — The Column is the primitive, with three private Layers
 
-Status: accepted · 2026-09-07
+Status: superseded by ADR-0011 · 2026-09-09
 
 ## Context
 
@@ -34,4 +34,4 @@ being looked at, not for speed.
 
 Grid position becomes mechanical rather than decorative, since lateral competition is
 defined over neighbourhood. Each Level has three drawable fields rather than one. State
-per Space is three floats per Column, which is negligible.
+per Population is three floats per Column, which is negligible.

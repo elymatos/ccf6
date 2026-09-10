@@ -7,11 +7,9 @@
     <div class="panel">
         <p class="verdict">This run predates the current architecture.</p>
         <p class="muted" style="max-width:70ch">
-            It was produced by a substrate organised around Spaces fed one World position
-            at a time, before the Web, Schema and Index existed. Its numbers are not
-            comparable with a current run and there is no page that could draw them
-            honestly, so it is kept as the record of what was done rather than
-            re-rendered.
+            Its artifact contract does not match the current NCL-only Column network.
+            The numbers are not comparable with a current run, so the workbench preserves
+            the artifact without interpreting it through the new architecture.
         </p>
         <table>
             <thead><tr><th class="l">Field</th><th class="l">Value</th></tr></thead>
