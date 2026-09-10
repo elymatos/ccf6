@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections import Counter
 from datetime import datetime, timezone
+from itertools import combinations
 from pathlib import Path
 
 import numpy as np
@@ -13,6 +15,7 @@ from ccf6 import figures, params
 from ccf6.domain import generate_domain
 from ccf6.ego import Presentation
 from ccf6.functional_network import Network as FunctionalNetwork
+from ccf6.functional_presentation import PresentationProtocol
 from ccf6.metrics import (
     conjunction_selectivity,
     figure_separation,
@@ -450,10 +453,229 @@ def run_zero_rest_network(definition: dict) -> dict:
     }
 
 
+def run_coordinated_presentation(definition: dict) -> dict:
+    """Run visual-first, ordered auditory Presentations and their controls."""
+    if "seed" not in definition or "network" not in definition:
+        raise ValueError("coordinated Presentation experiments require seed and Network")
+    presentation = definition.get("presentation", {})
+    if set(presentation) != {
+        "visual_populations",
+        "auditory_population",
+        "controls",
+    }:
+        raise ValueError(
+            "presentation must declare visual_populations, auditory_population, and controls"
+        )
+    required_controls = {
+        "reversed",
+        "permuted",
+        "repeated_segment",
+        "competing",
+    }
+    if (
+        len(presentation["controls"]) != len(required_controls)
+        or set(presentation["controls"]) != required_controls
+    ):
+        raise ValueError(f"presentation controls must be {sorted(required_controls)}")
+
+    dataset = generate_domain(int(definition["seed"]))
+    network = FunctionalNetwork(definition["network"])
+    protocol = PresentationProtocol(
+        network,
+        dataset,
+        visual_populations=presentation["visual_populations"],
+        auditory_population=presentation["auditory_population"],
+    )
+    pseudowords = {row["id"]: row for row in dataset["pseudowords"]}
+    records = []
+
+    def append_record(
+        category: dict,
+        pseudoword_id: str,
+        segments: list[str],
+        condition: str,
+        success_signal: float,
+    ) -> None:
+        records.append(
+            protocol.run(
+                presentation_id=f"presentation-{len(records) + 1}",
+                category=category,
+                pseudoword_id=pseudoword_id,
+                segments=segments,
+                condition=condition,
+                success_signal=success_signal,
+            )
+        )
+
+    for category in dataset["categories"]:
+        pseudoword = pseudowords[category["pseudoword_id"]]
+        append_record(category, pseudoword["id"], pseudoword["segments"], "correct", 1.0)
+        for control in ("reversed", "permuted", "repeated_segment"):
+            append_record(
+                category,
+                pseudoword["id"],
+                pseudoword["controls"][control],
+                control,
+                0.0,
+            )
+        for competitor in dataset["pseudowords"]:
+            if competitor["id"] != pseudoword["id"]:
+                append_record(
+                    category,
+                    competitor["id"],
+                    competitor["segments"],
+                    f"competing:{competitor['id']}",
+                    0.0,
+                )
+
+    labels = np.asarray(network.column_labels())
+    visual_indices = np.asarray(
+        [
+            index
+            for index, label in enumerate(labels)
+            if any(
+                label.startswith(f"{population_id}#")
+                for population_id in presentation["visual_populations"].values()
+            )
+        ],
+        dtype=np.int64,
+    )
+    retention_ratios = []
+    continuity_passed = True
+    reset_passed = True
+    for record in records:
+        reset_passed = reset_passed and bool(np.all(record.initial_activity == 0.0))
+        visual_output = record.samples[0].settling.activity[-1, visual_indices, 2]
+        visual_total = float(visual_output.sum())
+        for previous, current in zip(record.samples, record.samples[1:]):
+            continuity_passed = continuity_passed and bool(
+                np.array_equal(
+                    previous.settling.activity[-1],
+                    current.settling.activity[0],
+                )
+            )
+            retained = float(current.settling.activity[-1, visual_indices, 2].sum())
+            retention_ratios.append(retained / visual_total if visual_total > 0.0 else 0.0)
+
+    sequence_pair_count = 0
+    distinct_trajectory_count = 0
+    trajectory_distances = []
+    for category in dataset["categories"]:
+        sequence_trajectories = {}
+        for record in records:
+            if record.category_id != category["id"] or record.condition == "repeated_segment":
+                continue
+            sequence_trajectories.setdefault(
+                record.segments,
+                record.settled_states[1:, :, 2],
+            )
+        for (left_segments, left), (right_segments, right) in combinations(
+            sequence_trajectories.items(), 2
+        ):
+            if sorted(left_segments) != sorted(right_segments):
+                continue
+            sequence_pair_count += 1
+            trajectory_distances.append(float(np.linalg.norm(left - right)))
+            distinct_trajectory_count += int(not np.allclose(left, right))
+
+    chunks = [sample.settling.activity for record in records for sample in record.samples]
+    offsets = [0]
+    for chunk in chunks:
+        offsets.append(offsets[-1] + len(chunk))
+    condition_counts = Counter(
+        record.condition.split(":", maxsplit=1)[0] for record in records
+    )
+    failures = sum(record.settling_failures for record in records)
+    durations = np.stack([record.sample_durations for record in records])
+    presentation_rows = [record.as_dict() for record in records]
+    topology = network.topology_snapshot()
+    return {
+        "contract": "ncl-functional-web-v1",
+        "dataset": dataset,
+        "topology": topology,
+        "topology_arrays": network.topology_arrays(),
+        "presentations": presentation_rows,
+        "activity_arrays": {
+            "initial_activity": np.stack(
+                [record.initial_activity for record in records]
+            ),
+            "settled_activity": np.stack(
+                [record.settled_states for record in records]
+            ),
+            "sample_durations": durations,
+            "sample_settled": np.asarray(
+                [
+                    [sample.settling.success for sample in record.samples]
+                    for record in records
+                ]
+            ),
+            "trajectory": np.concatenate(chunks),
+            "trajectory_offsets": np.asarray(offsets, dtype=np.int64),
+            "labels": labels,
+            "compartments": np.asarray(["Input", "Integration", "Output"]),
+            "presentation_ids": np.asarray([record.identifier for record in records]),
+            "category_ids": np.asarray([record.category_id for record in records]),
+            "pseudoword_ids": np.asarray(
+                [record.pseudoword_id for record in records]
+            ),
+            "conditions": np.asarray([record.condition for record in records]),
+            "sample_ids": np.asarray(
+                [[sample.identifier for sample in record.samples] for record in records]
+            ),
+        },
+        "activity": {
+            "labels": labels.tolist(),
+            "compartments": ["Input", "Integration", "Output"],
+            "presentation_ids": [record.identifier for record in records],
+            "settled_states": [record.settled_states.tolist() for record in records],
+        },
+        "summary": {
+            "network": {
+                "populations": len(network.populations),
+                "population_ids": list(network.population_order),
+                "columns": len(labels),
+                "projections": len(network.projections),
+            },
+            "presentations": {
+                "total": len(records),
+                "samples": len(chunks),
+                "by_condition": dict(condition_counts),
+                "reset_at_boundaries": reset_passed,
+                "state_continuity_between_samples": continuity_passed,
+            },
+            "persistence": {
+                "minimum_visual_retention_ratio": min(retention_ratios, default=0.0),
+            },
+            "sequence_sensitivity": {
+                "same_bag_sequence_pairs": sequence_pair_count,
+                "distinct_trajectory_pairs": distinct_trajectory_count,
+                "minimum_trajectory_distance": min(
+                    trajectory_distances, default=0.0
+                ),
+                "passed": sequence_pair_count > 0
+                and distinct_trajectory_count == sequence_pair_count,
+            },
+            "settling": {
+                "failures": failures,
+                "successful_samples": len(chunks) - failures,
+                "duration_ticks_min": int(durations.min()),
+                "duration_ticks_max": int(durations.max()),
+                "duration_ticks_mean": float(durations.mean()),
+            },
+        },
+        "stimuli": {
+            "categories": [row["id"] for row in dataset["categories"]],
+            "conditions": dict(condition_counts),
+        },
+        "parameters": dict(network.dynamics),
+    }
+
+
 KINDS = {
     "cardinal_recruitment": run_cardinal_recruitment,
     "synthetic_lexical_grounding": run_synthetic_lexical_grounding,
     "zero_rest_network": run_zero_rest_network,
+    "coordinated_presentation": run_coordinated_presentation,
 }
 
 
@@ -475,13 +697,15 @@ def execute(definition: dict, artifact_root: str | Path = "artifacts") -> Path:
     )
     files = ["definition.json", "manifest.json", "summary.json"]
     if "topology" in result:
-        files[2:2] = [
+        topology_files = [
             "dataset.json",
             "topology.npz",
             "topology.json",
-            "activity.npz",
-            "activity.json",
         ]
+        if "presentations" in result:
+            topology_files.append("presentations.jsonl")
+        topology_files.extend(["activity.npz", "activity.json"])
+        files[2:2] = topology_files
     elif "dataset" in result:
         files.insert(2, "dataset.json")
     else:
@@ -515,6 +739,13 @@ def execute(definition: dict, artifact_root: str | Path = "artifacts") -> Path:
             json.dumps(result["topology"], indent=2)
         )
         np.savez_compressed(output / "topology.npz", **result["topology_arrays"])
+        if "presentations" in result:
+            (output / "presentations.jsonl").write_text(
+                "".join(
+                    json.dumps(row, separators=(",", ":")) + "\n"
+                    for row in result["presentations"]
+                )
+            )
         np.savez_compressed(output / "activity.npz", **result["activity_arrays"])
         (output / "activity.json").write_text(
             json.dumps(result["activity"], separators=(",", ":"))

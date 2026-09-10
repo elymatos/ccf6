@@ -57,6 +57,16 @@ class WorkbenchController extends Controller
                     'activity' => $this->json($dir.'/activity.json') ?? [],
                 ]);
             }
+
+            if (($manifest['kind'] ?? null) === 'coordinated_presentation') {
+                return view('workbench.presentation', [
+                    'run' => basename($run),
+                    'manifest' => $manifest,
+                    'summary' => $summary,
+                    'topology' => $this->json($dir.'/topology.json') ?? [],
+                    'presentations' => $this->jsonLines($dir.'/presentations.jsonl'),
+                ]);
+            }
         }
 
         $wiring = $this->json($dir.'/connectivity.json') ?? ['connectivity' => [], 'palette' => []];
@@ -105,5 +115,18 @@ class WorkbenchController extends Controller
     private function json(string $path): ?array
     {
         return File::exists($path) ? json_decode(File::get($path), true) : null;
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function jsonLines(string $path): array
+    {
+        if (! File::exists($path)) {
+            return [];
+        }
+
+        return array_values(array_map(
+            fn (string $line): array => json_decode($line, true),
+            array_filter(explode("\n", File::get($path))),
+        ));
     }
 }

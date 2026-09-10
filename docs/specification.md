@@ -579,7 +579,7 @@ The table describes the repository at the time this specification was accepted.
 | Presentation-level Recruitment | Repetition means distinct experiences | Contributing Presentation IDs | Nonconforming: repeated wins spend plasticity | `test_one_presentation_cannot_recruit_by_itself` |
 | Homeostatic thresholds | Prevent monopolies without semantic supervision | Local threshold histories | Unsupported | `test_homeostasis_is_independent_of_success` |
 | Structured synthetic domain | Test grounding and lexical routes | Validated dataset artifact | Conforming | `test_generated_domain_satisfies_constraints` |
-| Ordered pseudowords | Lexical form is relational and sequential | Sequence-control distances | Partial: ordered controls generated; trajectory distances pending | `test_pseudoword_identity_requires_order` |
+| Ordered pseudowords | Lexical form is relational and sequential | Sequence-control distances | Conforming | `test_presentations_preserve_order_and_reject_unordered_feature_bags` |
 | Target Basin distributions | Completion is attraction, not vector lookup | Frozen centroids, scales, margins | Unsupported | `test_held_out_data_cannot_shape_basins` |
 | Functional Web detector | Webs require convergent causal evidence | Reliability, perturbation, connectivity controls | Unsupported | `test_web_membership_requires_all_evidence` |
 | Overlapping webs | Reusable structure must be shared | Shared feature membership | Unsupported | `test_detected_webs_can_overlap` |
@@ -587,6 +587,6 @@ The table describes the repository at the time this specification was accepted.
 | Lesion and stimulation | Establish causal role | Matched intervention effects | Unsupported | `test_lesion_preserves_incoming_activity` |
 | Paired controls and 20 seeds | Separate learning from arbitrary wiring | Per-seed paired metrics | Unsupported | `test_arms_share_initial_conditions` |
 | Seed-level bootstrap | Avoid pseudoreplication | Deterministic paired intervals | Unsupported | `test_bootstrap_resamples_seed_effects` |
-| `ncl-functional-web-v1` artifacts | Make claims reproducible and inspectable | Complete file inventory | Partial: dataset, topology, and activity slices exist | `test_zero_rest_experiment_writes_reproducible_topology_and_activity` |
+| `ncl-functional-web-v1` artifacts | Make claims reproducible and inspectable | Complete file inventory | Partial: dataset, topology, Presentations, and activity slices exist | `test_presentations_preserve_order_and_reject_unordered_feature_bags` |
 
 The implementation MUST update this matrix as requirements become conforming. A requirement may be marked conforming only when its implementing test and required artifact evidence both exist.
