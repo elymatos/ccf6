@@ -10,6 +10,7 @@ from pathlib import Path
 import numpy as np
 
 from ccf6 import figures, params
+from ccf6.domain import generate_domain
 from ccf6.ego import Presentation
 from ccf6.metrics import (
     conjunction_selectivity,
@@ -302,7 +303,55 @@ def run_cardinal_recruitment(definition: dict) -> dict:
     }
 
 
-KINDS = {"cardinal_recruitment": run_cardinal_recruitment}
+def run_synthetic_lexical_grounding(definition: dict) -> dict:
+    """Generate the validated domain consumed by later Functional Web experiments."""
+    if "seed" not in definition:
+        raise ValueError("synthetic lexical-grounding experiments must declare a seed")
+
+    dataset = generate_domain(int(definition["seed"]))
+
+    pairing_counts = {
+        kind: sum(pairing["kind"] == kind for pairing in dataset["pairings"])
+        for kind in ("correct", "mismatched")
+    }
+    return {
+        "contract": "ncl-functional-web-v1",
+        "dataset": dataset,
+        "summary": {
+            "domain": {
+                "categories": len(dataset["categories"]),
+                "visual_property_dimensions": len(
+                    dataset["visual_property_dimensions"]
+                ),
+                "instances_per_category": {
+                    split: len(dataset["categories"][0]["splits"][split])
+                    for split in (
+                        "acquisition",
+                        "basin_estimation",
+                        "final_held_out",
+                    )
+                },
+                "pseudowords": len(dataset["pseudowords"]),
+                "auditory_segments": len(dataset["auditory_segments"]),
+                "auditory_features": len(dataset["auditory_features"]),
+                "pairings": {"total": len(dataset["pairings"]), **pairing_counts},
+                "constraints": {
+                    "passed": sum(
+                        check["passed"] for check in dataset["constraint_checks"]
+                    ),
+                    "total": len(dataset["constraint_checks"]),
+                },
+            }
+        },
+        "stimuli": {"categories": [row["id"] for row in dataset["categories"]]},
+        "parameters": {},
+    }
+
+
+KINDS = {
+    "cardinal_recruitment": run_cardinal_recruitment,
+    "synthetic_lexical_grounding": run_synthetic_lexical_grounding,
+}
 
 
 def execute(definition: dict, artifact_root: str | Path = "artifacts") -> Path:
@@ -321,10 +370,16 @@ def execute(definition: dict, artifact_root: str | Path = "artifacts") -> Path:
     (output / "definition.json").write_text(
         json.dumps(definition, indent=2, sort_keys=True)
     )
+    files = ["definition.json", "manifest.json", "summary.json"]
+    if "dataset" in result:
+        files.insert(2, "dataset.json")
+    else:
+        files.extend(["connectivity.json", "snapshots.json", "responses.npz"])
+
     (output / "manifest.json").write_text(
         json.dumps(
             {
-                "contract": "ncl-column-network-v1",
+                "contract": result.get("contract", "ncl-column-network-v1"),
                 "digest": run_digest,
                 "number": number,
                 "kind": kind,
@@ -335,31 +390,37 @@ def execute(definition: dict, artifact_root: str | Path = "artifacts") -> Path:
                 "seconds": (finished - started).total_seconds(),
                 "stimuli": result["stimuli"],
                 "parameters": result["parameters"],
+                "files": files,
             },
             indent=2,
         )
     )
+    if "dataset" in result:
+        (output / "dataset.json").write_text(
+            json.dumps(result["dataset"], indent=2)
+        )
     (output / "summary.json").write_text(
         json.dumps(result["summary"], indent=2)
     )
-    (output / "snapshots.json").write_text(json.dumps(result["snapshots"]))
-    (output / "connectivity.json").write_text(
-        json.dumps(
-            {
-                "connectivity": result["connectivity"],
-                "palette": result["palette"],
-            },
-            indent=2,
+    if "connectivity" in result:
+        (output / "snapshots.json").write_text(json.dumps(result["snapshots"]))
+        (output / "connectivity.json").write_text(
+            json.dumps(
+                {
+                    "connectivity": result["connectivity"],
+                    "palette": result["palette"],
+                },
+                indent=2,
+            )
         )
-    )
-    np.savez_compressed(
-        output / "responses.npz",
-        responses=result["responses"],
-        trace=result["trace"],
-        shape_selectivity=result["shape_selectivity"],
-        colour_selectivity=result["colour_selectivity"],
-        conjunction_selectivity=result["conjunction_selectivity"],
-        separation=result["separation"],
-        labels=np.array(result["labels"]),
-    )
+        np.savez_compressed(
+            output / "responses.npz",
+            responses=result["responses"],
+            trace=result["trace"],
+            shape_selectivity=result["shape_selectivity"],
+            colour_selectivity=result["colour_selectivity"],
+            conjunction_selectivity=result["conjunction_selectivity"],
+            separation=result["separation"],
+            labels=np.array(result["labels"]),
+        )
     return output
