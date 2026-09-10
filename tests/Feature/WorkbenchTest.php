@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
 /**
@@ -76,6 +77,41 @@ class WorkbenchTest extends TestCase
             ->assertSee(number_format($summary['overall']['columns']))
             ->assertSee(number_format($summary['overall']['shape_selectivity_max'], 4))
             ->assertSee(number_format($summary['completion']['shape_cue_concept_similarity'], 4));
+    }
+
+    public function test_the_generated_lexical_grounding_domain_is_rendered_without_recomputation(): void
+    {
+        $root = sys_get_temp_dir().'/ccf6-domain-'.getmypid();
+        $process = new Process(
+            [
+                'python3',
+                '-m',
+                'ccf6',
+                base_path('experiments/002-synthetic-lexical-grounding.json'),
+                $root,
+            ],
+            base_path(),
+            ['PYTHONPATH' => base_path('ccf6-runtime/src')],
+        );
+        $process->mustRun();
+        $run = basename(glob($root.'/*', GLOB_ONLYDIR)[0]);
+        $dataset = json_decode(file_get_contents($root.'/'.$run.'/dataset.json'), true);
+
+        try {
+            config(['ccf6.artifact_root' => $root]);
+            $this->get('/runs/'.$run)
+                ->assertSee('Synthetic lexical-grounding domain')
+                ->assertSee('Constraint checks')
+                ->assertSee($dataset['categories'][0]['id'])
+                ->assertSee($dataset['pseudowords'][0]['id'])
+                ->assertSee('64 pairings');
+        } finally {
+            foreach (glob($root.'/'.$run.'/*') as $file) {
+                unlink($file);
+            }
+            rmdir($root.'/'.$run);
+            rmdir($root);
+        }
     }
 
     public function test_a_run_from_a_superseded_architecture_says_so_rather_than_failing(): void

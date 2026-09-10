@@ -1,0 +1,7 @@
+{
+  "number": "002",
+  "name": "Synthetic lexical-grounding domain",
+  "kind": "synthetic_lexical_grounding",
+  "question": "Does a deterministic synthetic domain satisfy the overlap, reuse, balance, split-isolation, and sequence controls required for the Functional Web experiment?",
+  "seed": 20260910
+}

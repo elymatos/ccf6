@@ -35,6 +35,19 @@ class WorkbenchController extends Controller
         $dir = $this->root().'/'.basename($run);
         abort_unless(File::isDirectory($dir), 404);
 
+        $manifest = $this->manifest($dir);
+        $summary = $this->json($dir.'/summary.json') ?? [];
+
+        if (($manifest['contract'] ?? null) === 'ncl-functional-web-v1'
+            && ($manifest['kind'] ?? null) === 'synthetic_lexical_grounding') {
+            return view('workbench.domain', [
+                'run' => basename($run),
+                'manifest' => $manifest,
+                'summary' => $summary,
+                'dataset' => $this->json($dir.'/dataset.json') ?? [],
+            ]);
+        }
+
         $wiring = $this->json($dir.'/connectivity.json') ?? ['connectivity' => [], 'palette' => []];
         $connectivity = $wiring['connectivity'] ?? [];
 
@@ -43,16 +56,16 @@ class WorkbenchController extends Controller
         if (($connectivity['model'] ?? null) !== 'ncl-column-network-v1') {
             return view('workbench.superseded', [
                 'run' => basename($run),
-                'manifest' => $this->manifest($dir),
-                'summary' => $this->json($dir.'/summary.json') ?? [],
+                'manifest' => $manifest,
+                'summary' => $summary,
             ]);
         }
 
         return view('workbench.run', [
             'run' => basename($run),
-            'manifest' => $this->manifest($dir),
+            'manifest' => $manifest,
             'definition' => $this->json($dir.'/definition.json') ?? [],
-            'summary' => $this->json($dir.'/summary.json') ?? [],
+            'summary' => $summary,
             'snapshots' => $this->json($dir.'/snapshots.json') ?? [],
             'palette' => $wiring['palette'] ?? [],
             'populations' => $connectivity['populations'] ?? [],

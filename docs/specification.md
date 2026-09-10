@@ -578,8 +578,8 @@ The table describes the repository at the time this specification was accepted.
 | Diffuse Success Signal | Confirm outcomes without per-weight labels | Correct/mismatch durable changes | Unsupported | `test_only_success_confirms_eligible_connections` |
 | Presentation-level Recruitment | Repetition means distinct experiences | Contributing Presentation IDs | Nonconforming: repeated wins spend plasticity | `test_one_presentation_cannot_recruit_by_itself` |
 | Homeostatic thresholds | Prevent monopolies without semantic supervision | Local threshold histories | Unsupported | `test_homeostasis_is_independent_of_success` |
-| Structured synthetic domain | Test grounding and lexical routes | Validated dataset artifact | Unsupported | `test_generated_domain_satisfies_constraints` |
-| Ordered pseudowords | Lexical form is relational and sequential | Sequence-control distances | Unsupported | `test_pseudoword_identity_requires_order` |
+| Structured synthetic domain | Test grounding and lexical routes | Validated dataset artifact | Conforming | `test_generated_domain_satisfies_constraints` |
+| Ordered pseudowords | Lexical form is relational and sequential | Sequence-control distances | Partial: ordered controls generated; trajectory distances pending | `test_pseudoword_identity_requires_order` |
 | Target Basin distributions | Completion is attraction, not vector lookup | Frozen centroids, scales, margins | Unsupported | `test_held_out_data_cannot_shape_basins` |
 | Functional Web detector | Webs require convergent causal evidence | Reliability, perturbation, connectivity controls | Unsupported | `test_web_membership_requires_all_evidence` |
 | Overlapping webs | Reusable structure must be shared | Shared feature membership | Unsupported | `test_detected_webs_can_overlap` |
