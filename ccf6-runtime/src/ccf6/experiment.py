@@ -14,6 +14,7 @@ import numpy as np
 from ccf6 import figures, params
 from ccf6.domain import generate_domain
 from ccf6.ego import Presentation
+from ccf6.functional_acquisition import run_success_gated_acquisition
 from ccf6.functional_network import Network as FunctionalNetwork
 from ccf6.functional_presentation import PresentationProtocol
 from ccf6.metrics import (
@@ -676,6 +677,7 @@ KINDS = {
     "synthetic_lexical_grounding": run_synthetic_lexical_grounding,
     "zero_rest_network": run_zero_rest_network,
     "coordinated_presentation": run_coordinated_presentation,
+    "success_gated_learning": run_success_gated_acquisition,
 }
 
 
@@ -704,6 +706,8 @@ def execute(definition: dict, artifact_root: str | Path = "artifacts") -> Path:
         ]
         if "presentations" in result:
             topology_files.append("presentations.jsonl")
+        if "learning" in result:
+            topology_files.extend(["learning.npz", "learning.json"])
         topology_files.extend(["activity.npz", "activity.json"])
         files[2:2] = topology_files
     elif "dataset" in result:
@@ -745,6 +749,11 @@ def execute(definition: dict, artifact_root: str | Path = "artifacts") -> Path:
                     json.dumps(row, separators=(",", ":")) + "\n"
                     for row in result["presentations"]
                 )
+            )
+        if "learning" in result:
+            np.savez_compressed(output / "learning.npz", **result["learning_arrays"])
+            (output / "learning.json").write_text(
+                json.dumps(result["learning"], separators=(",", ":"))
             )
         np.savez_compressed(output / "activity.npz", **result["activity_arrays"])
         (output / "activity.json").write_text(

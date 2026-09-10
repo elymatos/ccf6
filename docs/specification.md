@@ -574,8 +574,8 @@ The table describes the repository at the time this specification was accepted.
 | Logistic graded Output | Support thresholds and prototypes | Threshold response curve | Conforming | `test_output_is_graded_around_threshold` |
 | Operational settling | Recognition requires stable activity | Duration and failure status | Conforming | `test_settling_requires_stable_output` |
 | Separate reciprocal weights | Recognition and reactivation need not be symmetric | Same endpoints, independent values | Conforming in Functional Web contract | `test_reciprocal_routes_have_independent_weights` |
-| Eligibility traces | Separate local credit from outcome | Trace evolution and reset | Partial: independent directional storage exists; evolution pending | `test_reciprocal_routes_have_independent_weights` |
-| Diffuse Success Signal | Confirm outcomes without per-weight labels | Correct/mismatch durable changes | Unsupported | `test_only_success_confirms_eligible_connections` |
+| Eligibility traces | Separate local credit from outcome | Trace evolution and reset | Conforming | `test_eligibility_follows_bounded_decay_and_endpoint_coactivity` |
+| Diffuse Success Signal | Confirm outcomes without per-weight labels | Correct/mismatch durable changes | Conforming | `test_only_success_confirms_eligible_connections` |
 | Presentation-level Recruitment | Repetition means distinct experiences | Contributing Presentation IDs | Nonconforming: repeated wins spend plasticity | `test_one_presentation_cannot_recruit_by_itself` |
 | Homeostatic thresholds | Prevent monopolies without semantic supervision | Local threshold histories | Unsupported | `test_homeostasis_is_independent_of_success` |
 | Structured synthetic domain | Test grounding and lexical routes | Validated dataset artifact | Conforming | `test_generated_domain_satisfies_constraints` |
@@ -587,6 +587,6 @@ The table describes the repository at the time this specification was accepted.
 | Lesion and stimulation | Establish causal role | Matched intervention effects | Unsupported | `test_lesion_preserves_incoming_activity` |
 | Paired controls and 20 seeds | Separate learning from arbitrary wiring | Per-seed paired metrics | Unsupported | `test_arms_share_initial_conditions` |
 | Seed-level bootstrap | Avoid pseudoreplication | Deterministic paired intervals | Unsupported | `test_bootstrap_resamples_seed_effects` |
-| `ncl-functional-web-v1` artifacts | Make claims reproducible and inspectable | Complete file inventory | Partial: dataset, topology, Presentations, and activity slices exist | `test_presentations_preserve_order_and_reject_unordered_feature_bags` |
+| `ncl-functional-web-v1` artifacts | Make claims reproducible and inspectable | Complete file inventory | Partial: dataset, topology, Presentations, learning, and activity slices exist | `test_balanced_acquisition_changes_weights_only_after_success` |
 
 The implementation MUST update this matrix as requirements become conforming. A requirement may be marked conforming only when its implementing test and required artifact evidence both exist.

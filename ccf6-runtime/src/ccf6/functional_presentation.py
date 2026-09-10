@@ -15,6 +15,8 @@ class SampleRecord:
     kind: str
     identifier: str
     active_features: tuple[str, ...]
+    initial_eligibility: np.ndarray
+    settled_eligibility: np.ndarray
     settling: SettlingResult
 
 
@@ -57,6 +59,14 @@ class PresentationRecord:
                     "kind": sample.kind,
                     "id": sample.identifier,
                     "active_features": list(sample.active_features),
+                    "initial_eligibility": {
+                        "ascending_sum": float(sample.initial_eligibility[:, 0].sum()),
+                        "descending_sum": float(sample.initial_eligibility[:, 1].sum()),
+                    },
+                    "settled_eligibility": {
+                        "ascending_sum": float(sample.settled_eligibility[:, 0].sum()),
+                        "descending_sum": float(sample.settled_eligibility[:, 1].sum()),
+                    },
                     "duration_ticks": sample.settling.ticks,
                     "settled": sample.settling.success,
                     "stable_ticks": sample.settling.stable_ticks,
@@ -156,6 +166,7 @@ class PresentationProtocol:
             f"{row['dimension']}={row['value']}"
             for row in category["prototype"]["properties"]
         )
+        initial_eligibility = self.network.eligibility_matrix()
         visual_result = self.network.settle(self._visual_sensory(category))
         samples.append(
             SampleRecord(
@@ -163,10 +174,13 @@ class PresentationProtocol:
                 kind="visual",
                 identifier=category["id"],
                 active_features=visual_features,
+                initial_eligibility=initial_eligibility,
+                settled_eligibility=self.network.eligibility_matrix(),
                 settling=visual_result,
             )
         )
         for number, segment in enumerate(segments, start=2):
+            initial_eligibility = self.network.eligibility_matrix()
             auditory_result = self.network.settle(self._auditory_sensory(segment))
             samples.append(
                 SampleRecord(
@@ -174,6 +188,8 @@ class PresentationProtocol:
                     kind="auditory",
                     identifier=segment,
                     active_features=self.segment_features[segment],
+                    initial_eligibility=initial_eligibility,
+                    settled_eligibility=self.network.eligibility_matrix(),
                     settling=auditory_result,
                 )
             )

@@ -166,6 +166,30 @@ class WorkbenchTest extends TestCase
         }
     }
 
+    public function test_success_gated_learning_effects_are_inspectable(): void
+    {
+        [$root, $run] = $this->runExperiment('005-success-gated-learning.json');
+        $learning = json_decode(file_get_contents($root.'/'.$run.'/learning.json'), true);
+        $successful = $learning['presentations'][0];
+        $unsuccessful = $learning['presentations'][1];
+
+        try {
+            config(['ccf6.artifact_root' => $root]);
+            $this->get('/runs/'.$run)
+                ->assertSee('Success-gated learning')
+                ->assertSee('Balanced acquisition: yes')
+                ->assertSee($successful['presentation_id'])
+                ->assertSee('Success Signal 1.0')
+                ->assertSee($unsuccessful['presentation_id'])
+                ->assertSee('Success Signal 0.0')
+                ->assertSee('No durable change')
+                ->assertSee($successful['projections'][0]['id'])
+                ->assertSee('Pre/post directional weights');
+        } finally {
+            $this->removeArtifactRoot($root, $run);
+        }
+    }
+
     public function test_zero_rest_network_identifies_a_max_tick_failure(): void
     {
         $definitionPath = sys_get_temp_dir().'/ccf6-failing-network-'.getmypid().'.json';

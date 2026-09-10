@@ -67,6 +67,15 @@ class WorkbenchController extends Controller
                     'presentations' => $this->jsonLines($dir.'/presentations.jsonl'),
                 ]);
             }
+
+            if (($manifest['kind'] ?? null) === 'success_gated_learning') {
+                return view('workbench.learning', [
+                    'run' => basename($run),
+                    'manifest' => $manifest,
+                    'summary' => $summary,
+                    'learning' => $this->json($dir.'/learning.json') ?? [],
+                ]);
+            }
         }
 
         $wiring = $this->json($dir.'/connectivity.json') ?? ['connectivity' => [], 'palette' => []];

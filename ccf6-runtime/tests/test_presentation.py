@@ -113,6 +113,49 @@ def test_activity_persists_between_samples_and_resets_between_presentations():
     )
 
 
+def test_eligibility_persists_between_samples_and_resets_between_presentations():
+    definition_path = (
+        Path(__file__).parents[2] / "experiments/005-success-gated-learning.json"
+    )
+    definition = load(definition_path)
+    dataset = generate_domain(definition["seed"])
+    network = Network(definition["network"])
+    protocol = PresentationProtocol(
+        network,
+        dataset,
+        visual_populations=definition["presentation"]["visual_populations"],
+        auditory_population=definition["presentation"]["auditory_population"],
+    )
+    category = dataset["categories"][0]
+    pseudoword = dataset["pseudowords"][0]
+
+    first = protocol.run(
+        presentation_id="presentation-1",
+        category=category,
+        pseudoword_id=pseudoword["id"],
+        segments=pseudoword["segments"],
+        condition="correct",
+        success_signal=1.0,
+    )
+    second = protocol.run(
+        presentation_id="presentation-2",
+        category=category,
+        pseudoword_id=pseudoword["id"],
+        segments=pseudoword["segments"],
+        condition="correct",
+        success_signal=1.0,
+    )
+
+    assert np.any(first.samples[0].settled_eligibility > 0.0)
+    for previous, current in zip(first.samples, first.samples[1:], strict=False):
+        np.testing.assert_array_equal(
+            previous.settled_eligibility,
+            current.initial_eligibility,
+        )
+    np.testing.assert_array_equal(first.samples[0].initial_eligibility, 0.0)
+    np.testing.assert_array_equal(second.samples[0].initial_eligibility, 0.0)
+
+
 def test_every_generated_visual_dimension_requires_one_population():
     dataset = generate_domain(20260910)
     network = Network(network_definition())
