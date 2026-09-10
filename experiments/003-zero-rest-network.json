@@ -1,0 +1,71 @@
+{
+  "number": "003",
+  "name": "Zero-rest reciprocal Network",
+  "kind": "zero_rest_network",
+  "question": "Do ordinary zero-rest Columns propagate generated visual activity through sparse reciprocal endpoints and settle under the normative synchronous equations?",
+  "seed": 20260910,
+  "stimulus": {
+    "category_id": "category-1",
+    "population_id": "visual-feature"
+  },
+  "network": {
+    "seed": 20260910,
+    "populations": [
+      {
+        "id": "visual-feature",
+        "columns": 12,
+        "provenance": "generated visual properties",
+        "wiring_role": "sensory input",
+        "inhibition": {
+          "radius": 1,
+          "strength": 0.2
+        }
+      },
+      {
+        "id": "visual-association",
+        "columns": 8,
+        "provenance": "latent association population",
+        "wiring_role": "association",
+        "inhibition": {
+          "radius": 1,
+          "strength": 0.2
+        }
+      }
+    ],
+    "projections": [
+      {
+        "id": "visual-feature-to-association",
+        "source": "visual-feature",
+        "target": "visual-association",
+        "fan_in": 4,
+        "initialization": {
+          "distribution": "uniform",
+          "low": 0.1,
+          "high": 0.3
+        },
+        "incoming_norm": 1.0
+      }
+    ],
+    "thresholds": {
+      "distribution": "uniform",
+      "low": 0.35,
+      "high": 0.55,
+      "minimum": 0.2,
+      "maximum": 0.8
+    },
+    "dynamics": {
+      "dt": 0.1,
+      "tau_input": 0.3,
+      "tau_integration": 0.4,
+      "tau_output": 0.5,
+      "recurrent_gain": 0.25,
+      "temperature": 0.1,
+      "transmission_cutoff": 0.05
+    },
+    "settling": {
+      "epsilon": 0.0001,
+      "stable_ticks": 3,
+      "max_ticks": 200
+    }
+  }
+}

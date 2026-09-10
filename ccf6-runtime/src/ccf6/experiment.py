@@ -12,6 +12,7 @@ import numpy as np
 from ccf6 import figures, params
 from ccf6.domain import generate_domain
 from ccf6.ego import Presentation
+from ccf6.functional_network import Network as FunctionalNetwork
 from ccf6.metrics import (
     conjunction_selectivity,
     figure_separation,
@@ -348,9 +349,111 @@ def run_synthetic_lexical_grounding(definition: dict) -> dict:
     }
 
 
+def run_zero_rest_network(definition: dict) -> dict:
+    """Run one generated visual prototype through the normative Network."""
+    if "seed" not in definition:
+        raise ValueError("zero-rest Network experiments must declare a seed")
+    if "network" not in definition:
+        raise ValueError("zero-rest Network experiments must declare a Network")
+
+    dataset = generate_domain(int(definition["seed"]))
+    network = FunctionalNetwork(definition["network"])
+    stimulus = definition.get("stimulus", {})
+    if set(stimulus) != {"category_id", "population_id"}:
+        raise ValueError("stimulus must declare category_id and population_id")
+    category = next(
+        (row for row in dataset["categories"] if row["id"] == stimulus["category_id"]),
+        None,
+    )
+    if category is None:
+        raise ValueError(f"unknown generated category {stimulus['category_id']!r}")
+    population_id = stimulus["population_id"]
+    if population_id not in network.populations:
+        raise ValueError(f"unknown stimulus Population {population_id!r}")
+
+    values_by_dimension = {
+        row["id"]: row["values"] for row in dataset["visual_property_dimensions"]
+    }
+    sensory = np.zeros(sum(len(values) for values in values_by_dimension.values()))
+    cursor = 0
+    for property_ in category["prototype"]["properties"]:
+        values = values_by_dimension[property_["dimension"]]
+        sensory[cursor + values.index(property_["value"])] = 1.0
+        cursor += len(values)
+    if sensory.size != network.populations[population_id].columns:
+        raise ValueError(
+            f"{population_id!r} has {network.populations[population_id].columns} Columns "
+            f"but generated visual activity has {sensory.size} values"
+        )
+
+    result = network.settle({population_id: sensory})
+    activity_labels = np.asarray(network.column_labels())
+    topology = network.topology_snapshot()
+    return {
+        "contract": "ncl-functional-web-v1",
+        "dataset": dataset,
+        "topology": topology,
+        "topology_arrays": network.topology_arrays(),
+        "activity_arrays": {
+            "initial_activity": result.activity[0],
+            "settled_activity": result.activity[-1],
+            "trajectory": result.activity,
+            "labels": activity_labels,
+            "compartments": np.asarray(["Input", "Integration", "Output"]),
+            "sensory": sensory,
+        },
+        "activity": {
+            "labels": activity_labels.tolist(),
+            "compartments": ["Input", "Integration", "Output"],
+            "initial": result.activity[0].tolist(),
+            "settled": result.activity[-1].tolist(),
+            "trajectory": result.activity.tolist(),
+            "sensory": sensory.tolist(),
+        },
+        "summary": {
+            "network": {
+                "populations": len(network.populations),
+                "columns": len(activity_labels),
+                "projections": len(network.projections),
+                "connections": sum(
+                    projection.sources.size for projection in network.projections
+                ),
+            },
+            "stimulus": {
+                "category_id": category["id"],
+                "population_id": population_id,
+                "properties": category["prototype"]["properties"],
+                "active_features": int(np.count_nonzero(sensory)),
+            },
+            "settling": {
+                "success": result.success,
+                "ticks": result.ticks,
+                "stable_ticks": result.stable_ticks,
+                "epsilon": float(network.settling["epsilon"]),
+                "max_ticks": int(network.settling["max_ticks"]),
+                "final_delta": result.final_delta,
+                "max_ticks_reached": result.max_ticks_reached,
+            },
+            "activity": {
+                "input_max": float(result.activity[-1, :, 0].max(initial=0.0)),
+                "integration_max": float(
+                    result.activity[-1, :, 1].max(initial=0.0)
+                ),
+                "output_max": float(result.activity[-1, :, 2].max(initial=0.0)),
+            },
+        },
+        "stimuli": {
+            "categories": [category["id"]],
+            "population": population_id,
+        },
+        "parameters": dict(network.dynamics),
+    }
+
+
 KINDS = {
     "cardinal_recruitment": run_cardinal_recruitment,
     "synthetic_lexical_grounding": run_synthetic_lexical_grounding,
+    "zero_rest_network": run_zero_rest_network,
 }
 
 
@@ -371,7 +474,15 @@ def execute(definition: dict, artifact_root: str | Path = "artifacts") -> Path:
         json.dumps(definition, indent=2, sort_keys=True)
     )
     files = ["definition.json", "manifest.json", "summary.json"]
-    if "dataset" in result:
+    if "topology" in result:
+        files[2:2] = [
+            "dataset.json",
+            "topology.npz",
+            "topology.json",
+            "activity.npz",
+            "activity.json",
+        ]
+    elif "dataset" in result:
         files.insert(2, "dataset.json")
     else:
         files.extend(["connectivity.json", "snapshots.json", "responses.npz"])
@@ -398,6 +509,15 @@ def execute(definition: dict, artifact_root: str | Path = "artifacts") -> Path:
     if "dataset" in result:
         (output / "dataset.json").write_text(
             json.dumps(result["dataset"], indent=2)
+        )
+    if "topology" in result:
+        (output / "topology.json").write_text(
+            json.dumps(result["topology"], indent=2)
+        )
+        np.savez_compressed(output / "topology.npz", **result["topology_arrays"])
+        np.savez_compressed(output / "activity.npz", **result["activity_arrays"])
+        (output / "activity.json").write_text(
+            json.dumps(result["activity"], separators=(",", ":"))
         )
     (output / "summary.json").write_text(
         json.dumps(result["summary"], indent=2)

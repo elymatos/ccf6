@@ -567,14 +567,14 @@ The table describes the repository at the time this specification was accepted.
 
 | Requirement | Scientific rationale | Required evidence | Current status | Implementing test |
 |---|---|---|---|---|
-| One Network of ordinary Columns | Function comes from connectivity | Same mechanics in every Population | Partial | Existing mechanics tests; topology test required |
-| Neutral Population roles | Configured names must not assign meaning | No semantic Population declarations | Nonconforming: `concept` is configured | `test_population_names_do_not_assign_learned_content` |
-| Three functional compartments | Preserve route-sensitive integration | Input/Integration/Output traces | Partial: anatomical names and different equations | `test_compartments_follow_normative_equations` |
-| Zero resting activity | Avoid artificial similarity and background propagation | Exact zero after reset | Nonconforming: nonzero floor | `test_reset_has_zero_activity` |
-| Logistic graded Output | Support thresholds and prototypes | Threshold response curve | Unsupported | `test_output_is_graded_around_threshold` |
-| Operational settling | Recognition requires stable activity | Duration and failure status | Unsupported: fixed ticks | `test_settling_requires_stable_output` |
-| Separate reciprocal weights | Recognition and reactivation need not be symmetric | Same endpoints, independent values | Nonconforming: transpose reuse | `test_reciprocal_routes_have_independent_weights` |
-| Eligibility traces | Separate local credit from outcome | Trace evolution and reset | Unsupported | `test_eligibility_decays_and_resets` |
+| One Network of ordinary Columns | Function comes from connectivity | Same mechanics in every Population | Conforming in Functional Web contract | `test_every_population_uses_the_same_column_mechanics` |
+| Neutral Population roles | Configured names must not assign meaning | No semantic Population declarations | Partial: Functional Web declarations conform; prototype retirement pending | `test_semantic_and_cardinal_population_flags_are_refused` |
+| Three functional compartments | Preserve route-sensitive integration | Input/Integration/Output traces | Conforming in Functional Web contract | `test_compartments_follow_normative_equations_synchronously` |
+| Zero resting activity | Avoid artificial similarity and background propagation | Exact zero after reset | Conforming in Functional Web contract | `test_reset_has_zero_activity` |
+| Logistic graded Output | Support thresholds and prototypes | Threshold response curve | Conforming | `test_output_is_graded_around_threshold` |
+| Operational settling | Recognition requires stable activity | Duration and failure status | Conforming | `test_settling_requires_stable_output` |
+| Separate reciprocal weights | Recognition and reactivation need not be symmetric | Same endpoints, independent values | Conforming in Functional Web contract | `test_reciprocal_routes_have_independent_weights` |
+| Eligibility traces | Separate local credit from outcome | Trace evolution and reset | Partial: independent directional storage exists; evolution pending | `test_reciprocal_routes_have_independent_weights` |
 | Diffuse Success Signal | Confirm outcomes without per-weight labels | Correct/mismatch durable changes | Unsupported | `test_only_success_confirms_eligible_connections` |
 | Presentation-level Recruitment | Repetition means distinct experiences | Contributing Presentation IDs | Nonconforming: repeated wins spend plasticity | `test_one_presentation_cannot_recruit_by_itself` |
 | Homeostatic thresholds | Prevent monopolies without semantic supervision | Local threshold histories | Unsupported | `test_homeostasis_is_independent_of_success` |
@@ -587,6 +587,6 @@ The table describes the repository at the time this specification was accepted.
 | Lesion and stimulation | Establish causal role | Matched intervention effects | Unsupported | `test_lesion_preserves_incoming_activity` |
 | Paired controls and 20 seeds | Separate learning from arbitrary wiring | Per-seed paired metrics | Unsupported | `test_arms_share_initial_conditions` |
 | Seed-level bootstrap | Avoid pseudoreplication | Deterministic paired intervals | Unsupported | `test_bootstrap_resamples_seed_effects` |
-| `ncl-functional-web-v1` artifacts | Make claims reproducible and inspectable | Complete file inventory | Unsupported: prototype contract | `test_artifact_satisfies_v1_contract` |
+| `ncl-functional-web-v1` artifacts | Make claims reproducible and inspectable | Complete file inventory | Partial: dataset, topology, and activity slices exist | `test_zero_rest_experiment_writes_reproducible_topology_and_activity` |
 
 The implementation MUST update this matrix as requirements become conforming. A requirement may be marked conforming only when its implementing test and required artifact evidence both exist.

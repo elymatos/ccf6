@@ -38,14 +38,25 @@ class WorkbenchController extends Controller
         $manifest = $this->manifest($dir);
         $summary = $this->json($dir.'/summary.json') ?? [];
 
-        if (($manifest['contract'] ?? null) === 'ncl-functional-web-v1'
-            && ($manifest['kind'] ?? null) === 'synthetic_lexical_grounding') {
-            return view('workbench.domain', [
-                'run' => basename($run),
-                'manifest' => $manifest,
-                'summary' => $summary,
-                'dataset' => $this->json($dir.'/dataset.json') ?? [],
-            ]);
+        if (($manifest['contract'] ?? null) === 'ncl-functional-web-v1') {
+            if (($manifest['kind'] ?? null) === 'synthetic_lexical_grounding') {
+                return view('workbench.domain', [
+                    'run' => basename($run),
+                    'manifest' => $manifest,
+                    'summary' => $summary,
+                    'dataset' => $this->json($dir.'/dataset.json') ?? [],
+                ]);
+            }
+
+            if (($manifest['kind'] ?? null) === 'zero_rest_network') {
+                return view('workbench.network', [
+                    'run' => basename($run),
+                    'manifest' => $manifest,
+                    'summary' => $summary,
+                    'topology' => $this->json($dir.'/topology.json') ?? [],
+                    'activity' => $this->json($dir.'/activity.json') ?? [],
+                ]);
+            }
         }
 
         $wiring = $this->json($dir.'/connectivity.json') ?? ['connectivity' => [], 'palette' => []];
