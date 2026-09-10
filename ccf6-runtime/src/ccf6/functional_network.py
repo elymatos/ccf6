@@ -1,0 +1,705 @@
+"""Normative zero-rest Network for the NCL Functional Web experiments."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+import numpy as np
+
+
+@dataclass
+class PopulationState:
+    """The same three-compartment Column mechanics for every Population."""
+
+    identifier: str
+    provenance: str
+    wiring_role: str
+    thresholds: np.ndarray
+    input: np.ndarray
+    integration: np.ndarray
+    output: np.ndarray
+
+    @property
+    def columns(self) -> int:
+        return int(self.output.size)
+
+    def reset(self) -> None:
+        self.input.fill(0.0)
+        self.integration.fill(0.0)
+        self.output.fill(0.0)
+
+
+@dataclass
+class ReciprocalProjection:
+    """Shared endpoints with independent directional state."""
+
+    identifier: str
+    source: str
+    target: str
+    sources: np.ndarray
+    targets: np.ndarray
+    ascending_weights: np.ndarray
+    descending_weights: np.ndarray
+    ascending_eligibility: np.ndarray
+    descending_eligibility: np.ndarray
+    fan_in: int
+    incoming_norm: float
+    initialization: dict
+
+
+@dataclass
+class InhibitionTopology:
+    population: str
+    sources: np.ndarray
+    targets: np.ndarray
+    weights: np.ndarray
+    radius: int
+    strength: float
+
+
+@dataclass(frozen=True)
+class SettlingResult:
+    success: bool
+    ticks: int
+    stable_ticks: int
+    final_delta: float
+    max_ticks_reached: bool
+    activity: np.ndarray
+
+
+def _require_keys(value: dict, required: set[str], context: str) -> None:
+    missing = required - value.keys()
+    unknown = value.keys() - required
+    if missing or unknown:
+        details = []
+        if missing:
+            details.append(f"missing {sorted(missing)}")
+        if unknown:
+            details.append(f"unknown {sorted(unknown)}")
+        raise ValueError(f"{context}: {', '.join(details)}")
+
+
+def _number(value: object, context: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{context} must be numerical")
+    return float(value)
+
+
+def _positive(value: object, context: str) -> float:
+    number = _number(value, context)
+    if number <= 0.0:
+        raise ValueError(f"{context} must be positive")
+    return number
+
+
+def _normalize_by_destination(
+    weights: np.ndarray, destinations: np.ndarray, count: int, norm: float
+) -> np.ndarray:
+    normalized = weights.copy()
+    totals = np.bincount(destinations, weights=normalized, minlength=count)
+    scale = np.divide(
+        norm,
+        totals,
+        out=np.zeros_like(totals),
+        where=totals > 0.0,
+    )
+    normalized *= scale[destinations]
+    return normalized
+
+
+def _leaky(current: np.ndarray, target: np.ndarray, dt: float, tau: float) -> np.ndarray:
+    return current + (target - current) * (1.0 - np.exp(-dt / tau))
+
+
+def _response(
+    integration: np.ndarray, thresholds: np.ndarray, temperature: float
+) -> np.ndarray:
+    return 1.0 / (1.0 + np.exp(-(integration - thresholds) / temperature))
+
+
+class Network:
+    """One connected Network of ordinary Columns with declared numerical behavior."""
+
+    def __init__(self, definition: dict):
+        self.definition = definition
+        self._validate_definition()
+        self.seed = int(definition["seed"])
+        self.dynamics = {
+            key: float(value) for key, value in definition["dynamics"].items()
+        }
+        self.settling = dict(definition["settling"])
+        randomizer = np.random.default_rng(self.seed)
+
+        threshold_declaration = definition["thresholds"]
+        self.populations: dict[str, PopulationState] = {}
+        self.inhibition: dict[str, InhibitionTopology] = {}
+        self.population_order = tuple(
+            declaration["id"] for declaration in definition["populations"]
+        )
+        for declaration in definition["populations"]:
+            identifier = declaration["id"]
+            columns = int(declaration["columns"])
+            thresholds = randomizer.uniform(
+                threshold_declaration["low"],
+                threshold_declaration["high"],
+                columns,
+            )
+            self.populations[identifier] = PopulationState(
+                identifier=identifier,
+                provenance=declaration["provenance"],
+                wiring_role=declaration["wiring_role"],
+                thresholds=thresholds,
+                input=np.zeros(columns),
+                integration=np.zeros(columns),
+                output=np.zeros(columns),
+            )
+            self.inhibition[identifier] = self._build_inhibition(
+                identifier,
+                columns,
+                declaration["inhibition"],
+            )
+
+        self.projections = [
+            self._build_projection(declaration, randomizer)
+            for declaration in definition["projections"]
+        ]
+
+    def _validate_definition(self) -> None:
+        _require_keys(
+            self.definition,
+            {
+                "seed",
+                "populations",
+                "projections",
+                "thresholds",
+                "dynamics",
+                "settling",
+            },
+            "Network definition",
+        )
+        if isinstance(self.definition["seed"], bool) or not isinstance(
+            self.definition["seed"], int
+        ):
+            raise ValueError("Network seed must be an integer")
+
+        populations = self.definition["populations"]
+        if not isinstance(populations, list) or not populations:
+            raise ValueError("Network populations must be a non-empty list")
+        identifiers = []
+        population_sizes = {}
+        for declaration in populations:
+            _require_keys(
+                declaration,
+                {"id", "columns", "provenance", "wiring_role", "inhibition"},
+                "Population declaration",
+            )
+            identifier = declaration["id"]
+            if not isinstance(identifier, str) or not identifier:
+                raise ValueError("Population id must be a non-empty string")
+            if identifier in identifiers:
+                raise ValueError(f"duplicate Population {identifier!r}")
+            identifiers.append(identifier)
+            columns = declaration["columns"]
+            if isinstance(columns, bool) or not isinstance(columns, int) or columns < 2:
+                raise ValueError(f"{identifier}: columns must be an integer of at least 2")
+            population_sizes[identifier] = columns
+            if not isinstance(declaration["provenance"], str) or not isinstance(
+                declaration["wiring_role"], str
+            ):
+                raise ValueError(f"{identifier}: provenance and wiring role must be strings")
+            inhibition = declaration["inhibition"]
+            _require_keys(inhibition, {"radius", "strength"}, f"{identifier} inhibition")
+            radius = inhibition["radius"]
+            if (
+                isinstance(radius, bool)
+                or not isinstance(radius, int)
+                or not 0 < radius < columns
+            ):
+                raise ValueError(
+                    f"{identifier}: inhibition radius must be a positive integer "
+                    "smaller than the Population"
+                )
+            strength = _number(inhibition["strength"], f"{identifier} inhibition strength")
+            if not 0.0 <= strength <= 1.0:
+                raise ValueError(f"{identifier}: inhibition strength must be in [0,1]")
+
+        thresholds = self.definition["thresholds"]
+        _require_keys(
+            thresholds,
+            {"distribution", "low", "high", "minimum", "maximum"},
+            "threshold declaration",
+        )
+        if thresholds["distribution"] != "uniform":
+            raise ValueError("threshold distribution must be 'uniform'")
+        threshold_values = {
+            key: _number(thresholds[key], f"threshold {key}")
+            for key in ("low", "high", "minimum", "maximum")
+        }
+        if not (
+            0.0
+            <= threshold_values["minimum"]
+            <= threshold_values["low"]
+            < threshold_values["high"]
+            <= threshold_values["maximum"]
+            <= 1.0
+        ):
+            raise ValueError("threshold distribution must lie within declared [0,1] bounds")
+
+        projections = self.definition["projections"]
+        if not isinstance(projections, list):
+            raise ValueError("Network projections must be a list")
+        projection_ids = set()
+        for declaration in projections:
+            _require_keys(
+                declaration,
+                {
+                    "id",
+                    "source",
+                    "target",
+                    "fan_in",
+                    "initialization",
+                    "incoming_norm",
+                },
+                "projection declaration",
+            )
+            identifier = declaration["id"]
+            if identifier in projection_ids:
+                raise ValueError(f"duplicate projection {identifier!r}")
+            projection_ids.add(identifier)
+            source = declaration["source"]
+            target = declaration["target"]
+            if source not in population_sizes or target not in population_sizes:
+                raise ValueError(f"{identifier}: projection endpoint is not a Population")
+            if source == target:
+                raise ValueError(f"{identifier}: inter-Population endpoints must differ")
+            fan_in = declaration["fan_in"]
+            if (
+                isinstance(fan_in, bool)
+                or not isinstance(fan_in, int)
+                or not 0 < fan_in < population_sizes[source]
+            ):
+                raise ValueError(
+                    f"{identifier}: fan-in must be a positive integer smaller than "
+                    f"the source Population ({population_sizes[source]})"
+                )
+            norm = _positive(declaration["incoming_norm"], f"{identifier} incoming norm")
+            if norm > 1.0:
+                raise ValueError(f"{identifier}: incoming norm cannot exceed 1")
+            initialization = declaration["initialization"]
+            _require_keys(
+                initialization,
+                {"distribution", "low", "high"},
+                f"{identifier} initialization",
+            )
+            if initialization["distribution"] != "uniform":
+                raise ValueError(f"{identifier}: initialization must be uniform")
+            low = _number(initialization["low"], f"{identifier} initialization low")
+            high = _number(initialization["high"], f"{identifier} initialization high")
+            if not 0.0 < low < high <= 1.0:
+                raise ValueError(
+                    f"{identifier}: initialization bounds must satisfy 0 < low < high <= 1"
+                )
+
+        dynamics = self.definition["dynamics"]
+        _require_keys(
+            dynamics,
+            {
+                "dt",
+                "tau_input",
+                "tau_integration",
+                "tau_output",
+                "recurrent_gain",
+                "temperature",
+                "transmission_cutoff",
+            },
+            "dynamics declaration",
+        )
+        for name in ("dt", "tau_input", "tau_integration", "tau_output", "temperature"):
+            _positive(dynamics[name], f"dynamics {name}")
+        if _number(dynamics["recurrent_gain"], "dynamics recurrent gain") < 0.0:
+            raise ValueError("dynamics recurrent gain must not be negative")
+        cutoff = _number(dynamics["transmission_cutoff"], "transmission cutoff")
+        if not 0.0 <= cutoff <= 1.0:
+            raise ValueError("transmission cutoff must be in [0,1]")
+
+        settling = self.definition["settling"]
+        _require_keys(
+            settling,
+            {"epsilon", "stable_ticks", "max_ticks"},
+            "settling declaration",
+        )
+        _positive(settling["epsilon"], "settling epsilon")
+        for name in ("stable_ticks", "max_ticks"):
+            value = settling[name]
+            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+                raise ValueError(f"settling {name} must be a positive integer")
+
+    def _build_projection(
+        self, declaration: dict, randomizer: np.random.Generator
+    ) -> ReciprocalProjection:
+        source_count = self.populations[declaration["source"]].columns
+        target_count = self.populations[declaration["target"]].columns
+        fan_in = int(declaration["fan_in"])
+        targets = np.repeat(np.arange(target_count, dtype=np.int64), fan_in)
+        sources = np.concatenate(
+            [
+                randomizer.choice(source_count, fan_in, replace=False)
+                for _ in range(target_count)
+            ]
+        ).astype(np.int64)
+        initialization = declaration["initialization"]
+        ascending = randomizer.uniform(
+            initialization["low"], initialization["high"], targets.size
+        )
+        descending = randomizer.uniform(
+            initialization["low"], initialization["high"], targets.size
+        )
+        norm = float(declaration["incoming_norm"])
+        ascending = _normalize_by_destination(ascending, targets, target_count, norm)
+        descending = _normalize_by_destination(descending, sources, source_count, norm)
+        return ReciprocalProjection(
+            identifier=declaration["id"],
+            source=declaration["source"],
+            target=declaration["target"],
+            sources=sources,
+            targets=targets,
+            ascending_weights=ascending,
+            descending_weights=descending,
+            ascending_eligibility=np.zeros(targets.size),
+            descending_eligibility=np.zeros(targets.size),
+            fan_in=fan_in,
+            incoming_norm=norm,
+            initialization=dict(initialization),
+        )
+
+    @staticmethod
+    def _build_inhibition(
+        identifier: str, columns: int, declaration: dict
+    ) -> InhibitionTopology:
+        radius = int(declaration["radius"])
+        strength = float(declaration["strength"])
+        targets = []
+        sources = []
+        weights = []
+        for target in range(columns):
+            neighbours = [
+                source
+                for source in range(max(0, target - radius), min(columns, target + radius + 1))
+                if source != target
+            ]
+            for source in neighbours:
+                targets.append(target)
+                sources.append(source)
+                weights.append(strength / len(neighbours))
+        return InhibitionTopology(
+            population=identifier,
+            sources=np.asarray(sources, dtype=np.int64),
+            targets=np.asarray(targets, dtype=np.int64),
+            weights=np.asarray(weights, dtype=np.float64),
+            radius=radius,
+            strength=strength,
+        )
+
+    def reset(self) -> None:
+        """Reset exactly the three activity compartments and nothing durable."""
+        for population in self.populations.values():
+            population.reset()
+        for projection in self.projections:
+            projection.ascending_eligibility.fill(0.0)
+            projection.descending_eligibility.fill(0.0)
+
+    def broadcast(self, population: PopulationState) -> np.ndarray:
+        return np.where(
+            population.output >= self.dynamics["transmission_cutoff"],
+            population.output,
+            0.0,
+        )
+
+    def tick(self, sensory: dict[str, np.ndarray] | None = None) -> None:
+        """Advance all Populations synchronously from one immutable prior state."""
+        sensory = sensory or {}
+        unknown = sensory.keys() - self.populations.keys()
+        if unknown:
+            raise ValueError(f"sensory activity names unknown Populations {sorted(unknown)}")
+        previous = {
+            identifier: (
+                population.input.copy(),
+                population.integration.copy(),
+                population.output.copy(),
+            )
+            for identifier, population in self.populations.items()
+        }
+        input_drives = {
+            identifier: np.asarray(
+                sensory.get(identifier, np.zeros(population.columns)),
+                dtype=np.float64,
+            ).copy()
+            for identifier, population in self.populations.items()
+        }
+        for identifier, drive in input_drives.items():
+            if drive.shape != (self.populations[identifier].columns,):
+                raise ValueError(
+                    f"{identifier}: sensory activity must have "
+                    f"{self.populations[identifier].columns} values"
+                )
+
+        descending_drives = {
+            identifier: np.zeros(population.columns)
+            for identifier, population in self.populations.items()
+        }
+        for projection in self.projections:
+            source_output = np.where(
+                previous[projection.source][2]
+                >= self.dynamics["transmission_cutoff"],
+                previous[projection.source][2],
+                0.0,
+            )
+            np.add.at(
+                input_drives[projection.target],
+                projection.targets,
+                projection.ascending_weights * source_output[projection.sources],
+            )
+            target_output = np.where(
+                previous[projection.target][2]
+                >= self.dynamics["transmission_cutoff"],
+                previous[projection.target][2],
+                0.0,
+            )
+            np.add.at(
+                descending_drives[projection.source],
+                projection.sources,
+                projection.descending_weights * target_output[projection.targets],
+            )
+
+        next_states = {}
+        for identifier, population in self.populations.items():
+            old_input, old_integration, old_output = previous[identifier]
+            inhibition = self.inhibition[identifier]
+            inhibition_drive = np.bincount(
+                inhibition.targets,
+                weights=inhibition.weights * old_output[inhibition.sources],
+                minlength=population.columns,
+            )
+            next_input = _leaky(
+                old_input,
+                np.clip(input_drives[identifier], 0.0, 1.0),
+                self.dynamics["dt"],
+                self.dynamics["tau_input"],
+            )
+            next_integration = _leaky(
+                old_integration,
+                np.clip(
+                    old_input
+                    + self.dynamics["recurrent_gain"] * old_integration
+                    + descending_drives[identifier]
+                    - inhibition_drive,
+                    0.0,
+                    1.0,
+                ),
+                self.dynamics["dt"],
+                self.dynamics["tau_integration"],
+            )
+            next_output = _leaky(
+                old_output,
+                _response(
+                    old_integration,
+                    population.thresholds,
+                    self.dynamics["temperature"],
+                ),
+                self.dynamics["dt"],
+                self.dynamics["tau_output"],
+            )
+            next_states[identifier] = (
+                next_input,
+                next_integration,
+                next_output,
+            )
+
+        for identifier, state in next_states.items():
+            population = self.populations[identifier]
+            population.input, population.integration, population.output = state
+
+    def _activity_matrix(self) -> np.ndarray:
+        return np.concatenate(
+            [
+                np.column_stack(
+                    (
+                        self.populations[identifier].input,
+                        self.populations[identifier].integration,
+                        self.populations[identifier].output,
+                    )
+                )
+                for identifier in self.population_order
+            ],
+            axis=0,
+        )
+
+    def _output_vector(self) -> np.ndarray:
+        return np.concatenate(
+            [self.populations[identifier].output for identifier in self.population_order]
+        )
+
+    def settle(self, sensory: dict[str, np.ndarray] | None = None) -> SettlingResult:
+        """Tick until Output is stable for the declared consecutive duration."""
+        trajectory = [self._activity_matrix()]
+        stable_ticks = 0
+        final_delta = 0.0
+        max_ticks = int(self.settling["max_ticks"])
+        required_stable_ticks = int(self.settling["stable_ticks"])
+        epsilon = float(self.settling["epsilon"])
+
+        for tick in range(1, max_ticks + 1):
+            previous_output = self._output_vector()
+            self.tick(sensory)
+            current_output = self._output_vector()
+            final_delta = float(np.max(np.abs(current_output - previous_output)))
+            trajectory.append(self._activity_matrix())
+            stable_ticks = stable_ticks + 1 if final_delta < epsilon else 0
+            if stable_ticks >= required_stable_ticks:
+                return SettlingResult(
+                    success=True,
+                    ticks=tick,
+                    stable_ticks=stable_ticks,
+                    final_delta=final_delta,
+                    max_ticks_reached=False,
+                    activity=np.stack(trajectory),
+                )
+
+        return SettlingResult(
+            success=False,
+            ticks=max_ticks,
+            stable_ticks=stable_ticks,
+            final_delta=final_delta,
+            max_ticks_reached=True,
+            activity=np.stack(trajectory),
+        )
+
+    def column_labels(self) -> list[str]:
+        return [
+            f"{identifier}#{column}"
+            for identifier in self.population_order
+            for column in range(self.populations[identifier].columns)
+        ]
+
+    def topology_snapshot(self) -> dict:
+        """Return every generated endpoint and directional value as plain data."""
+        return {
+            "model": "ncl-functional-web-v1",
+            "seed": self.seed,
+            "threshold_declaration": dict(self.definition["thresholds"]),
+            "dynamics": dict(self.dynamics),
+            "settling": dict(self.settling),
+            "populations": [
+                {
+                    "id": identifier,
+                    "columns": self.populations[identifier].columns,
+                    "provenance": self.populations[identifier].provenance,
+                    "wiring_role": self.populations[identifier].wiring_role,
+                    "thresholds": self.populations[identifier].thresholds.tolist(),
+                    "inhibition": {
+                        "radius": self.inhibition[identifier].radius,
+                        "strength": self.inhibition[identifier].strength,
+                        "connections": int(self.inhibition[identifier].sources.size),
+                        "endpoints": [
+                            {
+                                "source_column": int(source),
+                                "target_column": int(target),
+                                "weight": float(weight),
+                            }
+                            for source, target, weight in zip(
+                                self.inhibition[identifier].sources,
+                                self.inhibition[identifier].targets,
+                                self.inhibition[identifier].weights,
+                                strict=True,
+                            )
+                        ],
+                    },
+                }
+                for identifier in self.population_order
+            ],
+            "projections": [
+                {
+                    "id": projection.identifier,
+                    "source": projection.source,
+                    "target": projection.target,
+                    "fan_in": projection.fan_in,
+                    "incoming_norm": projection.incoming_norm,
+                    "initialization": dict(projection.initialization),
+                    "connections": int(projection.sources.size),
+                    "endpoints": [
+                        {
+                            "source_column": int(source),
+                            "target_column": int(target),
+                            "ascending_weight": float(ascending_weight),
+                            "descending_weight": float(descending_weight),
+                            "ascending_eligibility": float(ascending_eligibility),
+                            "descending_eligibility": float(descending_eligibility),
+                        }
+                        for (
+                            source,
+                            target,
+                            ascending_weight,
+                            descending_weight,
+                            ascending_eligibility,
+                            descending_eligibility,
+                        ) in zip(
+                            projection.sources,
+                            projection.targets,
+                            projection.ascending_weights,
+                            projection.descending_weights,
+                            projection.ascending_eligibility,
+                            projection.descending_eligibility,
+                            strict=True,
+                        )
+                    ],
+                }
+                for projection in self.projections
+            ],
+        }
+
+    def topology_arrays(self) -> dict[str, np.ndarray]:
+        """Return the lossless numerical topology without object arrays."""
+        arrays = {
+            "population_ids": np.asarray(self.population_order),
+            "population_columns": np.asarray(
+                [self.populations[name].columns for name in self.population_order],
+                dtype=np.int64,
+            ),
+            "thresholds": np.concatenate(
+                [self.populations[name].thresholds for name in self.population_order]
+            ),
+        }
+        for projection in self.projections:
+            prefix = projection.identifier
+            arrays[f"{prefix}.sources"] = projection.sources
+            arrays[f"{prefix}.targets"] = projection.targets
+            arrays[f"{prefix}.ascending_weights"] = projection.ascending_weights
+            arrays[f"{prefix}.descending_weights"] = projection.descending_weights
+            arrays[f"{prefix}.ascending_eligibility"] = (
+                projection.ascending_eligibility
+            )
+            arrays[f"{prefix}.descending_eligibility"] = (
+                projection.descending_eligibility
+            )
+        for identifier in self.population_order:
+            inhibition = self.inhibition[identifier]
+            arrays[f"{identifier}.inhibition_sources"] = inhibition.sources
+            arrays[f"{identifier}.inhibition_targets"] = inhibition.targets
+            arrays[f"{identifier}.inhibition_weights"] = inhibition.weights
+        return arrays
+
+    def snapshot(self) -> dict:
+        """Return complete activity needed to inspect the current state."""
+        return {
+            "populations": {
+                identifier: {
+                    "provenance": population.provenance,
+                    "wiring_role": population.wiring_role,
+                    "thresholds": population.thresholds.tolist(),
+                    "input": population.input.tolist(),
+                    "integration": population.integration.tolist(),
+                    "output": population.output.tolist(),
+                }
+                for identifier, population in self.populations.items()
+            }
+        }

@@ -26,6 +26,35 @@ class WorkbenchTest extends TestCase
         return array_map('basename', glob(base_path('artifacts').'/*', GLOB_ONLYDIR) ?: []);
     }
 
+    /** @return array{string, string} */
+    private function runExperiment(string $experiment): array
+    {
+        return $this->runExperimentPath(base_path('experiments/'.$experiment));
+    }
+
+    /** @return array{string, string} */
+    private function runExperimentPath(string $experiment): array
+    {
+        $root = sys_get_temp_dir().'/ccf6-'.pathinfo($experiment, PATHINFO_FILENAME).'-'.getmypid();
+        $process = new Process(
+            ['python3', '-m', 'ccf6', $experiment, $root],
+            base_path(),
+            ['PYTHONPATH' => base_path('ccf6-runtime/src')],
+        );
+        $process->mustRun();
+
+        return [$root, basename(glob($root.'/*', GLOB_ONLYDIR)[0])];
+    }
+
+    private function removeArtifactRoot(string $root, string $run): void
+    {
+        foreach (glob($root.'/'.$run.'/*') as $file) {
+            unlink($file);
+        }
+        rmdir($root.'/'.$run);
+        rmdir($root);
+    }
+
     /** The newest run written against the current artifact contract, if any. */
     private function currentRun(): ?string
     {
@@ -81,20 +110,7 @@ class WorkbenchTest extends TestCase
 
     public function test_the_generated_lexical_grounding_domain_is_rendered_without_recomputation(): void
     {
-        $root = sys_get_temp_dir().'/ccf6-domain-'.getmypid();
-        $process = new Process(
-            [
-                'python3',
-                '-m',
-                'ccf6',
-                base_path('experiments/002-synthetic-lexical-grounding.json'),
-                $root,
-            ],
-            base_path(),
-            ['PYTHONPATH' => base_path('ccf6-runtime/src')],
-        );
-        $process->mustRun();
-        $run = basename(glob($root.'/*', GLOB_ONLYDIR)[0]);
+        [$root, $run] = $this->runExperiment('002-synthetic-lexical-grounding.json');
         $dataset = json_decode(file_get_contents($root.'/'.$run.'/dataset.json'), true);
 
         try {
@@ -106,11 +122,50 @@ class WorkbenchTest extends TestCase
                 ->assertSee($dataset['pseudowords'][0]['id'])
                 ->assertSee('64 pairings');
         } finally {
-            foreach (glob($root.'/'.$run.'/*') as $file) {
-                unlink($file);
-            }
-            rmdir($root.'/'.$run);
-            rmdir($root);
+            $this->removeArtifactRoot($root, $run);
+        }
+    }
+
+    public function test_zero_rest_network_renders_settling_and_actual_connectivity(): void
+    {
+        [$root, $run] = $this->runExperiment('003-zero-rest-network.json');
+        $topology = json_decode(file_get_contents($root.'/'.$run.'/topology.json'), true);
+
+        try {
+            config(['ccf6.artifact_root' => $root]);
+            $this->get('/runs/'.$run)
+                ->assertSee('Settled successfully')
+                ->assertSee('Max-tick failure')
+                ->assertSee('Input, Integration, and Output')
+                ->assertSee($topology['projections'][0]['id'])
+                ->assertSee((string) $topology['projections'][0]['endpoints'][0]['source_column'])
+                ->assertSee(number_format($topology['projections'][0]['endpoints'][0]['ascending_weight'], 6));
+        } finally {
+            $this->removeArtifactRoot($root, $run);
+        }
+    }
+
+    public function test_zero_rest_network_identifies_a_max_tick_failure(): void
+    {
+        $definitionPath = sys_get_temp_dir().'/ccf6-failing-network-'.getmypid().'.json';
+        $definition = json_decode(file_get_contents(base_path('experiments/003-zero-rest-network.json')), true);
+        $definition['network']['settling'] = [
+            'epsilon' => 1.0,
+            'stable_ticks' => 3,
+            'max_ticks' => 2,
+        ];
+        file_put_contents($definitionPath, json_encode($definition));
+        [$root, $run] = $this->runExperimentPath($definitionPath);
+
+        try {
+            config(['ccf6.artifact_root' => $root]);
+            $this->get('/runs/'.$run)
+                ->assertSee('Settling failed at max ticks')
+                ->assertSee('Max-tick failure')
+                ->assertSee('yes');
+        } finally {
+            $this->removeArtifactRoot($root, $run);
+            unlink($definitionPath);
         }
     }
 
