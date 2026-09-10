@@ -65,6 +65,16 @@ def definition() -> dict:
     }
 
 
+def learning_definition() -> dict:
+    declared = definition()
+    declared["projections"][0]["incoming_norm"] = 0.4
+    declared["plasticity"] = {
+        "eligibility_decay": 0.5,
+        "learning_rate": 0.2,
+    }
+    return declared
+
+
 def one_population_definition() -> dict:
     declared = definition()
     declared["populations"] = [
@@ -83,6 +93,8 @@ def one_population_definition() -> dict:
 def test_reset_has_zero_activity():
     network = Network(definition())
     network.tick({"visual-feature": np.ones(6)})
+    network.projections[0].ascending_eligibility.fill(1.0)
+    network.projections[0].descending_eligibility.fill(1.0)
 
     network.reset()
 
@@ -93,6 +105,14 @@ def test_reset_has_zero_activity():
             population["integration"]
         )
         assert population["output"] == [0.0] * len(population["output"])
+    np.testing.assert_array_equal(
+        network.projections[0].ascending_eligibility,
+        0.0,
+    )
+    np.testing.assert_array_equal(
+        network.projections[0].descending_eligibility,
+        0.0,
+    )
 
 
 def test_compartments_follow_normative_equations_synchronously():
@@ -217,6 +237,154 @@ def test_reciprocal_routes_have_independent_weights():
     np.testing.assert_allclose(descending_norms[descending_norms > 0.0], 1.0)
 
 
+def test_eligibility_follows_bounded_decay_and_endpoint_coactivity():
+    network = Network(learning_definition())
+    projection = network.projections[0]
+    source = network.populations[projection.source]
+    target = network.populations[projection.target]
+    projection.ascending_eligibility.fill(0.9)
+    projection.descending_eligibility.fill(0.9)
+    source.output[:] = np.linspace(0.1, 1.0, source.columns)
+    source.integration[:] = np.linspace(0.2, 0.9, source.columns)
+    target.output[:] = np.linspace(0.3, 1.0, target.columns)
+    target.integration[:] = np.linspace(0.4, 1.0, target.columns)
+    expected_ascending = np.clip(
+        0.5 * 0.9
+        + source.output[projection.sources]
+        * target.integration[projection.targets],
+        0.0,
+        1.0,
+    )
+    expected_descending = np.clip(
+        0.5 * 0.9
+        + target.output[projection.targets]
+        * source.integration[projection.sources],
+        0.0,
+        1.0,
+    )
+
+    network.tick()
+
+    np.testing.assert_allclose(
+        projection.ascending_eligibility,
+        expected_ascending,
+    )
+    np.testing.assert_allclose(
+        projection.descending_eligibility,
+        expected_descending,
+    )
+    assert np.any(expected_ascending == 1.0)
+    assert np.any(expected_descending == 1.0)
+
+
+def test_only_success_confirms_eligible_connections():
+    unsuccessful = Network(learning_definition())
+    unsuccessful.settle({"visual-feature": np.ones(6)})
+    unsuccessful_projection = unsuccessful.projections[0]
+    unsuccessful_pre_ascending = unsuccessful_projection.ascending_weights.copy()
+    unsuccessful_pre_descending = unsuccessful_projection.descending_weights.copy()
+
+    unsuccessful_learning = unsuccessful.apply_success_signal(0.0)
+
+    np.testing.assert_array_equal(
+        unsuccessful_projection.ascending_weights,
+        unsuccessful_pre_ascending,
+    )
+    np.testing.assert_array_equal(
+        unsuccessful_projection.descending_weights,
+        unsuccessful_pre_descending,
+    )
+    assert unsuccessful_learning.success_signal == 0.0
+
+    successful = Network(learning_definition())
+    successful.settle({"visual-feature": np.ones(6)})
+    successful_projection = successful.projections[0]
+    successful_pre_ascending = successful_projection.ascending_weights.copy()
+    successful_pre_descending = successful_projection.descending_weights.copy()
+
+    successful_learning = successful.apply_success_signal(1.0)
+
+    assert not np.array_equal(
+        successful_projection.ascending_weights,
+        successful_pre_ascending,
+    )
+    assert not np.array_equal(
+        successful_projection.descending_weights,
+        successful_pre_descending,
+    )
+    assert successful_learning.success_signal == 1.0
+
+
+def test_directional_learning_uses_its_own_eligibility_and_local_normalization():
+    network = Network(learning_definition())
+    network.settle({"visual-feature": np.linspace(0.1, 1.0, 6)})
+    projection = network.projections[0]
+    projection.ascending_eligibility[:] = np.linspace(0.1, 0.7, 12)
+    projection.descending_eligibility[:] = np.linspace(0.8, 0.2, 12)
+
+    result = network.apply_success_signal(1.0).projections[0]
+
+    def expected_weights(
+        weights: np.ndarray,
+        eligibility: np.ndarray,
+        destinations: np.ndarray,
+    ) -> np.ndarray:
+        updated = np.clip(weights + 0.2 * eligibility * (1.0 - weights), 0.0, 1.0)
+        expected = updated.copy()
+        for destination in np.unique(destinations):
+            incoming = destinations == destination
+            expected[incoming] *= (
+                projection.incoming_norm / updated[incoming].sum()
+            )
+        return expected
+
+    np.testing.assert_allclose(
+        result.post_ascending_weights,
+        expected_weights(
+            result.pre_ascending_weights,
+            result.ascending_eligibility,
+            projection.targets,
+        ),
+    )
+    np.testing.assert_allclose(
+        result.post_descending_weights,
+        expected_weights(
+            result.pre_descending_weights,
+            result.descending_eligibility,
+            projection.sources,
+        ),
+    )
+    assert not np.array_equal(
+        result.ascending_eligibility,
+        result.descending_eligibility,
+    )
+    assert not np.array_equal(
+        result.post_ascending_weights - result.pre_ascending_weights,
+        result.post_descending_weights - result.pre_descending_weights,
+    )
+    assert np.all(
+        (0.0 <= result.post_ascending_weights)
+        & (result.post_ascending_weights <= 1.0)
+    )
+    assert np.all(
+        (0.0 <= result.post_descending_weights)
+        & (result.post_descending_weights <= 1.0)
+    )
+
+
+def test_success_signal_is_rejected_before_settling_or_after_confirmation():
+    network = Network(learning_definition())
+
+    with pytest.raises(RuntimeError, match="successfully settled"):
+        network.apply_success_signal(1.0)
+
+    network.settle({"visual-feature": np.ones(6)})
+    network.apply_success_signal(1.0)
+
+    with pytest.raises(RuntimeError, match="already been applied"):
+        network.apply_success_signal(1.0)
+
+
 def test_activity_travels_both_directions_over_reciprocal_endpoints():
     network = Network(definition())
     projection = network.projections[0]
@@ -298,6 +466,12 @@ def test_semantic_and_cardinal_population_flags_are_refused():
         lambda value: value["thresholds"].update(low=0.9),
         lambda value: value["dynamics"].update(temperature=0.0),
         lambda value: value["settling"].update(epsilon=0.0),
+        lambda value: value.update(
+            plasticity={"eligibility_decay": 1.1, "learning_rate": 0.05}
+        ),
+        lambda value: value.update(
+            plasticity={"eligibility_decay": 0.5, "learning_rate": 0.0}
+        ),
     ),
     ids=(
         "fan-in",
@@ -307,6 +481,8 @@ def test_semantic_and_cardinal_population_flags_are_refused():
         "threshold bounds",
         "dynamics constant",
         "settling constant",
+        "eligibility decay",
+        "learning rate",
     ),
 )
 def test_required_topology_and_dynamics_declarations_are_validated(mutation):

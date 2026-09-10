@@ -67,9 +67,32 @@ class SettlingResult:
     activity: np.ndarray
 
 
-def _require_keys(value: dict, required: set[str], context: str) -> None:
+@dataclass(frozen=True)
+class ProjectionLearningResult:
+    identifier: str
+    ascending_eligibility: np.ndarray
+    descending_eligibility: np.ndarray
+    pre_ascending_weights: np.ndarray
+    post_ascending_weights: np.ndarray
+    pre_descending_weights: np.ndarray
+    post_descending_weights: np.ndarray
+
+
+@dataclass(frozen=True)
+class LearningResult:
+    success_signal: float
+    projections: tuple[ProjectionLearningResult, ...]
+
+
+def _require_keys(
+    value: dict,
+    required: set[str],
+    context: str,
+    optional: set[str] | None = None,
+) -> None:
+    optional = optional or set()
     missing = required - value.keys()
-    unknown = value.keys() - required
+    unknown = value.keys() - required - optional
     if missing or unknown:
         details = []
         if missing:
@@ -128,6 +151,14 @@ class Network:
             key: float(value) for key, value in definition["dynamics"].items()
         }
         self.settling = dict(definition["settling"])
+        self.plasticity = (
+            {
+                key: float(value)
+                for key, value in definition["plasticity"].items()
+            }
+            if "plasticity" in definition
+            else None
+        )
         randomizer = np.random.default_rng(self.seed)
 
         threshold_declaration = definition["thresholds"]
@@ -163,6 +194,8 @@ class Network:
             self._build_projection(declaration, randomizer)
             for declaration in definition["projections"]
         ]
+        self._last_settling_success = False
+        self._outcome_applied = False
 
     def _validate_definition(self) -> None:
         _require_keys(
@@ -176,6 +209,7 @@ class Network:
                 "settling",
             },
             "Network definition",
+            optional={"plasticity"},
         )
         if isinstance(self.definition["seed"], bool) or not isinstance(
             self.definition["seed"], int
@@ -334,6 +368,21 @@ class Network:
             if isinstance(value, bool) or not isinstance(value, int) or value < 1:
                 raise ValueError(f"settling {name} must be a positive integer")
 
+        if "plasticity" in self.definition:
+            plasticity = self.definition["plasticity"]
+            _require_keys(
+                plasticity,
+                {"eligibility_decay", "learning_rate"},
+                "plasticity declaration",
+            )
+            decay = _number(
+                plasticity["eligibility_decay"],
+                "plasticity eligibility decay",
+            )
+            if not 0.0 <= decay <= 1.0:
+                raise ValueError("plasticity eligibility decay must be in [0,1]")
+            _positive(plasticity["learning_rate"], "plasticity learning rate")
+
     def _build_projection(
         self, declaration: dict, randomizer: np.random.Generator
     ) -> ReciprocalProjection:
@@ -401,12 +450,14 @@ class Network:
         )
 
     def reset(self) -> None:
-        """Reset exactly the three activity compartments and nothing durable."""
+        """Reset activity and Eligibility while preserving durable state."""
         for population in self.populations.values():
             population.reset()
         for projection in self.projections:
             projection.ascending_eligibility.fill(0.0)
             projection.descending_eligibility.fill(0.0)
+        self._last_settling_success = False
+        self._outcome_applied = False
 
     def broadcast(self, population: PopulationState) -> np.ndarray:
         return np.where(
@@ -417,6 +468,8 @@ class Network:
 
     def tick(self, sensory: dict[str, np.ndarray] | None = None) -> None:
         """Advance all Populations synchronously from one immutable prior state."""
+        self._last_settling_success = False
+        self._outcome_applied = False
         sensory = sensory or {}
         unknown = sensory.keys() - self.populations.keys()
         if unknown:
@@ -470,6 +523,24 @@ class Network:
                 projection.sources,
                 projection.descending_weights * target_output[projection.targets],
             )
+
+        if self.plasticity is not None:
+            decay = self.plasticity["eligibility_decay"]
+            for projection in self.projections:
+                projection.ascending_eligibility[:] = np.clip(
+                    decay * projection.ascending_eligibility
+                    + previous[projection.source][2][projection.sources]
+                    * previous[projection.target][1][projection.targets],
+                    0.0,
+                    1.0,
+                )
+                projection.descending_eligibility[:] = np.clip(
+                    decay * projection.descending_eligibility
+                    + previous[projection.target][2][projection.targets]
+                    * previous[projection.source][1][projection.sources],
+                    0.0,
+                    1.0,
+                )
 
         next_states = {}
         for identifier, population in self.populations.items():
@@ -556,6 +627,7 @@ class Network:
             trajectory.append(self._activity_matrix())
             stable_ticks = stable_ticks + 1 if final_delta < epsilon else 0
             if stable_ticks >= required_stable_ticks:
+                self._last_settling_success = True
                 return SettlingResult(
                     success=True,
                     ticks=tick,
@@ -565,6 +637,7 @@ class Network:
                     activity=np.stack(trajectory),
                 )
 
+        self._last_settling_success = False
         return SettlingResult(
             success=False,
             ticks=max_ticks,
@@ -572,6 +645,85 @@ class Network:
             final_delta=final_delta,
             max_ticks_reached=True,
             activity=np.stack(trajectory),
+        )
+
+    def apply_success_signal(self, success_signal: float) -> LearningResult:
+        """Apply one diffuse, success-gated durable update after settling."""
+        if self.plasticity is None:
+            raise RuntimeError("Network has no plasticity declaration")
+        signal = _number(success_signal, "Success Signal")
+        if not 0.0 <= signal <= 1.0:
+            raise ValueError("Success Signal must be in [0,1]")
+        if not self._last_settling_success:
+            raise RuntimeError("Success Signal requires a successfully settled outcome")
+        if self._outcome_applied:
+            raise RuntimeError("Success Signal has already been applied")
+
+        learning_rate = self.plasticity["learning_rate"]
+        results = []
+        for projection in self.projections:
+            pre_ascending = projection.ascending_weights.copy()
+            pre_descending = projection.descending_weights.copy()
+            if signal > 0.0:
+                ascending = np.clip(
+                    pre_ascending
+                    + learning_rate
+                    * signal
+                    * projection.ascending_eligibility
+                    * (1.0 - pre_ascending),
+                    0.0,
+                    1.0,
+                )
+                descending = np.clip(
+                    pre_descending
+                    + learning_rate
+                    * signal
+                    * projection.descending_eligibility
+                    * (1.0 - pre_descending),
+                    0.0,
+                    1.0,
+                )
+                projection.ascending_weights[:] = _normalize_by_destination(
+                    ascending,
+                    projection.targets,
+                    self.populations[projection.target].columns,
+                    projection.incoming_norm,
+                )
+                projection.descending_weights[:] = _normalize_by_destination(
+                    descending,
+                    projection.sources,
+                    self.populations[projection.source].columns,
+                    projection.incoming_norm,
+                )
+            results.append(
+                ProjectionLearningResult(
+                    identifier=projection.identifier,
+                    ascending_eligibility=projection.ascending_eligibility.copy(),
+                    descending_eligibility=projection.descending_eligibility.copy(),
+                    pre_ascending_weights=pre_ascending,
+                    post_ascending_weights=projection.ascending_weights.copy(),
+                    pre_descending_weights=pre_descending,
+                    post_descending_weights=projection.descending_weights.copy(),
+                )
+            )
+        self._outcome_applied = True
+        return LearningResult(success_signal=signal, projections=tuple(results))
+
+    def eligibility_matrix(self) -> np.ndarray:
+        """Return directional Eligibility ordered by projection and endpoint."""
+        if not self.projections:
+            return np.empty((0, 2), dtype=np.float64)
+        return np.concatenate(
+            [
+                np.column_stack(
+                    (
+                        projection.ascending_eligibility,
+                        projection.descending_eligibility,
+                    )
+                )
+                for projection in self.projections
+            ],
+            axis=0,
         )
 
     def column_labels(self) -> list[str]:
