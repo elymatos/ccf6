@@ -38,11 +38,9 @@ class WorkbenchController extends Controller
         $wiring = $this->json($dir.'/connectivity.json') ?? ['connectivity' => [], 'palette' => []];
         $connectivity = $wiring['connectivity'] ?? [];
 
-        // An artifact written before the architecture was replaced records structures
-        // this workbench has no page for. Migrating those runs is deliberately out of
-        // scope — they are the record of a superseded design — so the page says what
-        // the run is instead of failing to draw it.
-        if (! array_key_exists('structures', $connectivity)) {
+        // Historical artifacts remain immutable. The current workbench recognizes its
+        // explicit contract and reports every older shape as superseded.
+        if (($connectivity['model'] ?? null) !== 'ncl-column-network-v1') {
             return view('workbench.superseded', [
                 'run' => basename($run),
                 'manifest' => $this->manifest($dir),
@@ -57,11 +55,7 @@ class WorkbenchController extends Controller
             'summary' => $this->json($dir.'/summary.json') ?? [],
             'snapshots' => $this->json($dir.'/snapshots.json') ?? [],
             'palette' => $wiring['palette'] ?? [],
-            'structures' => $connectivity['structures'] ?? [],
-            'spaces' => $connectivity['web']['spaces'] ?? [],
-            'convergenceSources' => $connectivity['web']['convergence_sources'] ?? [],
-            'schema' => $connectivity['schema'] ?? null,
-            'index' => $connectivity['index'] ?? null,
+            'populations' => $connectivity['populations'] ?? [],
         ]);
     }
 

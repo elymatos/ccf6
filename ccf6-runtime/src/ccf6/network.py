@@ -1,20 +1,8 @@
-"""The Network: a Web, a Schema, an Index, and the Thalamus that feeds them.
+"""One recurrent network of connected cortical-column populations.
 
-Two slow abstractors and one fast binder. The **Web** converges over co-occurrence and
-says what things are. The **Schema** converges over transitions and says how things
-change. The **Index** binds fast and separates, and says what happened where. The
-pressures on the Web's code and the Index's code are opposite — convergence against
-separation — which is why they are different structures rather than one structure with
-a compromise setting.
-
-A presentation is a sequence. At each stop the Thalamus encodes what is there and the
-Web settles; the Relation to that stop advances the Schema; the Web's convergence
-output is bound to the Schema's state in the Index.
-
-Nothing in the Web or the Schema learns. The Index binds, because binding is what it
-is for and a Hebbian association is a local rule rather than a gradient, but no
-connectivity changes, nothing is recruited and nothing is promoted. That is what makes
-a run a baseline.
+The runtime has no separate symbolic processor, structural-state machine, or binding
+store. Sensory and association populations use the same Column mechanics. Functional
+webs and cardinal candidates are observations about learned connectivity and activity.
 """
 
 from __future__ import annotations
@@ -23,275 +11,224 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from ccf6.ego import Presentation, Step
-from ccf6.index import Index
-from ccf6.learning import Recruitment
-from ccf6.schema import Schema
+from ccf6.ego import Presentation, Sample
+from ccf6.learning import Recruitment, committed
+from ccf6.population import Population, transmit
 from ccf6.thalamus import Thalamus
-from ccf6.web import Web
-
-
-def _unit(rows: np.ndarray) -> np.ndarray:
-    """Each row scaled to unit length, leaving an all-zero row alone."""
-    norms = np.linalg.norm(rows, axis=-1, keepdims=True)
-    return np.divide(rows, norms, out=np.zeros_like(rows), where=norms > 1e-12)
 
 
 @dataclass(frozen=True)
 class Traversal:
-    """What one presentation left behind, stop by stop.
+    """Population activity retained for every sample in a presentation."""
 
-    A figure is a traversal rather than a state, so a readout that averages the stops
-    away can answer questions about content and none about arrangement. That is not a
-    matter of degree: the average of the local neighbourhoods around every cell of a
-    figure is that figure's autocorrelation, and an autocorrelation is centrally
-    symmetric, so an averaged readout cannot tell a figure from its 180-degree rotation
-    however well the network represented it.
-
-    Keeping the stops is what lets a measurement ask a different question. `mean` is the
-    old readout, kept so the two can be compared rather than swapped.
-    """
-
-    responses: np.ndarray       # (stops, Web Columns)
-    contents: np.ndarray        # (stops, content size)
-    schema_states: np.ndarray   # (stops, Schema size)
+    responses: np.ndarray
 
     @property
     def mean(self) -> np.ndarray:
-        """The stop-average: what the run reported before there was anything else."""
         return self.responses.mean(axis=0) if self.responses.size else self.responses
 
     @property
     def sequence(self) -> np.ndarray:
-        """Every stop's response, in order, as one vector.
-
-        Order is carried by position, so two traversals of the same cells in different
-        orders are different vectors — which is the whole point.
-        """
         return self.responses.ravel()
-
-    @property
-    def structure(self) -> np.ndarray:
-        """The Schema states in order: the structural code with nothing attached.
-
-        Content-blind by construction, so on its own this is not recognition — two
-        figures made of different cells have different walks whatever occupies them.
-        It is the reference point: what the arrangement is worth when nothing has
-        diluted it.
-        """
-        return self.schema_states.ravel()
-
-    @property
-    def bindings(self) -> np.ndarray:
-        """The Index's side: content and Schema state per stop, paired by position.
-
-        Concatenating rather than multiplying keeps the pairing — stop *k* holds its own
-        content beside its own position — without the cost of an outer product.
-
-        **Each half is normalised first, and that is not cosmetic.** Content is 4096
-        numbers and a Schema state is 50, so a raw concatenation is 98.8% content by
-        dimension. Measured that way the binding scored 0.107 while the structural half
-        alone scored 1.02: the arrangement was present and outvoted. That is the same
-        failure as averaging over Columns, wearing a different hat — an unweighted
-        aggregate lets dimension count decide the answer.
-        """
-        if not self.responses.size:
-            return np.zeros(0)
-        return np.concatenate(
-            [_unit(self.contents), _unit(self.schema_states)], axis=1
-        ).ravel()
 
 
 @dataclass
 class Architecture:
-    """Everything about the network's shape that an experiment declares."""
+    """The declared populations and numerical shape of a network."""
 
-    world_size: int = 8
+    world_size: int = 12
     n_colours: int = 8
-    levels: int = 3
-    convergence_levels: int = 2
-    #: Local pooling assumes a Grid's neighbourhood means something. For a Space over
-    #: colour or local shape it does not — adjacency there is an artefact of laying the
-    #: dimension out on a square. Only a genuinely spatial Space should pool locally, so
-    #: the default is none, and `pooling` waits for one that has a real neighbourhood.
-    local_levels: int = 0
-    pooling: int = 3
-    #: Must be smaller than the narrowest Space, or its Columns all see the same thing.
-    fanin: int = 4
-    #: Fan-in is declared per connection class, not once for the network. A convergence
-    #: Space draws from the tops of every Space at once, so a fan-in sized for a narrow
-    #: spoke would leave most of its Columns sampling only silent sources and its output
-    #: would fall below the transmission threshold before reaching its own top.
-    convergence_fanin: int = 12
-    #: Every Space is this many Columns a side, at every Level. A Space's width is a
-    #: declared quantity rather than a consequence of what feeds it: the encoder no
-    #: longer sizes the Grid, so Level 1 is a sparse expansion of the boundary instead
-    #: of a copy of it.
-    space_side: int = 64
-    #: The unit of competition inside a Level. Columns in one cluster compete for the
-    #: right to represent; Columns in different clusters do not compete at all.
+    side: int = 32
     cluster: int = 8
-    #: Module periods for the Schema. Capacity along one axis is their least common
-    #: multiple, so coprime periods buy a large field from a few small modules.
-    schema_periods: tuple[int, ...] = (3, 4, 5)
-    schema_width: float = 0.6
-    #: Which Spaces to build, and how each is sited.
-    spaces: dict[str, dict[str, str | None]] = field(
+    pooling: int = 3
+    fanin: int = 4
+    association_fanin: int = 12
+    populations: dict[str, dict] = field(
         default_factory=lambda: {
-            name: dict(sited) for name, sited in Web.DEFAULT_SITING.items()
-            if name in ("colour", "shape", "convergence")
+            "shape": {
+                "role": "sensory",
+                "modality": "visual",
+                "levels": 3,
+            },
+            "colour": {
+                "role": "sensory",
+                "modality": "visual",
+                "levels": 3,
+            },
+            "concept": {
+                "role": "association",
+                "modality": None,
+                "levels": 2,
+                "sources": ["shape", "colour"],
+            },
         }
     )
-    #: The recruitment rule, or None for a network that does not learn. A run with this
-    #: unset is the baseline every learning claim is measured against.
     learning: dict | None = None
-    #: Which structures to build. A question about one need not run the others.
-    structures: tuple[str, ...] = ("web", "schema", "index")
-    seed: int = 20260908
-
-    def siting(self, name: str) -> dict[str, str | None]:
-        declared = self.spaces.get(name) or {}
-        return {**Web.DEFAULT_SITING.get(name, {}), **declared}
+    seed: int = 20260909
 
 
 class Network:
-    def __init__(self, arch: Architecture, thalamus: Thalamus):
-        self.arch = arch
-        self.thalamus = thalamus
-        rng = np.random.default_rng(arch.seed)
+    """A recurrent graph whose populations all use one Column implementation."""
 
-        self.web: Web | None = None
-        if "web" in arch.structures:
-            siting = {name: arch.siting(name) for name in arch.spaces}
-            self.web = Web(
-                siting,
-                thalamus.sizes(),
-                levels=arch.levels,
-                convergence_levels=arch.convergence_levels,
-                local_levels=arch.local_levels,
-                pooling=arch.pooling,
-                fanin=arch.fanin,
-                convergence_fanin=arch.convergence_fanin,
-                cluster=arch.cluster,
-                side=arch.space_side,
+    def __init__(self, architecture: Architecture, thalamus: Thalamus):
+        self.architecture = architecture
+        self.thalamus = thalamus
+        self.populations: dict[str, Population] = {}
+        rng = np.random.default_rng(architecture.seed)
+
+        for name, declaration in architecture.populations.items():
+            role = declaration["role"]
+            sources = tuple(declaration.get("sources", ()))
+            if role == "sensory":
+                if name not in thalamus.encoders:
+                    raise ValueError(f"sensory Population {name!r} has no sensory adapter")
+                input_size = thalamus.encoders[name].size
+                fanin = architecture.fanin
+            else:
+                missing = [source for source in sources if source not in self.populations]
+                if missing:
+                    raise ValueError(
+                        f"association Population {name!r} has unavailable sources {missing}"
+                    )
+                input_size = sum(self.populations[source].top.n for source in sources)
+                fanin = architecture.association_fanin
+
+            self.populations[name] = Population(
+                name,
+                (architecture.side, architecture.side),
+                int(declaration.get("levels", 1)),
+                input_size,
+                role=role,
+                modality=declaration.get("modality"),
+                sources=sources,
+                local_levels=int(declaration.get("local_levels", 0)),
+                pooling=architecture.pooling,
+                fanin=fanin,
+                cluster=architecture.cluster,
                 rng=rng,
             )
 
-        self.schema: Schema | None = None
-        self.schema_state: np.ndarray | None = None
-        if "schema" in arch.structures:
-            self.schema = Schema(tuple(arch.schema_periods), arch.schema_width)
-
-        self.rule: Recruitment | None = (
-            Recruitment(**arch.learning) if arch.learning else None
-        )
-
-        self.index: Index | None = None
-        if "index" in arch.structures:
-            if self.web is None or self.schema is None:
-                raise ValueError("an Index binds Web content to a Schema state; it needs both")
-            self.index = Index(self.web.content_size, self.schema.size)
+        self.rule = Recruitment(**architecture.learning) if architecture.learning else None
 
     def reset(self) -> None:
-        if self.web is not None:
-            self.web.reset()
-        if self.schema is not None:
-            self.schema_state = self.schema.origin()
-        if self.index is not None:
-            self.index.reset()
+        for population in self.populations.values():
+            population.reset()
+
+    def _drives(self, sensory: dict[str, np.ndarray], parameters: dict) -> dict[str, np.ndarray]:
+        drives: dict[str, np.ndarray] = {}
+        for name, population in self.populations.items():
+            if population.role == "sensory":
+                drives[name] = sensory.get(
+                    name, np.zeros(population.levels[0].w_input.n_in)
+                )
+            else:
+                drives[name] = np.concatenate(
+                    [transmit(self.populations[source].top.l5, parameters) for source in population.sources]
+                )
+        return drives
+
+    def _top_down(self, parameters: dict) -> dict[str, np.ndarray]:
+        feedback = {
+            name: np.zeros(population.top.n)
+            for name, population in self.populations.items()
+        }
+        for population in self.populations.values():
+            if population.role != "association":
+                continue
+            returned = population.levels[0].w_input.backward(
+                transmit(population.levels[0].l5, parameters)
+            )
+            cursor = 0
+            for source in population.sources:
+                size = self.populations[source].top.n
+                feedback[source] += returned[cursor : cursor + size]
+                cursor += size
+        return feedback
+
+    def sample(self, sample: Sample, signals: dict, ticks: int, parameters: dict) -> None:
+        sensory = self.thalamus.project(signals)
+        for _ in range(ticks):
+            drives = self._drives(sensory, parameters)
+            top_down = self._top_down(parameters)
+            for name, population in self.populations.items():
+                population.step(drives[name], parameters, top_down[name])
+
+        if self.rule is not None:
+            drives = self._drives(sensory, parameters)
+            for name, population in self.populations.items():
+                population.learn(drives[name], self.rule)
 
     def traverse(
-        self, presentation: Presentation, signals, ticks: int, p: dict
+        self, presentation: Presentation, signals, ticks: int, parameters: dict
     ) -> Traversal:
-        """Run one whole presentation and keep what every stop left behind.
-
-        Reading only the final stop would measure that cell's neighbourhood and call it
-        the figure, and since the figures differ in which cell comes last, that artefact
-        would masquerade as selectivity. Averaging the stops avoids that and introduces
-        a worse problem of its own (see `Traversal`). So neither is chosen here: the
-        traversal is returned whole and the measurements decide what to ask of it.
-        """
-        responses, contents, states = [], [], []
-        for index, step in enumerate(presentation.steps):
-            self.stop(step, signals(step), ticks, p, first=index == 0)
+        responses = []
+        for sample in presentation.samples:
+            self.sample(sample, signals(sample), ticks, parameters)
             responses.append(self.response_vector())
-            contents.append(
-                self.web.content(p) if self.web is not None else np.zeros(0)
-            )
-            states.append(
-                self.schema_state if self.schema_state is not None else np.zeros(0)
-            )
         if not responses:
-            return Traversal(np.zeros((0, self.response_vector().size)),
-                             np.zeros((0, 0)), np.zeros((0, 0)))
-        return Traversal(np.stack(responses), np.stack(contents), np.stack(states))
-
-    def present(
-        self, presentation: Presentation, signals, ticks: int, p: dict
-    ) -> np.ndarray:
-        """The stop-averaged response. Kept so old and new readouts stay comparable."""
-        return self.traverse(presentation, signals, ticks, p).mean
-
-    def stop(self, step: Step, signals: dict, ticks: int, p: dict, *, first: bool) -> None:
-        """One stop of a presentation.
-
-        The Relation advances the Schema *before* binding, so what gets bound is the
-        content at the position the network has arrived at rather than the one it left.
-        """
-        if self.schema is not None:
-            if first:
-                self.schema_state = self.schema.origin()
-            elif step.relation is not None:
-                self.schema_state = self.schema.advance(self.schema_state, step.relation, p)
-
-        if self.web is not None:
-            drive = self.thalamus.project(signals)
-            for _ in range(ticks):
-                self.web.step(drive, p)
-            if self.rule is not None:
-                self.web.learn(drive, self.rule, p)
-
-        if self.index is not None:
-            self.index.write(self.web.content(p), self.schema_state)
+            return Traversal(np.zeros((0, self.response_vector().size)))
+        return Traversal(np.stack(responses))
 
     def response_vector(self) -> np.ndarray:
-        """L5 of every Column in the Web, in a fixed order.
-
-        The order is stable for the life of a Network, so a Column's index means the
-        same thing in every stimulus of a run.
-        """
-        if self.web is None:
-            return np.zeros(0)
         return np.concatenate(
-            [level.l5 for space in self.web.spaces.values() for level in space.levels]
+            [
+                level.l5
+                for population in self.populations.values()
+                for level in population.levels
+            ]
         )
 
+    def population_output(self, name: str, parameters: dict) -> np.ndarray:
+        return transmit(self.populations[name].top.l5, parameters)
+
     def column_labels(self) -> list[str]:
-        if self.web is None:
-            return []
         return [
-            f"{level.name}#{i}"
-            for space in self.web.spaces.values()
-            for level in space.levels
-            for i in range(level.n)
+            f"{level.name}#{index}"
+            for population in self.populations.values()
+            for level in population.levels
+            for index in range(level.n)
         ]
 
+    def cardinal_candidates(self, commitment_threshold: float = 0.5) -> dict[str, int]:
+        """Count recruited convergence Columns without declaring them concepts by fiat."""
+        return {
+            name: int(committed(population.top, commitment_threshold).sum())
+            for name, population in self.populations.items()
+            if population.role == "association"
+        }
+
+    def recruitment_report(self, threshold: float = 0.5) -> dict:
+        return {
+            level.name: {
+                "committed": int(committed(level, threshold).sum()),
+                "columns": level.n,
+                "wins_max": int(level.wins.max()),
+                "plasticity_min": float(level.plasticity.min()),
+            }
+            for population in self.populations.values()
+            for level in population.levels
+        }
+
     def describe(self) -> dict:
-        out: dict = {"structures": list(self.arch.structures)}
-        if self.rule is not None:
-            out["learning"] = self.rule.describe()
-        if self.web is not None:
-            out["web"] = self.web.describe()
-        if self.schema is not None:
-            out["schema"] = self.schema.describe()
-        if self.index is not None:
-            out["index"] = self.index.describe()
-        return out
+        return {
+            "model": "ncl-column-network-v1",
+            "populations": {
+                name: population.describe()
+                for name, population in self.populations.items()
+            },
+            "learning": self.rule.describe() if self.rule is not None else None,
+        }
 
     def snapshot(self) -> dict:
-        out: dict = {}
-        if self.web is not None:
-            out["web"] = self.web.snapshot()
-        if self.schema is not None and self.schema_state is not None:
-            out["schema"] = [b.tolist() for b in self.schema.blocks(self.schema_state)]
-        return out
+        return {
+            name: {
+                level.name: {
+                    "shape": list(level.shape),
+                    "l4": level.grid("l4").tolist(),
+                    "l23": level.grid("l23").tolist(),
+                    "l5": level.grid("l5").tolist(),
+                }
+                for level in population.levels
+            }
+            for name, population in self.populations.items()
+        }

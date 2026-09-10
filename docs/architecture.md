@@ -1,689 +1,137 @@
-# CCF architecture: two abstractors and a binder
+# CCF6 NCL-only architecture
 
-Status: **proposed architecture, open for discussion** · 2026-09-08
+Status: **accepted target architecture** · 2026-09-09
 
-Derived from [`tem-ncl-complementarity.md`](tem-ncl-complementarity.md), which argues
-that the two source traditions are complementary halves rather than rival accounts. That
-document establishes *why*. This one proposes *what to build*.
+This architecture implements only the commitments summarized in [`neurocognitive_linguistics_summary.md`](neurocognitive_linguistics_summary.md). The normative mechanics and acceptance criteria are in [`specification.md`](specification.md). The current runtime is an earlier prototype and does not yet conform to that specification.
 
-This is an architecture, not a specification. It fixes the structures, what each is
-responsible for, what each is forbidden to do, how they exchange information, and the
-constraints any realization must satisfy. It does not fix representations, parameters,
-update equations, or an order of work. Names proposed here are candidates for
-discussion, not settled terms.
+## 1. Scientific commitments
 
-§6 works one task — recognizing a letter — through the whole architecture. It is
-included because it discriminates between the two halves rather than merely illustrating
-them, and because a specification written without it would under-specify exactly the
-parts that carry the argument.
+The system preserves these Neurocognitive Linguistics premises:
 
----
+1. linguistic and conceptual structure is relational network organization;
+2. a local unit has no stored symbol and gets its function from connectivity;
+3. learned functions are distributed, overlapping Functional Webs;
+4. activation is graded, recurrent, competitive, and bidirectional;
+5. learning is local, experience-dependent, and confirmed by successful activity;
+6. compact convergence populations may provide addressability, but their uniqueness and necessity must be tested;
+7. sensory, linguistic, conceptual, and motor Populations can be functionally distinct while belonging to one connected Network.
 
-## 1. What the architecture has to deliver
+## 2. Deep runtime module
 
-Two goals, stated by the project owner:
-
-- **(a)** represent cognitive structures that are recurrent and reusable in
-  understanding and reasoning, including concept representations;
-- **(b)** be trainable to recognize, classify and represent new events and situations.
-
-Both are deliberately in the neighbourhood of what deep learning and language models do,
-approached by other means and at smaller scale. That neighbourhood matters, because it
-tells us which failures are interesting. A system that classifies well and composes
-badly has reproduced a known result. The interesting target is the pair.
-
-### Each goal decomposes into two different requirements
-
-This is the first argument for a two-part architecture, and it comes from the goals
-themselves rather than from either source tradition.
-
-**Goal (a) splits.** "Recurrent and reusable structure" is a relational skeleton that
-survives a change of content — the same arrangement recognized in new material.
-"Concept representations" is something else entirely: an addressable, nameable,
-ignitable unit that stands for a class of things. A skeleton is reusable because it is
-*empty*. A concept is useful because it is *full*. One mechanism cannot maximize both.
-
-**Goal (b) splits.** "Recognize and classify" is abstraction over instances: many
-presentations converge on one response. "Represent new events and situations" is
-composition: entities standing in relations, assembled in a configuration never seen
-before. Classification discards the arrangement; situation representation *is* the
-arrangement.
-
-So before consulting either source theory, both goals have already asked for two
-different things. That is the shape the architecture has to take.
-
----
-
-## 2. Why one system cannot do it
-
-Four arguments, from strongest to weakest.
-
-### 2.1 The pressures on the code are opposite
-
-To keep two episodes from blurring, their codes must be **separated** — sparse and
-overlapping as little as possible. To form a category from many instances, their codes
-must be **converged** — many inputs driving one shared response.
-
-These are not two settings of one dial that could be tuned to a happy middle. They are
-contradictory demands on the same population. A code sparse enough to keep every
-Tuesday-cat-on-mat distinct from every Wednesday-cat-on-mat is, by construction, a code
-in which no CAT response can form. A code in which all cats converge is one in which two
-cat episodes are the same memory.
-
-Any system that must both remember particulars and abstract generalities therefore needs
-two populations under different pressure. This is the standing argument for why brains
-separate a fast, sparse, binding structure from a slow, overlapping, abstracting one,
-and it applies to CCF regardless of which literature it is drawn from.
-
-### 2.2 New learning would destroy old structure
-
-A single converging system that also has to store new episodes must adjust the same
-weights that hold its categories. Each new particular perturbs the abstraction it is
-supposed to be an instance of. The abstraction degrades in proportion to how much
-specific experience the system has, which is exactly backwards.
-
-Splitting the store lets particulars be written fast and cheap somewhere that does not
-own the categories, and lets abstraction proceed slowly over many particulars. The cost
-is that the two must be kept in correspondence, which is what §3.4 is about.
-
-### 2.3 The two generalizations are different operations
-
-- **Structural generalization:** the same relational skeleton reused with different
-  content. Enter an unfamiliar building, recognize the layout, infer where the unvisited
-  room is. Generalizes across *situations*.
-- **Taxonomic generalization:** many different instances converge on a shared response.
-  Generalizes across *members*.
-
-Neither produces the other, and this is worth being precise about because it is easy to
-assume that enough of one becomes the other.
-
-Taxonomic machinery cannot yield structural generalization. A convergence hierarchy
-abstracts over things that co-occur. It has no representation of *the same relation
-holding elsewhere*, no composition of relations, and therefore no way to transfer an
-arrangement to new material. Adding levels deepens the abstraction; it does not make it
-relational.
-
-Structural machinery cannot yield taxonomic generalization either, and the reason is
-sharper. A structural system's pressure on content is to keep contents **distinct**, so
-that what was stored at one position does not contaminate another. Nothing in it rewards
-noticing that two contents resemble each other. Its generalization is transfer of the
-*arrangement*, never abstraction over the *material*.
-
-### 2.4 They fail in complementary places, and the failures are the known ones
-
-Each tradition has a characteristic poverty, and the other tradition is a direct answer
-to it.
-
-A purely structural account treats content as arbitrary and atomic — the item at a
-position is a token, and any token would do. That assumption is what makes the
-factorization work, and it is also what stops the account from reaching cognition: with
-atomic content there is no similarity, no graded membership, no prototype, no partial
-match on something never seen, and no grounding in more than one modality.
-
-A purely convergent account has no mechanism for composition. It can represent that A
-and B are both present. It cannot represent that A stands in a particular relation to B
-without duplicating structure for each ordering, which does not scale and does not
-transfer.
-
-These are the two classical criticisms of connectionist accounts — **systematicity** and
-**addressable grounding** — and the architecture below is a bet that they are answered by
-different structures rather than by one better one.
-
----
-
-## 3. The architecture
-
-Three structures. Two of them abstract slowly over different data; the third binds
-quickly and separates.
+The runtime presents one primary interface:
 
 ```text
-                      World
-                        │
-                   (encoding)
-                        │
-                        ▼
-   ┌───────────────────────────────────────────┐
-   │  WEB — slow, converging over co-occurrence│
-   │  features → conjunctions → categories     │
-   │  access points: Cardinal Nodes            │
-   └───────────────┬───────────────────────────┘
-                   │ content            ▲
-                   ▼                    │ reactivation
-   ┌───────────────────────────┐        │
-   │  INDEX — fast, separating │◄───────┘
-   │  binds content to position│
-   └───────┬───────────▲───────┘
-           │           │
-   position│           │retrieval
-           ▼           │
-   ┌───────────────────┴───────────────────────┐
-   │  SCHEMA — slow, converging over transitions│
-   │  state updated by Relations; reusable      │
-   └────────────────────────────────────────────┘
-
-   RECRUITMENT: a recurring INDEX entry is promoted
-   into the WEB (as a concept) or into the SCHEMA
-   (as reusable structure).
+Network
+  reset presentation activity
+  present sensory Samples
+  settle or report failure
+  apply a diffuse Success Signal
+  freeze or enable learning
+  observe activity and connectivity
+  stimulate or lesion selected Outputs
 ```
 
-### 3.1 The Web — what things are
+The implementation behind this interface contains ordinary Columns, sparse directed connections, local competition, recurrence, and plasticity. It contains no separate symbolic processor, relation engine, episodic binder, privileged concept store, Functional Web registry, or cardinal flag.
 
-Slow. Overlapping. Converges over **co-occurrence**.
+Target Basin estimation, Functional Web detection, Cardinal Node classification, controls, and statistical aggregation sit outside this seam as experiment-observer operations.
 
-The Web is a hierarchy of convergence: sensory features feed conjunctions, conjunctions
-feed categories, and the whole organization is entered at any level. Its characteristic
-operation is that many different inputs come to drive one shared response, which is what
-makes a category exist at all.
+## 3. Column abstraction
 
-Properties the architecture requires of it:
+A Column is the smallest addressable processing population. It has three functional compartments:
 
-- **Graded, not criterial.** A category's response follows weighted convergence, so
-  typicality, partial match and fuzzy boundaries are consequences of the mechanism
-  rather than features added to it.
-- **Overlapping.** A component participates in many categories. BLACK belongs to
-  charcoal, night, ink and cats. Nothing is copied into each; membership is shared
-  connectivity. This is where the architecture's compression lives, and it is how a
-  subordinate inherits from a superordinate without a copy operation.
-- **Bidirectional.** A category, once active, reactivates the features that usually
-  accompany it. This single property is doing a great deal of work: it supplies
-  expectation, imagery, pattern completion from a partial cue, and production.
-- **Addressable.** Somewhere in the hierarchy are convergence points compact enough to
-  be pointed at, activated, and lesioned. These are the **Cardinal Nodes**. A Cardinal is
-  not where the concept is stored — the concept is the whole reachable web — it is where
-  the concept can be *entered*.
+- **Input** integrates sensory and ascending activity;
+- **Integration** combines Input, recurrent state, descending context, and inhibition;
+- **Output** applies a graded threshold response and broadcasts activity.
 
-The Web is the architecture's answer to "classify" in goal (b) and to "concept" in goal (a).
+Anatomical layer names explain the inspiration for these compartments but do not define their behavior. Resting activity is zero. Each Column also has a locally adapted threshold and evidence of entrenchment; directional connections hold their own weights and Eligibility traces.
 
-### 3.2 The Schema — how things change
+A Column does not contain:
 
-Slow. Converges over **transitions**.
+- a concept name or definition;
+- a symbolic feature list;
+- a construction-specific program;
+- authored Functional Web membership;
+- Cardinal Candidate or Cardinal Node status.
 
-The Schema holds a state that is updated by a **Relation**, and whose value is that the
-same relation transforms it the same way wherever it applies. It is the reusable
-skeleton: what stays constant when the material changes.
+## 4. Populations and connectivity
 
-Properties the architecture requires:
+A Population groups Columns by a shared source of evidence. Its declaration may state sensory provenance or broad wiring role, but not learned semantic content. Functional interpretation comes from response, connectivity, transfer, perturbation, and Lesion evidence.
 
-- **Separation of states.** Two distinct positions must have distinct states, or nothing
-  bound at one can be retrieved without contaminating the other.
-- **Path consistency.** Reaching one position by two different routes must produce the
-  same state, or a memory stored there becomes unreachable from a new direction.
-- **Composition.** A sequence of Relations must arrive where the structure implies,
-  including along routes never taken. This is what buys inference: if composition holds,
-  the system can arrive at a position it has never approached this way and still query
-  what is there.
-- **Content-blindness.** The Schema must not know what occupies a position. The moment it
-  does, the skeleton stops transferring, which is the only thing it was for.
+Connections are sparse and directed. Connected Populations use reciprocal endpoint topology, but ascending and descending directions have independent weights and Eligibility. This allows recognition and reactivation to develop differently without losing reciprocal access.
 
-Non-commutativity has to be learnable, not assumed away. Two spatial translations
-commute; *father-of* then *brother-of* need not equal *brother-of* then *father-of*. The
-Schema learns the composition rules that actually hold, rather than inheriting the
-algebra of physical space.
+The first milestone uses abundant fixed latent topology: learning changes existing strengths but does not grow or redirect connections. Lateral inhibition is local, fixed, and bounded. Several association Populations and convergence routes are permitted; no central Hub is required.
 
-The Schema is the architecture's answer to "reusable structure" in goal (a) and to
-"new situations" in goal (b).
+## 5. Functional Webs and cardinals
 
-### 3.3 The Index — what happened where
+A Functional Web is an observed coalition, not a runtime container. Its membership requires converging evidence from reliable co-activation, reciprocal effective connectivity, partial-cue completion, independent Entry Routes, and causal perturbation. Webs may overlap through reusable feature and intermediate Columns.
 
-Fast. Sparse. Separates.
-
-The Index binds a content unit to a Schema position: *this thing, at this place in this
-arrangement*. It is written quickly, it is sparse enough that entries do not interfere,
-and it supports completion — a partial cue settles onto a stored entry and reinstates the
-rest.
-
-Properties the architecture requires:
-
-- **Fast write.** An entry after one exposure. Nothing that requires many repetitions can
-  serve as episodic memory.
-- **Sparse and separating.** Two similar episodes must not merge. This is the pressure
-  that is the exact opposite of the Web's, and it is why the Index is a separate
-  structure.
-- **Completion from either side.** Given a position, what was there. Given a content,
-  where it was. Both directions are needed: the first is retrieval, the second is
-  relocalization when the Schema's estimate has drifted.
-- **No abstraction.** The Index must not generalize. An index that starts merging similar
-  entries has become a slow Web with the wrong parameters.
-
-The Index is not the memory. It is the binding that lets a Schema position and a Web
-content be recovered together.
-
-### 3.4 Recruitment — the operation that closes the loop
-
-This is the architecture's central mechanism, and the one that neither source tradition
-supplies on its own.
-
-**A binding that keeps recurring is promoted into a structure that abstracts.** An Index
-entry that is written again and again is no longer a particular; it is a regularity, and
-it should be moved out of the fast store into a slow one.
-
-Promotion has two destinations, and which one applies depends on what recurred:
-
-- A recurring **conjunction of content** — the same things appearing together — is
-  promoted into the **Web** as a new convergence point. A situation that keeps happening
-  becomes a concept. This is how kitchens, faces, and four-lap cycles become things.
-- A recurring **sequence of transitions** — the same relational arrangement holding over
-  different material — is promoted into the **Schema** as reusable structure. This is how
-  a schema is *learned* rather than preloaded, which matters: an architecture that ships
-  with a library of image schemas has assumed the thing it should explain.
-
-The loop then closes, because a promoted Web unit is content, and content can be bound
-at a Schema position:
+Cardinality is an observer-level lifecycle:
 
 ```text
-convergence yields content units
-  → content is bound at structural positions
-    → recurring bindings are promoted
-      → promotions become content units, or become structure
-        → …
+Available Column
+  → Recruited Column
+  → Cardinal Candidate
+  → Cardinal Node classification
 ```
 
-That loop is the direct answer to goal (a). A structure is "recurrent and reusable"
-precisely by having been recruited as a unit, and a system that can do this repeatedly
-climbs from features to objects to events to schemas without a different mechanism at
-each step.
+Recruitment requires successful participation across distinct Presentations. A candidate additionally requires convergence from independent Entry Routes and causal reactivation beyond matched controls. Cardinal Node classification additionally requires predicted stimulation, Lesion, and redundancy behavior across seeds.
 
-It also settles a question the source traditions leave ambiguous. Neither is "first."
-The bottom of the stack is convergence, because a binder cannot bind content that does
-not yet exist; but above that first cycle the two alternate indefinitely.
+No lifecycle stage turns a Column into a different processor type.
 
----
+## 6. Learning
 
-## 4. Mapping the borrowed vocabulary
+Co-active endpoints create temporary local Eligibility. Eligibility alone does not change durable connectivity. A diffuse Success Signal confirms eligible connections after a Presentation settles without identifying a category, Column, or connection.
 
-The population-level terms borrowed from the structural tradition describe activity
-across many units. They are observer-level handles, not fields stored anywhere. Against
-this architecture they land as:
+The first milestone uses:
 
-| Borrowed term | Where it lives here |
-| --- | --- |
-| **Structural code** | The Schema's state: position in a relational arrangement, updated by Relations. |
-| **Content code** | A Cardinal Node's activation in the Web — *not* a raw sensory vector. |
-| **Conjunctive code** | An Index entry: one content bound at one Schema position. |
-| **Associative memory** | The Index's connectivity, together with its completion dynamics. |
+- success-gated strengthening of existing excitatory routes;
+- independent learning in ascending and descending directions;
+- local incoming-weight normalization;
+- Presentation-level entrenchment;
+- local homeostatic threshold adaptation;
+- fixed inhibitory connectivity.
 
-The second row is the substantive change, and it is the point where this architecture
-departs from the structural tradition rather than merely implementing it. In that
-tradition the content code is an arbitrary token supplied by the environment — the whole
-factorization argument depends on content being interchangeable. Here the content code is
-the apex of a convergence hierarchy, which means it arrives with internal structure,
-graded similarity, prototype effects, partial activation on novel material, and grounding
-across several modalities.
+It deliberately excludes connection growth, inhibitory learning, negative Success Signals, and claims of a complete biological learning account.
 
-That is not a detail. It is what lets the architecture bind *concepts* into arrangements
-rather than binding tokens, and it is the difference between a model that navigates a
-toy world and one that could represent a situation.
+## 7. First milestone topology
 
----
-
-## 5. Information flow
-
-Four paths the architecture must support. They use the same structures in different
-directions.
-
-**Recognition.** Sensory activation ascends the Web; convergence sharpens under
-competition; a Cardinal becomes active. If a Schema position is also current, an Index
-entry is written or completed. Recognition is not finished when the Cardinal fires — the
-Cardinal reactivates expected features downward, and the settled state is the recognition.
-
-**Situation representation.** Relations — whether supplied by geometry or produced by
-movement — advance the Schema state. Each sampled content is bound at the position
-current when it was sampled. A situation is not a list of contents; it is a set of Index
-entries over one Schema traversal.
-
-**Inference.** Compose Relations to arrive at a position never approached this way. Query
-the Index at that position. If composition holds, an unvisited part of an arrangement can
-be reported without having been observed. This is the architecture's zero-shot claim and
-its clearest falsifier.
-
-**Production and imagery.** Activate a Cardinal without sensory input. It reactivates its
-features downward and can supply content to be bound at a Schema position. The same
-machinery that recognizes runs backwards, which is why the Web must be bidirectional
-rather than a feedforward classifier.
-
----
-
-## 6. A worked example: the letter T
-
-A concrete task, traced through the structures. It is included here rather than left to
-a task document because it discriminates between the two halves of the architecture, and
-a specification that did not anticipate it would under-specify the parts that matter.
-
-### 6.1 Why this example rather than an easier one
-
-Take recognizing the letter **T**, presented somewhere in a two-dimensional field, and
-required to be recognized in a field never seen before.
-
-The discriminating power is not in the T. It is in the confusion set:
+The minimum topology is:
 
 ```text
-    T        ⊥        ⊢        ⊣
+visual-property Populations
+        ↕
+visual-association Population
+        ↕
+cross-domain association Population
+        ↕
+phonological-association Population
+        ↕
+auditory-feature Population
 ```
 
-All four have an **identical feature bag**: one horizontal stroke, one vertical stroke,
-one junction. They differ only in the arrangement. A structure that abstracts over
-co-occurring features therefore sees the same bundle four times, and **convergence alone
-cannot separate them**.
+Every Population uses the same Column mechanics. The topology supplies possible routes, not category identities.
 
-This is §10's first prediction instantiated in a case where the concept is object-like —
-a letter, a noun, something one would expect to be featurally individuated — and turns
-out to be **relationally individuated** instead. Had the task been T against O, both
-mechanisms would succeed and the result would say nothing about which was operating.
+## 8. First milestone experiment
 
-**The confusion set is the experiment; the letter is only the stimulus.** A specification
-should treat the set as part of the task definition, not as an evaluation detail.
+Four synthetic categories are grounded in overlapping visual properties and paired with three-segment pseudowords assembled from shared auditory features. Acquisition, basin-estimation, and final held-out instances are disjoint.
 
-### 6.2 The task traced through the structures
+Correct full pairings receive a diffuse positive Success Signal. Balanced mismatches receive none. Evaluation freezes all learning and tests:
 
-| Structure | Contribution |
-| --- | --- |
-| **Web** | Recruits the parts: oriented stroke segments, terminations, junctions. Convergence over local contrast yields "vertical stroke", "horizontal stroke". |
-| **Schema** | Relations between successively sampled parts advance its state. The figure occupies a small set of Schema positions. |
-| **Index** | Binds one part to one Schema position: this stroke, here; that stroke, there. |
-| **Recruitment** | The binding pattern recurs across presentations and is promoted. |
+- held-out graded category convergence;
+- visual-only and pseudoword-only Entry Routes;
+- partial-cue movement into the correct Target Basin;
+- ordered phonological reactivation;
+- reversed, permuted, repeated, and competing pseudoword controls;
+- Functional Web overlap;
+- candidate stimulation;
+- individual and group Lesions;
+- redundant recovery;
+- matched untrained, shuffled-pairing, and perturbation controls.
 
-### 6.3 Promotion goes to both destinations, and that is the demonstration
+At least 20 paired seeds determine the result. Seed-level effects, deterministic bootstrap intervals, direction counts, and failures are mandatory. Completion and reactivation must improve while held-out separation remains within a 5% relative non-inferiority margin.
 
-The example exercises §3.4 directly, because what recurs decomposes into two things
-promoted to two places.
+## 9. Scientific boundary
 
-- The **arrangement** — a bar across the top of a stem — is promoted into the
-  **Schema**. It is reusable and material-independent: the same arrangement made of
-  cells, of dots, or of people standing in a field is the same arrangement.
-- The **letter** — named, pronounced, participating in words — is promoted into the
-  **Web** as a concept with a Cardinal Node.
+Passing the milestone would show that this declared local mechanism can produce the tested Functional Web and cardinal roles in a synthetic domain. It would not establish that the abstraction is anatomically exact, that every concept has one cardinal, that the mechanism scales to natural language, or that unimplemented forms of memory and reasoning follow automatically.
 
-The recruited Schema structure then becomes available as content in the Web, which is
-the loop closing on a single worked case. This is the clearest available demonstration of
-the architecture's central mechanism, and a specification should make it observable
-rather than merely possible: it must be possible to ask, after training, *which*
-structure a recruited unit was promoted into.
-
-### 6.4 The invariances are three different problems
-
-They are routinely named together and must not be specified together.
-
-| Invariance | Status | Reason |
-| --- | --- | --- |
-| **Translation** | Free | Part-relative structure carries no origin, so offsets between parts do not change when the figure moves. This follows from the standing commitment that structure is stored part-relative (ADR-0004). |
-| **Scale** | Not free, and wanted | Scaling multiplies every offset by a constant, so a naive relational code sees a different arrangement. Requires offsets represented up to a scale factor, or convergence over scales. |
-| **Rotation** | Not free, and **must be excluded** | See below. |
-
-**Rotation invariance is not a hard requirement to postpone — it is a contradiction.**
-Look at the confusion set again: **⊥ is T rotated 180°, and ⊢ is T rotated 90°.** A system
-invariant to rotation cannot distinguish them, because under that invariance they are the
-same object. Demanding rotation invariance makes the alphabet unlearnable.
-
-This is not a quirk of the letter T. Written character recognition is deliberately
-neither rotation- nor mirror-invariant — b/d, p/q, M/W, N/Z — and mirror invariance is
-the *default* in ventral visual processing, since a mirrored physical object is normally
-the same object. Literacy has to break it.
-
-So the task's honest statement is **translation- and scale-invariant,
-rotation-variant**, and the exclusion is evidence for the architecture rather than a
-concession: if a figure's identity *is* its arrangement, then changing the arrangement
-must change the concept.
-
-A specification should therefore state invariances as a **signed list** — which
-transformations must preserve identity and which must destroy it — rather than as a set
-of invariances to maximize.
-
-### 6.5 Failure modes the specification must design against
-
-Three ways this task can be passed while demonstrating nothing.
-
-1. **Memorization presented as generalization.** Training on every position and
-   evaluating on those positions learns a lookup table. Positions and scales must be
-   held out, and the specification must say which.
-2. **The local-feature shortcut.** An orientation-tuned junction detector separates T
-   from ⊥ using one local feature and demonstrates nothing relational. The defence is
-   scale: strokes long enough that no single receptive field spans the junction and both
-   terminations, plus evaluation at an unseen scale — a detector tuned to one junction
-   size will not transfer, a relational code will.
-3. **Reporting the wrong generalization.** The architecture claims two (§2.3), and a
-   readout that cannot separate them will report structural transfer when only taxonomic
-   abstraction occurred. Factorial designs varying shape against position, and shape
-   against scale, are the minimum.
-
-### 6.6 Two further tests the example makes cheap
-
-- **Content-blindness of the Schema.** Learn the figure in one colour; present it in
-  another. If the arrangement is stored content-blind as §3.2 requires, the colour must
-  not matter. This tests a prohibition directly and costs one extra condition.
-- **Completion.** Present two thirds of the figure. Whether it completes is the
-  difference between a classifier and the bidirectional Web §3.1 requires, and it is
-  §10's third prediction on the smallest possible stimulus.
-
----
-
-## 7. What each structure is forbidden to do
-
-Boundary conditions. These are the claims that make the architecture falsifiable, since
-each one predicts a specific failure if violated.
-
-| Structure | Must not |
-| --- | --- |
-| **Web** | Store particulars. Hold the arrangement of a situation. Contain a symbol, definition or property list. |
-| **Schema** | Know what occupies a position. Hold content. Ship with preloaded structures. |
-| **Index** | Generalize or merge similar entries. Persist indefinitely without promotion or decay. |
-| **Cardinal Node** | Contain the concept. Be assumed unique. Be a different kind of unit from any other. |
-| **Encoding boundary** | Carry state across samples, or make any decision that belongs to a learning structure. |
-
-The last row is worth stating explicitly. The conversion of a world signal into
-activation is a **transduction** decision and nothing else. If it acquires memory of the
-trajectory, it has quietly become the Schema, and the ability to change the encoding
-independently of everything downstream is lost.
-
----
-
-## 8. Constraints on any realization
-
-Three constraints that are not free parameters. They follow from the architecture rather
-than from any particular way of building it, and a specification that leaves them open
-will produce something unrunnable.
-
-### 8.1 Connectivity must be sparse
-
-The populations the architecture needs are large enough that all-to-all connectivity is
-not merely wasteful but infeasible. A two-dimensional field of 64×64 gives roughly four
-thousand units per Level, and a dense connection matrix between two such Levels is on the
-order of sixteen million weights — hundreds of megabytes for one matrix, several
-gigabytes for a network with a few Levels and a few structures.
-
-This is a **specification-level constraint, not an optimization to apply later**, because
-it changes what has to be decided: fan-in becomes an explicit design quantity, and the
-rule that chooses which units connect becomes part of the architecture rather than an
-implementation convenience.
-
-It is also required on its own terms. Convergence is only meaningful when a unit draws
-from a limited subset — a unit that sees everything below it is identical to every other
-such unit and distinguishes nothing. Separation in the Index likewise depends on sparse,
-low-overlap connectivity. Density would defeat both structures independently of cost.
-
-### 8.2 The boundary must present multi-part figures
-
-An arrangement cannot be learned from a stimulus that has no parts. If the boundary
-delivers one location per step, the Schema has nothing to integrate over and the Index
-has nothing to bind, and the entire structural half of the architecture is unreachable
-regardless of what learning rule is installed.
-
-The specification must therefore fix:
-
-- how a figure with several parts is presented — as a sequence of samples, as a
-  simultaneous field, or both;
-- what **Ego** is as a mechanism, since sampling from somewhere is what generates the
-  offsets the Schema consumes;
-- how a **Relation** is obtained between successive samples, honouring the standing
-  decision that relations are **given** by geometry before they are **enacted** by
-  movement (ADR-0003).
-
-This is the most basic prerequisite in the document. Everything in §6 is unreachable
-without it.
-
-### 8.3 Contrast coding yields edges, not regions
-
-> **Superseded 2026-09-08 by ADR-0009.** The specification's answer was to remove
-> contrast from the input path rather than to state what happens to interiors: contrast
-> is not translation invariant at the World's frame, and it was also serving as drive
-> magnitude. The question below is moot at the boundary and returns unchanged wherever
-> local relations are later learned.
-
-If the boundary transmits how much a location differs from its surroundings — recording
-relations between things rather than the things themselves — then a solid region
-registers only at its outline, its interior being uniform and therefore silent.
-
-For thin-stroke figures this is close to ideal, and the worked example in §6 benefits
-from it. For solid figures the specification must say what is intended: that interiors
-are legitimately invisible, or that some further mechanism fills them. Leaving it
-unstated will produce a system that appears to fail on filled shapes for reasons that
-were designed in.
-
----
-
-## 9. Trying answers to the open questions
-
-The predecessor document left four open. Positions, not decisions.
-
-### 9.1 Names
-
-The framework already uses **map** for nothing, deliberately, because it names two
-incompatible things across the traditions. New words are needed rather than a winner
-chosen.
-
-| Structure | Proposed | Alternatives | Note |
-| --- | --- | --- | --- |
-| Slow, converging over co-occurrence | **Web** | Fabric, Mesh | Already the structural tradition's word for a distributed subnetwork realizing a concept; carries the right sense. |
-| Slow, converging over transitions | **Schema** | Armature, Scaffold, Chart, Frame | Recommended with a recorded collision — see below. |
-| Fast, sparse, binding | **Index** | Trace, Register, Ledger | Has precedent for a pointer into a distributed pattern, which is exactly the role. |
-
-**Schema** is the recommendation and the one to argue about. In its favour: it is the
-ordinary term for a reusable relational structure, and goal (a) is a description of one.
-Against: it carries symbolic-AI and preloaded-primitive baggage, and one of the source
-traditions explicitly warns that such structures must not be foundational objects. That
-warning is a reason to *record the collision*, not to avoid the word — the architecture's
-position is that a Schema is a recruitment product, never a preloaded primitive, and
-saying so in the glossary is stronger than dodging the term.
-
-**Frame** should probably be rejected outright: it collides with two large existing
-literatures at once and would import more than it names.
-
-### 9.2 Where the population-level codes attach
-
-Answered in §4. The substantive commitment is that the content code is a Cardinal's
-activation rather than a sensory vector. A structural code supplied by an encoder — a
-coordinate handed over rather than integrated over a trajectory — is not a structural
-code at all, and it passes the path-consistency test vacuously, which means the test
-cannot discriminate. Whatever carries the structural code must be *updated by Relations*
-or it is not doing the job.
-
-### 9.3 Two structures, two settings, or two rates?
-
-**Two structures.** The argument in §2.1 is that the pressures are contradictory rather
-than merely different, so a single population under a compromise setting fails both
-demands rather than partly satisfying each. Sparsity and learning rate then differ
-between the structures *as a consequence* of their roles, not as the definition of them.
-
-A weaker version is worth keeping available for testing: one population with two rates
-and a sparsity schedule. If that turns out to work, the architecture is wrong in an
-interesting way, and it is cheap to find out.
-
-### 9.4 Recruitment versus gradient
-
-The framework's standing commitment is to local learning rules. The structural tradition
-reaches its representations by global optimization over many environments. The gap
-between those is the project's central question, and the architecture takes a position on
-what closes it.
-
-**Recruitment is the local system's substitute for credit assignment.** A global gradient
-assigns credit by propagating error backwards to every weight that contributed.
-Recruitment assigns credit *structurally*: the unit that became active for a conjunction
-is the unit that owns it, and the promotion is the assignment. No error has to travel.
-
-Whether that is enough is genuinely unknown, and the honest formulation is a comparison
-rather than a claim:
-
-> Can convergence, competition and recruitment under local rules produce structural
-> generalization — transfer of an arrangement to new material, and inference along an
-> untraveled route — at all, and how far short of the optimized version does it fall?
-
-A negative result is ambiguous between "the rule is inadequate" and "the task needs more
-than the architecture supplies", so any test needs a measured baseline from unlearned
-connectivity to be interpretable at all.
-
----
-
-## 10. Predictions
-
-If the architecture is right, these should hold. They are listed because they are the
-places it can be caught being wrong.
-
-1. **Two kinds of concept.** Concepts should divide by mechanism of individuation:
-   those identified by featural convergence (RED, CAT, chair) and those identified by
-   relational position (GIVE, BETWEEN, CAUSE, before). Not a spectrum — two mechanisms.
-   This is independently attested in the linguistic distinction between content words and
-   relational markers, and in the selective loss of relational markers under damage.
-   Finding relational concepts living in the Schema and object concepts in the Web would
-   be a derived result rather than an imported assumption.
-2. **Damage dissociates.** Removing an access point should impair naming, cross-modal
-   access and ignition while leaving feature-level knowledge reachable by other routes.
-   Damaging the Index should impair particulars while leaving categories intact.
-   Damaging the Schema should impair novel arrangements while leaving classification
-   intact.
-3. **Inference precedes exposure.** Composition should let the system report an
-   unvisited part of a known arrangement. This is the clearest single falsifier.
-4. **Promotion is visible.** A unit recruited from a recurring binding should be
-   identifiable as such, and should thereafter behave as content — bindable at a
-   position, not merely retrievable from one.
-5. **Structural transfer.** Performance in a new situation sharing an old arrangement
-   should exceed performance in one that does not, and the gap should widen with the
-   number of arrangements experienced.
-
----
-
-## 11. What the specification must settle
-
-Points to carry forward. The architecture deliberately leaves all of these open.
-
-**Structures and representations**
-1. Whether the Web, Schema and Index are built from one kind of unit or several.
-2. What a Schema position *is* as activity, and how a Relation is applied to it.
-3. Sparsity and capacity for the Index, and what happens when it is full.
-4. Whether the Web's hierarchy is fixed in depth or grows by recruitment.
-
-**Learning**
-5. The local rule, and what makes a co-activation "successful" enough to strengthen.
-6. What triggers recruitment: a recurrence count, a stability criterion, a competition
-   outcome, or a combination.
-7. How promotion decides between the Web and the Schema.
-8. Whether Index entries decay, and whether promotion consumes or copies them.
-9. How competition is itself learned, which both traditions leave incomplete.
-
-**Interfaces**
-10. How Relations are supplied — given by geometry before enacted by movement — and how
-    the two are kept measurably comparable.
-11. How the Schema's state is corrected when it drifts, and how retrieval evidence and
-    transition evidence are combined.
-12. What the encoding boundary produces, and how a change there is shown to leave
-    everything downstream untouched.
-13. How a multi-part figure is presented, what Ego is as a mechanism, and how offsets
-    between successive samples are obtained (§8.2).
-14. What happens to the interior of a solid figure under contrast coding (§8.3).
-
-**Realization**
-15. The fan-in rule and the sparsity of every connection class, as design quantities
-    rather than tuning parameters (§8.1).
-16. The size of the field, and how the choice interacts with 15.
-
-**Measurement**
-17. The unlearned baseline each learning claim must beat.
-18. Readouts that distinguish the two generalizations, so structural transfer is not
-    reported when only taxonomic abstraction occurred.
-19. Lesion protocol for prediction 2.
-20. Invariances stated as a **signed list** — which transformations must preserve
-    identity, and which must destroy it (§6.4).
-21. Held-out positions and scales, and the unseen-scale evaluation that defeats a
-    local-feature shortcut (§6.5).
-22. How to determine, after training, which structure a recruited unit was promoted
-    into (§6.3).
-23. The smallest experiment that discriminates this architecture from a single-system
-    alternative — which, given §9.3, is the first thing worth building.
+Failure is also informative. Artifacts must distinguish failures of settling, recruitment, basin formation, sequence sensitivity, web detection, cardinal causality, redundancy, and statistical replication rather than collapsing them into one score.

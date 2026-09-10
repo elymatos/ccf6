@@ -9,8 +9,8 @@ framework meant to record relations should be shown relations rather than things
 
 That premise moved (ADR-0009). Contrast is not translation invariant, because a figure
 touching the World's frame scores lower than the same figure in the middle, and it was
-also serving as drive magnitude, so it carried that non-invariance into every Space at
-once. The only relational quantity supplied at the boundary now is the **Relation**
+also serving as drive magnitude, so it carried that non-invariance into every sensory
+Population at once. The only relational quantity supplied at the boundary now is the **Relation**
 between two sampled World positions.
 
 `contrast()` survives as something one can compute *about* a World and draw. Nothing in
@@ -47,19 +47,6 @@ class Object:
     def cells_at(self, origin: tuple[int, int]) -> list[tuple[int, int, int]]:
         oi, oj = origin
         return [(oi + di, oj + dj, colour) for (di, dj), colour in self.parts]
-
-    def relations(self) -> list[tuple[int, int]]:
-        """The part-relative structure: every offset between two parts.
-
-        This is what ADR-0004 says gets stored. It carries no origin, so it is
-        identical for the same Object at every World position.
-        """
-        offsets = []
-        for (ai, aj), _ in self.parts:
-            for (bi, bj), _ in self.parts:
-                if (ai, aj) != (bi, bj):
-                    offsets.append((bi - ai, bj - aj))
-        return sorted(offsets)
 
 
 class World:
@@ -124,7 +111,7 @@ class World:
         A mask rather than the colour indices, because a Column adds its inputs and a
         raw index would drive one colour seven times harder than another. That is the
         same confusion of strength with identity ADR-0009 removed. What colour a cell is
-        belongs to the colour Space; whether a cell is filled belongs here.
+        belongs to the colour Population; whether a cell is filled belongs here.
         """
         return np.pad((self.cells != self.background).astype(np.float64), radius)
 

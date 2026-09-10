@@ -1,0 +1,11 @@
+{
+    "mcpServers": {
+        "laravel-boost": {
+            "command": "/usr/bin/php",
+            "args": [
+                "/home/ematos/devel/ccf6/artisan",
+                "boost:mcp"
+            ]
+        }
+    }
+}

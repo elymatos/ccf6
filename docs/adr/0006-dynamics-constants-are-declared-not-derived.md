@@ -1,6 +1,6 @@
 # 0006 — Dynamics constants are declared, not derived
 
-Status: accepted · 2026-09-07
+Status: superseded by ADR-0011 · 2026-09-09
 
 ## Context
 
