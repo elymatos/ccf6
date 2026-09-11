@@ -190,6 +190,28 @@ class WorkbenchTest extends TestCase
         }
     }
 
+    public function test_recruitment_homeostasis_and_frozen_evaluation_are_inspectable(): void
+    {
+        [$root, $run] = $this->runExperiment('006-recruitment-homeostasis.json');
+        $learning = json_decode(file_get_contents($root.'/'.$run.'/learning.json'), true);
+        $finalPopulation = $learning['presentations'][23]['populations'][0];
+        $contributor = collect($finalPopulation['contributing_presentations'])->flatten()->first();
+
+        try {
+            config(['ccf6.artifact_root' => $root]);
+            $this->get('/runs/'.$run)
+                ->assertSee('Recruitment and homeostasis')
+                ->assertSee('Recruited Columns')
+                ->assertSee($finalPopulation['id'])
+                ->assertSee($contributor)
+                ->assertSee('Threshold history')
+                ->assertSee('Frozen evaluation')
+                ->assertSee('No durable changes');
+        } finally {
+            $this->removeArtifactRoot($root, $run);
+        }
+    }
+
     public function test_zero_rest_network_identifies_a_max_tick_failure(): void
     {
         $definitionPath = sys_get_temp_dir().'/ccf6-failing-network-'.getmypid().'.json';

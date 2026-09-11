@@ -8,6 +8,9 @@
     $effects = $summary['learning'] ?? [];
     $eligibility = $summary['eligibility'] ?? [];
     $settling = $summary['settling'] ?? [];
+    $recruitment = $summary['recruitment'] ?? [];
+    $homeostasis = $summary['homeostasis'] ?? [];
+    $evaluation = $summary['evaluation'] ?? [];
 @endphp
 
 <section>
@@ -42,6 +45,51 @@
         </table>
     </div>
 </section>
+
+@if (($learning['adaptation_parameters'] ?? null) !== null)
+<section>
+    <h2>Recruitment and homeostasis</h2>
+    <div class="panel">
+        <table>
+            <thead><tr><th class="l">Recorded evidence</th><th>Result</th></tr></thead>
+            <tbody>
+            <tr><td class="l">Recruited Columns</td><td>{{ $recruitment['recruited_columns'] ?? 0 }}</td></tr>
+            <tr><td class="l">Recruitment threshold</td><td>{{ $recruitment['threshold'] ?? 0 }}</td></tr>
+            <tr><td class="l">Minimum distinct successful Presentations</td><td>{{ $recruitment['minimum_presentations'] ?? 0 }}</td></tr>
+            <tr><td class="l">Recruited after first Presentation</td><td>{{ $recruitment['recruited_after_first_presentation'] ?? 0 }}</td></tr>
+            <tr><td class="l">Cardinal Candidates declared</td><td>{{ ($recruitment['cardinal_candidates_declared'] ?? false) ? 'yes' : 'no' }}</td></tr>
+            <tr><td class="l">Threshold histories</td><td>{{ $homeostasis['threshold_histories'] ?? 0 }}</td></tr>
+            <tr><td class="l">Unsuccessful Presentations adapting thresholds</td><td>{{ $homeostasis['unsuccessful_presentations_updated'] ?? 0 }}</td></tr>
+            <tr><td class="l">Thresholds within bounds</td><td>{{ ($homeostasis['thresholds_within_bounds'] ?? false) ? 'yes' : 'no' }}</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section>
+    <h2>Frozen evaluation</h2>
+    <div class="panel">
+        <p class="lede">
+            {{ $evaluation['presentations'] ?? 0 }} full-pair evaluation Presentations ·
+            adaptation frozen: {{ ($evaluation['adaptation_frozen'] ?? false) ? 'yes' : 'no' }} ·
+            {{ ($evaluation['durable_changes'] ?? 0) === 0 ? 'No durable changes' : 'Durable changes detected' }}
+        </p>
+        <table>
+            <thead><tr><th class="l">Presentation</th><th class="l">Condition</th><th>Adaptation applied</th><th>Weights changed</th></tr></thead>
+            <tbody>
+            @foreach (($learning['evaluation'] ?? []) as $row)
+                <tr>
+                    <td class="l"><code>{{ $row['presentation_id'] }}</code></td>
+                    <td class="l">{{ $row['condition'] }}</td>
+                    <td>{{ $row['adaptation_applied'] ? 'yes' : 'no' }}</td>
+                    <td>{{ $row['durable_weights_changed'] ? 'yes' : 'no' }}</td>
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
+    </div>
+</section>
+@endif
 
 <section>
     <h2>Successful versus unsuccessful effects</h2>
@@ -82,6 +130,20 @@
                 @endforeach
                 </tbody>
             </table>
+            @if (($learning['adaptation_parameters'] ?? null) !== null)
+                <details style="margin-top:14px">
+                    <summary>Threshold history, entrenchment evidence, and Recruited Columns</summary>
+                    @foreach ($presentation['populations'] as $population)
+                        <h4><code>{{ $population['id'] }}</code> · {{ $population['recruited_columns'] }} Recruited Columns</h4>
+                        <p>Threshold pre <code>{{ json_encode($population['thresholds']['pre']) }}</code></p>
+                        <p>Threshold post <code>{{ json_encode($population['thresholds']['post']) }}</code></p>
+                        <p>Activity average post <code>{{ json_encode($population['activity_average']['post']) }}</code></p>
+                        <p>Entrenchment post <code>{{ json_encode($population['entrenchment']['post']) }}</code></p>
+                        <p>Contributing Presentation identities <code>{{ json_encode($population['contributing_presentations']) }}</code></p>
+                        <p>Recruited mask <code>{{ json_encode($population['recruited']) }}</code></p>
+                    @endforeach
+                </details>
+            @endif
         </div>
     @endforeach
 </section>

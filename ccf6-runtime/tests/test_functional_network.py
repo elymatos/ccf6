@@ -75,6 +75,18 @@ def learning_definition() -> dict:
     return declared
 
 
+def adaptive_definition() -> dict:
+    declared = learning_definition()
+    declared["adaptation"] = {
+        "activity_average_rate": 0.25,
+        "threshold_rate": 0.1,
+        "target_activity": 0.4,
+        "recruitment_threshold": 0.1,
+        "minimum_presentations": 2,
+    }
+    return declared
+
+
 def one_population_definition() -> dict:
     declared = definition()
     declared["populations"] = [
@@ -385,6 +397,234 @@ def test_success_signal_is_rejected_before_settling_or_after_confirmation():
         network.apply_success_signal(1.0)
 
 
+def test_entrenchment_uses_confirmed_incoming_eligibility():
+    network = Network(adaptive_definition())
+    network.settle({"visual-feature": np.ones(6)})
+
+    result = network.apply_success_signal(1.0, "presentation-1")
+
+    expected = {
+        identifier: np.zeros(population.columns)
+        for identifier, population in network.populations.items()
+    }
+    for learned, projection in zip(
+        result.projections,
+        network.projections,
+        strict=True,
+    ):
+        np.maximum.at(
+            expected[projection.target],
+            projection.targets,
+            learned.ascending_eligibility,
+        )
+        np.maximum.at(
+            expected[projection.source],
+            projection.sources,
+            learned.descending_eligibility,
+        )
+    for population in result.populations:
+        np.testing.assert_allclose(
+            population.post_entrenchment - population.pre_entrenchment,
+            expected[population.identifier],
+        )
+        assert all(
+            contributors == ({"presentation-1"} if confirmed > 0.0 else set())
+            for contributors, confirmed in zip(
+                network.populations[
+                    population.identifier
+                ].contributing_presentations,
+                expected[population.identifier],
+                strict=True,
+            )
+        )
+
+
+def test_one_presentation_cannot_recruit_by_itself():
+    network = Network(adaptive_definition())
+    network.settle({"visual-feature": np.ones(6)})
+
+    first = network.apply_success_signal(1.0, "presentation-1")
+
+    assert any(
+        np.any(population.post_entrenchment > 0.0)
+        for population in first.populations
+    )
+    assert all(
+        np.all(population.post_contributor_counts <= 1)
+        for population in first.populations
+    )
+    assert not any(np.any(population.recruited) for population in first.populations)
+
+    network.reset()
+    network.settle({"visual-feature": np.ones(6)})
+
+    repeated = network.apply_success_signal(1.0, "presentation-1")
+
+    assert not any(np.any(population.recruited) for population in repeated.populations)
+
+    network.reset()
+    network.settle({"visual-feature": np.ones(6)})
+
+    second = network.apply_success_signal(1.0, "presentation-2")
+
+    assert any(np.any(population.recruited) for population in second.populations)
+    assert "cardinal" not in json.dumps(network.snapshot()).lower()
+
+    high_threshold = adaptive_definition()
+    high_threshold["adaptation"]["recruitment_threshold"] = 10.0
+    network = Network(high_threshold)
+    for presentation_id in ("presentation-1", "presentation-2"):
+        network.reset()
+        network.settle({"visual-feature": np.ones(6)})
+        below_threshold = network.apply_success_signal(1.0, presentation_id)
+
+    assert any(
+        np.any(population.post_contributor_counts >= 2)
+        for population in below_threshold.populations
+    )
+    assert not any(
+        np.any(population.recruited) for population in below_threshold.populations
+    )
+
+
+def test_homeostasis_is_local_and_independent_of_success():
+    successful = Network(adaptive_definition())
+    unsuccessful = Network(adaptive_definition())
+    sensory = {"visual-feature": np.ones(6)}
+    successful.settle(sensory)
+    unsuccessful.settle(sensory)
+    initial_thresholds = {
+        identifier: population.thresholds.copy()
+        for identifier, population in successful.populations.items()
+    }
+
+    successful_result = successful.apply_success_signal(1.0, "presentation-1")
+    unsuccessful_result = unsuccessful.apply_success_signal(0.0, "presentation-1")
+
+    for successful_population, unsuccessful_population in zip(
+        successful_result.populations,
+        unsuccessful_result.populations,
+        strict=True,
+    ):
+        expected_average = 0.25 * successful_population.settled_output
+        expected_thresholds = np.clip(
+            initial_thresholds[successful_population.identifier]
+            + 0.1 * (expected_average - 0.4),
+            0.2,
+            0.8,
+        )
+        np.testing.assert_allclose(
+            successful_population.post_activity_average,
+            expected_average,
+        )
+        np.testing.assert_allclose(
+            successful_population.post_thresholds,
+            expected_thresholds,
+        )
+        np.testing.assert_array_equal(
+            successful_population.post_activity_average,
+            unsuccessful_population.post_activity_average,
+        )
+        np.testing.assert_array_equal(
+            successful_population.post_thresholds,
+            unsuccessful_population.post_thresholds,
+        )
+
+
+def test_homeostatic_thresholds_preserve_declared_bounds():
+    network = Network(adaptive_definition())
+    network.settle({"visual-feature": np.ones(6)})
+    population = network.populations["visual-feature"]
+    population.thresholds[:2] = [0.2, 0.8]
+    population.activity_average[:2] = [0.0, 1.0]
+    population.output[:2] = [0.0, 1.0]
+
+    result = network.apply_success_signal(0.0, "presentation-1")
+
+    visual = next(
+        population
+        for population in result.populations
+        if population.identifier == "visual-feature"
+    )
+    np.testing.assert_array_equal(visual.post_thresholds[:2], [0.2, 0.8])
+
+
+def test_activity_reset_preserves_all_durable_column_and_connection_state():
+    network = Network(adaptive_definition())
+    network.settle({"visual-feature": np.ones(6)})
+    network.apply_success_signal(1.0, "presentation-1")
+    durable_before = {
+        identifier: (
+            population.thresholds.copy(),
+            population.activity_average.copy(),
+            population.entrenchment.copy(),
+            tuple(frozenset(values) for values in population.contributing_presentations),
+        )
+        for identifier, population in network.populations.items()
+    }
+    weights_before = [
+        (
+            projection.sources.copy(),
+            projection.targets.copy(),
+            projection.ascending_weights.copy(),
+            projection.descending_weights.copy(),
+        )
+        for projection in network.projections
+    ]
+
+    network.reset()
+
+    for identifier, population in network.populations.items():
+        thresholds, average, entrenchment, contributors = durable_before[identifier]
+        np.testing.assert_array_equal(population.thresholds, thresholds)
+        np.testing.assert_array_equal(population.activity_average, average)
+        np.testing.assert_array_equal(population.entrenchment, entrenchment)
+        assert tuple(
+            frozenset(values) for values in population.contributing_presentations
+        ) == contributors
+    for projection, before in zip(network.projections, weights_before, strict=True):
+        sources, targets, ascending, descending = before
+        np.testing.assert_array_equal(projection.sources, sources)
+        np.testing.assert_array_equal(projection.targets, targets)
+        np.testing.assert_array_equal(projection.ascending_weights, ascending)
+        np.testing.assert_array_equal(projection.descending_weights, descending)
+
+
+def test_evaluation_freezes_every_durable_adaptation():
+    network = Network(adaptive_definition())
+    network.settle({"visual-feature": np.ones(6)})
+    network.apply_success_signal(1.0, "presentation-1")
+    network.freeze_adaptation()
+    network.reset()
+    network.settle({"visual-feature": np.ones(6)})
+
+    frozen = network.apply_success_signal(1.0, "evaluation-1")
+
+    assert frozen.adaptation_applied is False
+    for projection in frozen.projections:
+        np.testing.assert_array_equal(
+            projection.post_ascending_weights,
+            projection.pre_ascending_weights,
+        )
+        np.testing.assert_array_equal(
+            projection.post_descending_weights,
+            projection.pre_descending_weights,
+        )
+    for population in frozen.populations:
+        np.testing.assert_array_equal(
+            population.post_thresholds,
+            population.pre_thresholds,
+        )
+        np.testing.assert_array_equal(
+            population.post_activity_average,
+            population.pre_activity_average,
+        )
+        np.testing.assert_array_equal(
+            population.post_entrenchment,
+            population.pre_entrenchment,
+        )
+
+
 def test_activity_travels_both_directions_over_reciprocal_endpoints():
     network = Network(definition())
     projection = network.projections[0]
@@ -438,6 +678,10 @@ def test_every_population_uses_the_same_column_mechanics():
             "provenance",
             "wiring_role",
             "thresholds",
+            "activity_average",
+            "entrenchment",
+            "contributing_presentations",
+            "recruited",
             "input",
             "integration",
             "output",
@@ -472,6 +716,35 @@ def test_semantic_and_cardinal_population_flags_are_refused():
         lambda value: value.update(
             plasticity={"eligibility_decay": 0.5, "learning_rate": 0.0}
         ),
+        lambda value: value.update(
+            adaptation={
+                "activity_average_rate": 0.2,
+                "threshold_rate": 0.1,
+                "target_activity": 0.4,
+                "recruitment_threshold": 1.0,
+                "minimum_presentations": 2,
+            }
+        ),
+        lambda value: value.update(
+            plasticity={"eligibility_decay": 0.5, "learning_rate": 0.1},
+            adaptation={
+                "activity_average_rate": 1.1,
+                "threshold_rate": 0.1,
+                "target_activity": 0.4,
+                "recruitment_threshold": 1.0,
+                "minimum_presentations": 2,
+            },
+        ),
+        lambda value: value.update(
+            plasticity={"eligibility_decay": 0.5, "learning_rate": 0.1},
+            adaptation={
+                "activity_average_rate": 0.2,
+                "threshold_rate": 0.1,
+                "target_activity": 0.4,
+                "recruitment_threshold": 1.0,
+                "minimum_presentations": 1,
+            },
+        ),
     ),
     ids=(
         "fan-in",
@@ -483,6 +756,9 @@ def test_semantic_and_cardinal_population_flags_are_refused():
         "settling constant",
         "eligibility decay",
         "learning rate",
+        "adaptation without plasticity",
+        "activity average rate",
+        "minimum Presentations",
     ),
 )
 def test_required_topology_and_dynamics_declarations_are_validated(mutation):

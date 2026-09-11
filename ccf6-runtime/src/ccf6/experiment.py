@@ -678,6 +678,7 @@ KINDS = {
     "zero_rest_network": run_zero_rest_network,
     "coordinated_presentation": run_coordinated_presentation,
     "success_gated_learning": run_success_gated_acquisition,
+    "recruitment_homeostasis": run_success_gated_acquisition,
 }
 
 
