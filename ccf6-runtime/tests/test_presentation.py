@@ -156,6 +156,60 @@ def test_eligibility_persists_between_samples_and_resets_between_presentations()
     np.testing.assert_array_equal(second.samples[0].initial_eligibility, 0.0)
 
 
+def test_frozen_evaluation_supports_visual_phonological_and_partial_cues():
+    dataset = generate_domain(20260910)
+    network = Network(network_definition())
+    protocol = PresentationProtocol(
+        network,
+        dataset,
+        visual_populations={
+            "contour": "visual-contour",
+            "surface": "visual-surface",
+            "marking": "visual-marking",
+        },
+        auditory_population="auditory-feature",
+    )
+    category = dataset["categories"][0]
+    pseudoword = dataset["pseudowords"][0]
+    properties = category["prototype"]["properties"]
+
+    visual_only = protocol.run_cue(
+        presentation_id="visual-only",
+        category=category,
+        pseudoword_id=pseudoword["id"],
+        visual_properties=properties,
+        segments=(),
+        condition="visual_only",
+    )
+    pseudoword_only = protocol.run_cue(
+        presentation_id="pseudoword-only",
+        category=category,
+        pseudoword_id=pseudoword["id"],
+        visual_properties=None,
+        segments=pseudoword["segments"],
+        condition="pseudoword_only",
+    )
+    partial_visual = protocol.run_cue(
+        presentation_id="partial-visual",
+        category=category,
+        pseudoword_id=pseudoword["id"],
+        visual_properties=properties[:2],
+        segments=(),
+        condition="partial_visual",
+    )
+
+    assert [sample.kind for sample in visual_only.samples] == ["visual"]
+    assert [sample.kind for sample in pseudoword_only.samples] == [
+        "auditory",
+        "auditory",
+        "auditory",
+    ]
+    assert len(partial_visual.samples[0].active_features) == 2
+    np.testing.assert_array_equal(visual_only.initial_activity, 0.0)
+    np.testing.assert_array_equal(pseudoword_only.initial_activity, 0.0)
+    np.testing.assert_array_equal(partial_visual.initial_activity, 0.0)
+
+
 def test_every_generated_visual_dimension_requires_one_population():
     dataset = generate_domain(20260910)
     network = Network(network_definition())

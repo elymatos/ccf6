@@ -582,12 +582,14 @@ The table describes the repository at the time this specification was accepted.
 | Structured synthetic domain | Test grounding and lexical routes | Validated dataset artifact | Conforming | `test_generated_domain_satisfies_constraints` |
 | Ordered pseudowords | Lexical form is relational and sequential | Sequence-control distances | Conforming | `test_presentations_preserve_order_and_reject_unordered_feature_bags` |
 | Target Basin distributions | Completion is attraction, not vector lookup | Frozen centroids, scales, margins | Conforming | `test_standardized_distance_uses_frozen_scales_masks_and_margin` |
+| Partial-cue completion | Recognition must approach the correct frozen basin | Full, route-only, partial, and atypical cue distances against every competitor | Conforming at the frozen one-seed observer scope | `test_frozen_cues_record_completion_and_ordered_reactivation_by_arm` |
+| Ordered lexical reactivation | Lexical acquisition must preserve sequence rather than feature bags | Full visual-only trajectory distance against reversed, permuted, repeated, and competing controls | Conforming observer and artifacts; the current one-seed run records no successful trained reactivations | `test_ordered_trajectory_observer_rejects_the_same_unordered_feature_bag` |
 | Functional Web detector | Webs require convergent causal evidence | Reliability, perturbation, connectivity controls | Unsupported | `test_web_membership_requires_all_evidence` |
 | Overlapping webs | Reusable structure must be shared | Shared feature membership | Unsupported | `test_detected_webs_can_overlap` |
 | Cardinal lifecycle | Addressability is earned behavior | Route, stimulation, Lesion, redundancy evidence | Nonconforming: commitment creates candidates | `test_commitment_alone_is_not_a_candidate` |
 | Lesion and stimulation | Establish causal role | Matched intervention effects | Unsupported | `test_lesion_preserves_incoming_activity` |
 | Paired controls and 20 seeds | Separate learning from arbitrary wiring | Per-seed paired metrics | Partial: trained, untrained, and shuffled arms are matched; multi-seed execution pending | `test_matched_arms_produce_complete_frozen_target_basins` |
 | Seed-level bootstrap | Avoid pseudoreplication | Deterministic paired intervals | Unsupported | `test_bootstrap_resamples_seed_effects` |
-| `ncl-functional-web-v1` artifacts | Make claims reproducible and inspectable | Complete file inventory | Partial: dataset, topology, arms, Presentations, learning, basins, Recruitment, homeostasis, and activity slices exist | `test_matched_arms_produce_complete_frozen_target_basins` |
+| `ncl-functional-web-v1` artifacts | Make claims reproducible and inspectable | Complete file inventory | Partial: dataset, topology, arms, Presentations, learning, basins, frozen completion/reactivation evaluation, Recruitment, homeostasis, and activity slices exist | `test_frozen_cues_record_completion_and_ordered_reactivation_by_arm` |
 
 The implementation MUST update this matrix as requirements become conforming. A requirement may be marked conforming only when its implementing test and required artifact evidence both exist.

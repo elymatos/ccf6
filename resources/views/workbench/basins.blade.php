@@ -103,4 +103,85 @@
         </div>
     @endforeach
 </section>
+
+@if ($completion)
+<section>
+    <h2>Frozen cue completion</h2>
+    <div class="panel">
+        <p class="lede">
+            Primary distance <code>{{ $completion['primary_distance'] }}</code> ·
+            secondary diagnostic <code>{{ $completion['secondary_diagnostic'] }}</code> ·
+            durable changes during evaluation {{ $summary['completion']['durable_changes_during_evaluation'] ?? 0 }}.
+            Settling failures count as failures: {{ $summary['completion']['settling_failures'] ?? 0 }} recorded.
+        </p>
+        <table>
+            <thead><tr><th class="l">Arm</th><th class="l">Condition</th><th>Correct basin</th></tr></thead>
+            <tbody>
+            @foreach (($summary['completion']['correct_basin_by_arm_and_condition'] ?? []) as $armId => $conditions)
+                @foreach ($conditions as $condition => $correct)
+                    <tr>
+                        <td class="l"><code>{{ $armId }}</code></td>
+                        <td class="l">{{ $condition }}</td>
+                        <td>{{ $correct }}</td>
+                    </tr>
+                @endforeach
+            @endforeach
+            </tbody>
+        </table>
+    </div>
+
+    @foreach ($completion['arms'] as $armId => $arm)
+        <div class="panel" style="margin-top:16px">
+            <h3><code>{{ $armId }}</code> · per-condition evidence</h3>
+            @foreach ($arm['conditions'] as $condition => $rows)
+                <details style="margin-bottom:10px">
+                    <summary>{{ $condition }} Presentations</summary>
+                    <table>
+                        <thead><tr><th class="l">Presentation</th><th class="l">Category</th><th>Initial distance</th><th>Settled distance</th><th>Margin</th><th>Every competitor</th><th>Settling failure</th><th>Correct basin</th></tr></thead>
+                        <tbody>
+                        @foreach ($rows as $row)
+                            <tr>
+                                <td class="l"><code>{{ $row['id'] }}</code></td>
+                                <td class="l"><code>{{ $row['category_id'] }}</code></td>
+                                <td>{{ $row['initial_distance'] }}</td>
+                                <td>{{ $row['settled_distance'] }}</td>
+                                <td>{{ $row['margin'] }}</td>
+                                <td>{{ $row['beats_every_competitor'] ? 'yes' : 'no' }}</td>
+                                <td>{{ $row['settling_failure'] ? 'yes' : 'no' }}</td>
+                                <td>{{ $row['correct_basin'] ? 'yes' : 'no' }}</td>
+                            </tr>
+                            <tr><td></td><td colspan="7" class="l muted">Standardized competitors <code>{{ json_encode($row['competing_distances']) }}</code> · cosine diagnostic <code>{{ json_encode(['correct' => $row['correct_cosine_distance'], 'competing' => $row['competing_cosine_distances']]) }}</code></td></tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                </details>
+            @endforeach
+        </div>
+    @endforeach
+</section>
+
+<section>
+    <h2>Ordered lexical reactivation</h2>
+    @foreach ($completion['arms'] as $armId => $arm)
+        <div class="panel" style="margin-bottom:16px">
+            <h3><code>{{ $armId }}</code></h3>
+            <table>
+                <thead><tr><th class="l">Category</th><th class="l">Pseudoword</th><th>Correct distance</th><th class="l">Control distances</th><th>Settling failure</th><th>Correct beats all</th></tr></thead>
+                <tbody>
+                @foreach ($arm['lexical_reactivation'] as $row)
+                    <tr>
+                        <td class="l"><code>{{ $row['category_id'] }}</code></td>
+                        <td class="l"><code>{{ $row['pseudoword_id'] }}</code></td>
+                        <td>{{ $row['correct_distance'] }}</td>
+                        <td class="l"><code>{{ json_encode($row['control_distances']) }}</code></td>
+                        <td>{{ $row['settling_failure'] ? 'yes' : 'no' }}</td>
+                        <td>{{ $row['correct_better_than_every_control'] ? 'yes' : 'no' }}</td>
+                    </tr>
+                @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endforeach
+</section>
+@endif
 @endsection

@@ -77,13 +77,14 @@ class WorkbenchController extends Controller
                 ]);
             }
 
-            if (($manifest['kind'] ?? null) === 'matched_target_basins') {
+            if (in_array($manifest['kind'] ?? null, ['matched_target_basins', 'completion_reactivation'], true)) {
                 return view('workbench.basins', [
                     'run' => basename($run),
                     'manifest' => $manifest,
                     'summary' => $summary,
                     'arms' => $this->json($dir.'/arms.json') ?? [],
                     'basins' => $this->json($dir.'/basins.json') ?? [],
+                    'completion' => $this->json($dir.'/evaluation.json') ?? [],
                 ]);
             }
         }

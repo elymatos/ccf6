@@ -72,4 +72,14 @@ def test_standardized_distance_uses_frozen_scales_masks_and_margin():
     assert evaluation.correct_distance + evaluation.margin < min(
         evaluation.competing_distances.values()
     )
+    failed_evaluation = frozen.evaluate(
+        expected_category="category-1",
+        initial_activity=np.asarray([0.9, 0.8, 0.5]),
+        settled_activity=np.asarray([0.1, 0.9, 0.5]),
+        settled_successfully=False,
+    )
+    assert failed_evaluation.closer_after_settling is True
+    assert failed_evaluation.beats_every_competitor is True
+    assert failed_evaluation.settling_failure is True
+    assert failed_evaluation.correct_basin is False
     assert frozen.as_dict() == before
