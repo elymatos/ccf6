@@ -2,7 +2,7 @@
 
 Status: **accepted target specification** · 2026-09-09
 
-This document specifies the next implementation of CCF6. It derives from [`neurocognitive_linguistics_summary.md`](neurocognitive_linguistics_summary.md) and realizes the architecture in [`architecture.md`](architecture.md). The current runtime is a prototype and is not assumed to conform.
+This document specifies the accepted implementation of CCF6. It derives from [`neurocognitive_linguistics_summary.md`](neurocognitive_linguistics_summary.md) and realizes the architecture in [`architecture.md`](architecture.md). Conformance describes the apparatus and artifact contract; it does not imply a positive scientific verdict.
 
 The words **MUST**, **MUST NOT**, **SHOULD**, and **MAY** are normative.
 
@@ -502,7 +502,7 @@ Every run set MUST contain:
 | File | Required contents |
 |---|---|
 | `definition.json` | Exact user-supplied experiment definition. |
-| `manifest.json` | Contract, software version, digest, timestamps, arm, seed, status, and file inventory. |
+| `manifest.json` | Contract, software version, digest, timestamps, arm and seed inventories, status, ordered file inventory, and SHA-256 checksum for every other file. |
 | `dataset.json` | Generated properties, pseudowords, pairings, constraints, and immutable split membership. |
 | `topology.npz` | Directed endpoints, initial weights, projection identity, and inhibition topology. |
 | `presentations.jsonl` | Presentation identity, Samples, Success Signal, settling duration, and settling status. |
@@ -513,6 +513,7 @@ Every run set MUST contain:
 | `cardinals.json` | Candidate evidence, stimulation, Lesion, redundancy, and final observer classifications. |
 | `metrics.json` | Per-condition and per-seed measurements. |
 | `aggregate.json` | Paired effects, bootstrap intervals, direction counts, failures, and acceptance verdict. |
+| `summary.json` | Human-scale summary of replication, criteria, failures, and verdict. |
 
 Tick-by-tick activity MAY be emitted as an optional diagnostic. It is not mandatory unless required to diagnose settling or sequence behavior.
 
@@ -568,7 +569,7 @@ The table describes the repository at the time this specification was accepted.
 | Requirement | Scientific rationale | Required evidence | Current status | Implementing test |
 |---|---|---|---|---|
 | One Network of ordinary Columns | Function comes from connectivity | Same mechanics in every Population | Conforming in Functional Web contract | `test_every_population_uses_the_same_column_mechanics` |
-| Neutral Population roles | Configured names must not assign meaning | No semantic Population declarations | Partial: Functional Web declarations conform; prototype retirement pending | `test_semantic_and_cardinal_population_flags_are_refused` |
+| Neutral Population roles | Configured names must not assign meaning | No semantic Population declarations | Conforming; prototype semantic Population code has been retired | `test_semantic_and_cardinal_population_flags_are_refused` |
 | Three functional compartments | Preserve route-sensitive integration | Input/Integration/Output traces | Conforming in Functional Web contract | `test_compartments_follow_normative_equations_synchronously` |
 | Zero resting activity | Avoid artificial similarity and background propagation | Exact zero after reset | Conforming in Functional Web contract | `test_reset_has_zero_activity` |
 | Logistic graded Output | Support thresholds and prototypes | Threshold response curve | Conforming | `test_output_is_graded_around_threshold` |
@@ -576,20 +577,20 @@ The table describes the repository at the time this specification was accepted.
 | Separate reciprocal weights | Recognition and reactivation need not be symmetric | Same endpoints, independent values | Conforming in Functional Web contract | `test_reciprocal_routes_have_independent_weights` |
 | Eligibility traces | Separate local credit from outcome | Trace evolution and reset | Conforming | `test_eligibility_follows_bounded_decay_and_endpoint_coactivity` |
 | Diffuse Success Signal | Confirm outcomes without per-weight labels | Correct/mismatch durable changes | Conforming | `test_only_success_confirms_eligible_connections` |
-| Presentation-level Recruitment | Repetition means distinct experiences | Contributing Presentation IDs | Conforming in Functional Web contract; prototype retirement pending | `test_one_presentation_cannot_recruit_by_itself` |
+| Presentation-level Recruitment | Repetition means distinct experiences | Contributing Presentation IDs | Conforming; prototype Recruitment code has been retired | `test_one_presentation_cannot_recruit_by_itself` |
 | Homeostatic thresholds | Prevent monopolies without semantic supervision | Local threshold histories | Conforming | `test_homeostasis_is_local_and_independent_of_success` |
 | Frozen evaluation | Prevent evaluation from becoming further training | Exact durable pre/post state | Conforming | `test_evaluation_freezes_every_durable_adaptation` |
 | Structured synthetic domain | Test grounding and lexical routes | Validated dataset artifact | Conforming | `test_generated_domain_satisfies_constraints` |
 | Ordered pseudowords | Lexical form is relational and sequential | Sequence-control distances | Conforming | `test_presentations_preserve_order_and_reject_unordered_feature_bags` |
 | Target Basin distributions | Completion is attraction, not vector lookup | Frozen centroids, scales, margins | Conforming | `test_standardized_distance_uses_frozen_scales_masks_and_margin` |
-| Partial-cue completion | Recognition must approach the correct frozen basin | Full, route-only, partial, and atypical cue distances against every competitor | Conforming at the frozen one-seed observer scope | `test_frozen_cues_record_completion_and_ordered_reactivation_by_arm` |
-| Ordered lexical reactivation | Lexical acquisition must preserve sequence rather than feature bags | Full visual-only trajectory distance against reversed, permuted, repeated, and competing controls | Conforming observer and artifacts; the current one-seed run records no successful trained reactivations | `test_ordered_trajectory_observer_rejects_the_same_unordered_feature_bag` |
-| Functional Web detector | Webs require convergent causal evidence | Reliability, perturbation, connectivity controls | Conforming observer and artifacts; the current one-seed run detects no Functional Web | `test_web_membership_requires_all_evidence_and_corrected_control_superiority` |
-| Overlapping webs | Reusable structure must be shared | Shared feature membership | Conforming detector capability; the current one-seed run has no selected membership to overlap | `test_detected_webs_can_overlap_while_association_activity_is_distinguishable` |
-| Cardinal lifecycle | Addressability is earned behavior | Route, stimulation, Lesion, redundancy evidence | Conforming observer and artifacts; the current one-seed run has no candidate and multi-seed classification is pending | `test_commitment_or_activation_alone_cannot_create_a_candidate` |
-| Lesion and stimulation | Establish causal role | Matched intervention effects | Conforming Network clamps and observer protocol; the current run has no candidate on which to execute the full intervention matrix | `test_stimulation_clamps_declared_outputs_without_sensory_input`, `test_lesion_suppresses_output_but_preserves_incoming_activity` |
+| Partial-cue completion | Recognition must approach the correct frozen basin | Full, route-only, partial, and atypical cue distances against every competitor | Conforming observer and 20-seed artifacts; the accepted milestone records no successful completion | `test_frozen_cues_record_completion_and_ordered_reactivation_by_arm` |
+| Ordered lexical reactivation | Lexical acquisition must preserve sequence rather than feature bags | Full visual-only trajectory distance against reversed, permuted, repeated, and competing controls | Conforming observer and artifacts; the accepted 20-seed milestone records no successful trained reactivations | `test_ordered_trajectory_observer_rejects_the_same_unordered_feature_bag` |
+| Functional Web detector | Webs require convergent causal evidence | Reliability, perturbation, connectivity controls | Conforming observer and artifacts; the accepted milestone detects no Functional Web in 20/20 seeds | `test_web_membership_requires_all_evidence_and_corrected_control_superiority` |
+| Overlapping webs | Reusable structure must be shared | Shared feature membership | Conforming detector capability; the accepted milestone has no selected membership to overlap | `test_detected_webs_can_overlap_while_association_activity_is_distinguishable` |
+| Cardinal lifecycle | Addressability is earned behavior | Route, stimulation, Lesion, redundancy evidence | Conforming observer and artifacts; no Candidate intervention is executable in 20/20 seeds because no causal Functional Web exists | `test_commitment_or_activation_alone_cannot_create_a_candidate` |
+| Lesion and stimulation | Establish causal role | Matched intervention effects | Conforming Network clamps and observer protocol; non-executable Candidate interventions are explicitly reported | `test_stimulation_clamps_declared_outputs_without_sensory_input`, `test_lesion_suppresses_output_but_preserves_incoming_activity` |
 | Paired controls and 20 seeds | Separate learning from arbitrary wiring | Per-seed paired metrics | Conforming execution and seed-level evidence; candidate interventions are explicitly non-executable when no candidate exists | `test_replicated_run_preserves_seed_rows_and_aggregate_artifacts` |
 | Seed-level bootstrap | Avoid pseudoreplication | Deterministic paired intervals | Conforming with 10,000 deterministic paired seed resamples | `test_bootstrap_resamples_seed_effects_deterministically_not_presentations` |
-| `ncl-functional-web-v1` artifacts | Make claims reproducible and inspectable | Complete file inventory | Partial: dataset, topology, arms, Presentations, learning, basins, frozen completion/reactivation evaluation, Functional Web and cardinal evidence, seed metrics, aggregate verdict, Recruitment, homeostasis, and activity slices exist | `test_replicated_run_preserves_seed_rows_and_aggregate_artifacts` |
+| `ncl-functional-web-v1` artifacts | Make claims reproducible and inspectable | Complete file inventory | Conforming: one milestone directory contains the exact definition, identity, all 20 seed datasets and numerical evidence, observer classifications, metrics, intervals, failures, and negative verdict | `test_complete_artifact_is_readable_without_rerunning`, `test_replicated_run_preserves_seed_rows_and_aggregate_artifacts` |
 
 The implementation MUST update this matrix as requirements become conforming. A requirement may be marked conforming only when its implementing test and required artifact evidence both exist.

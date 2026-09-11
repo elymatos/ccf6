@@ -11,7 +11,7 @@ import numpy as np
 from ccf6.cardinals import CardinalObserver
 from ccf6.completion_evaluation import OrderedTrajectoryObserver
 from ccf6.domain import generate_domain
-from ccf6.functional_network import Network
+from ccf6.functional_network import LearningResult, Network
 from ccf6.functional_presentation import PresentationProtocol, PresentationRecord
 from ccf6.functional_webs import (
     FunctionalWebObserver,
@@ -33,6 +33,7 @@ class ArmRun:
     initial_descending: np.ndarray
     initial_thresholds: np.ndarray
     acquisition_presentations: list[dict]
+    learning_results: list[LearningResult]
     frozen_basins: FrozenTargetBasins | None = None
     held_out_evaluations: list[dict] | None = None
 
@@ -62,6 +63,16 @@ def _projection_values(network: Network, attribute: str) -> np.ndarray:
 def _population_values(network: Network, attribute: str) -> np.ndarray:
     return np.concatenate(
         [getattr(network.populations[name], attribute) for name in network.population_order]
+    )
+
+
+def _learning_values(
+    result: LearningResult,
+    collection: str,
+    attribute: str,
+) -> np.ndarray:
+    return np.concatenate(
+        [getattr(value, attribute) for value in getattr(result, collection)]
     )
 
 
@@ -153,6 +164,7 @@ def _train_arm(
     epochs = definition["acquisition"]["epochs"]
     mismatch_rotation = definition["acquisition"]["mismatch_rotation"]
     rows = []
+    learning_results = []
     for epoch in range(1, epochs + 1):
         for index, category in enumerate(categories):
             acquisition_instances = category["splits"]["acquisition"]
@@ -182,7 +194,9 @@ def _train_arm(
                     raise RuntimeError(
                         f"{identifier}: cannot train from a settling failure"
                     )
-                network.apply_success_signal(signal, identifier)
+                learning_results.append(
+                    network.apply_success_signal(signal, identifier)
+                )
                 rows.append(
                     _presentation_row(
                         record,
@@ -201,6 +215,7 @@ def _train_arm(
         initial_descending=initial_descending,
         initial_thresholds=initial_thresholds,
         acquisition_presentations=rows,
+        learning_results=learning_results,
     )
 
 
@@ -830,6 +845,71 @@ def run_matched_target_basins(definition: dict) -> dict:
     pairing_ids = np.asarray(
         [[pseudoword["id"] for pseudoword in arm.pairing] for arm in arms]
     )
+    learning_attributes = (
+        "ascending_eligibility",
+        "descending_eligibility",
+        "pre_ascending_weights",
+        "post_ascending_weights",
+        "pre_descending_weights",
+        "post_descending_weights",
+    )
+    learning_arrays = {
+        attribute: np.stack(
+            [
+                np.stack(
+                    [
+                        _learning_values(result, "projections", attribute)
+                        for result in arm.learning_results
+                    ]
+                )
+                for arm in arms
+            ]
+        )
+        for attribute in learning_attributes
+    }
+    population_learning_attributes = (
+        "pre_thresholds",
+        "post_thresholds",
+        "pre_activity_average",
+        "post_activity_average",
+        "pre_entrenchment",
+        "post_entrenchment",
+        "post_contributor_counts",
+        "recruited",
+    )
+    learning_arrays.update(
+        {
+            attribute: np.stack(
+                [
+                    np.stack(
+                        [
+                            _learning_values(result, "populations", attribute)
+                            for result in arm.learning_results
+                        ]
+                    )
+                    for arm in arms
+                ]
+            )
+            for attribute in population_learning_attributes
+        }
+    )
+    learning_arrays.update(
+        {
+            "arm_ids": np.asarray(ARM_IDS),
+            "presentation_ids": np.asarray(
+                [
+                    [result.presentation_id for result in arm.learning_results]
+                    for arm in arms
+                ]
+            ),
+            "success_signals": np.asarray(
+                [
+                    [result.success_signal for result in arm.learning_results]
+                    for arm in arms
+                ]
+            ),
+        }
+    )
     arm_rows = []
     for index, arm in enumerate(arms):
         durable_change = not (
@@ -933,6 +1013,35 @@ def run_matched_target_basins(definition: dict) -> dict:
             "final_contributor_counts": final_contributors,
             "final_recruited": final_recruited,
         },
+        "learning": {
+            "arm_ids": list(ARM_IDS),
+            "parameters": dict(definition["network"]["plasticity"]),
+            "adaptation_parameters": dict(definition["network"]["adaptation"]),
+            "presentations": {
+                arm.identifier: [
+                    {
+                        "id": learning.presentation_id,
+                        "success_signal": learning.success_signal,
+                        "adaptation_applied": learning.adaptation_applied,
+                        "ascending_eligibility_sum": float(
+                            sum(
+                                projection.ascending_eligibility.sum()
+                                for projection in learning.projections
+                            )
+                        ),
+                        "descending_eligibility_sum": float(
+                            sum(
+                                projection.descending_eligibility.sum()
+                                for projection in learning.projections
+                            )
+                        ),
+                    }
+                    for learning in arm.learning_results
+                ]
+                for arm in arms
+            },
+        },
+        "learning_arrays": learning_arrays,
         "basins": basins,
         "presentations": presentation_rows,
         "activity_arrays": {

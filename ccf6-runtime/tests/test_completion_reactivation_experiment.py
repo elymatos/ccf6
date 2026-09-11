@@ -30,6 +30,8 @@ def test_frozen_cues_record_completion_and_ordered_reactivation_by_arm(tmp_path)
         "arms.npz",
         "arms.json",
         "presentations.jsonl",
+        "learning.npz",
+        "learning.json",
         "activity.npz",
         "activity.json",
         "basins.json",

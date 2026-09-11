@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
+
+import numpy as np
 
 from ccf6.experiment import execute, load
 
@@ -21,6 +24,21 @@ def test_cardinal_artifact_exposes_lifecycle_controls_interventions_and_failures
     cardinals = json.loads((run / "cardinals.json").read_text())
     summary = json.loads((run / "summary.json").read_text())
     assert "cardinals.json" in manifest["files"]
+    assert "learning.json" in manifest["files"]
+    assert "learning.npz" in manifest["files"]
+    assert list(manifest["checksums"]) == [
+        name for name in manifest["files"] if name != "manifest.json"
+    ]
+    for name, checksum in manifest["checksums"].items():
+        assert hashlib.sha256((run / name).read_bytes()).hexdigest() == checksum
+    learning = np.load(run / "learning.npz", allow_pickle=False)
+    assert learning["ascending_eligibility"].shape[:2] == (3, 24)
+    assert learning["pre_ascending_weights"].shape == learning[
+        "post_ascending_weights"
+    ].shape
+    assert learning["pre_descending_weights"].shape == learning[
+        "post_descending_weights"
+    ].shape
     assert cardinals["observer_only"] is True
     assert cardinals["runtime_cardinal_flags"] is False
     assert cardinals["stimulation_protocol"] == {

@@ -2,7 +2,7 @@
 
 Status: **accepted target architecture** · 2026-09-09
 
-This architecture implements only the commitments summarized in [`neurocognitive_linguistics_summary.md`](neurocognitive_linguistics_summary.md). The normative mechanics and acceptance criteria are in [`specification.md`](specification.md). The current runtime is an earlier prototype and does not yet conform to that specification.
+This architecture implements only the commitments summarized in [`neurocognitive_linguistics_summary.md`](neurocognitive_linguistics_summary.md). The normative mechanics and acceptance criteria are in [`specification.md`](specification.md). The runtime and accepted milestone artifacts conform to that contract; the scientific milestone itself records a negative verdict.
 
 ## 1. Scientific commitments
 
@@ -128,7 +128,7 @@ Correct full pairings receive a diffuse positive Success Signal. Balanced mismat
 - redundant recovery;
 - matched untrained, shuffled-pairing, and perturbation controls.
 
-At least 20 paired seeds determine the result. Seed-level effects, deterministic bootstrap intervals, direction counts, and failures are mandatory. Completion and reactivation must improve while held-out separation remains within a 5% relative non-inferiority margin.
+At least 20 paired seeds determine the result. Seed-level effects, deterministic bootstrap intervals, direction counts, and failures are mandatory. Completion and reactivation must improve while held-out separation remains within a 5% relative non-inferiority margin. The accepted run preserves a failed milestone verdict: completion, reactivation, localization, overlap, and cardinal intervention criteria fail, while held-out separation non-inferiority passes.
 
 ## 9. Scientific boundary
 

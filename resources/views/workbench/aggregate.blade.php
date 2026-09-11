@@ -17,6 +17,28 @@
 </section>
 
 <section>
+    <h2>Complete artifact contract</h2>
+    <div class="panel">
+        <p>
+            Contract <code>{{ $manifest['contract'] }}</code> · software <code>{{ $manifest['software_version'] }}</code> ·
+            identity <code>{{ $manifest['digest'] }}</code> · status <strong>{{ $manifest['status'] }}</strong>
+        </p>
+        <table>
+            <thead><tr><th class="l">File</th><th>Bytes</th><th class="l">SHA-256</th></tr></thead>
+            <tbody>
+            @foreach ($artifacts as $artifact)
+                <tr>
+                    <td class="l"><code>{{ $artifact['name'] }}</code></td>
+                    <td>{{ number_format($artifact['bytes']) }}</td>
+                    <td class="l"><code>{{ $artifact['checksum'] ?? 'manifest identity above' }}</code></td>
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section>
     <h2>Criterion-by-criterion verdict</h2>
     <div class="panel">
         <table>
