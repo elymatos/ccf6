@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from ccf6.completion_evaluation import OrderedTrajectoryObserver
 from ccf6.domain import generate_domain
 from ccf6.functional_network import Network
 from ccf6.functional_presentation import PresentationProtocol, PresentationRecord
@@ -302,6 +303,376 @@ def _fit_and_evaluate(
     )
 
 
+def _durable_state(network: Network) -> dict[str, np.ndarray]:
+    return {
+        "ascending_weights": _projection_values(network, "ascending_weights").copy(),
+        "descending_weights": _projection_values(network, "descending_weights").copy(),
+        "thresholds": _population_values(network, "thresholds").copy(),
+        "activity_average": _population_values(network, "activity_average").copy(),
+        "entrenchment": _population_values(network, "entrenchment").copy(),
+        "contributor_counts": _contributor_counts(network),
+    }
+
+
+def _output_trajectory(
+    record: PresentationRecord,
+    column_indices: np.ndarray,
+    *,
+    auditory_only: bool,
+) -> np.ndarray:
+    samples = [
+        sample
+        for sample in record.samples
+        if not auditory_only or sample.kind == "auditory"
+    ]
+    chunks = []
+    for index, sample in enumerate(samples):
+        activity = sample.settling.activity[:, column_indices, 2]
+        chunks.append(activity if index == 0 else activity[1:])
+    return np.concatenate(chunks)
+
+
+def _completion_evidence(
+    definition: dict,
+    dataset: dict,
+    categories: list[dict],
+    arms: list[ArmRun],
+) -> tuple[dict, dict[str, np.ndarray], list[dict], dict]:
+    declaration = definition["completion"]
+    required_conditions = {
+        "full",
+        "visual_only",
+        "pseudoword_only",
+        "partial_visual",
+        "atypical_held_out",
+    }
+    if set(declaration) != {
+        "conditions",
+        "partial_visual_dimensions",
+        "atypical_selection",
+        "trajectory_sample_points",
+        "trajectory_populations",
+    }:
+        raise ValueError("completion must declare cue and trajectory parameters")
+    if set(declaration["conditions"]) != required_conditions or len(
+        declaration["conditions"]
+    ) != len(required_conditions):
+        raise ValueError(f"completion conditions must be {sorted(required_conditions)}")
+    if declaration["atypical_selection"] != "maximum_prototype_distance":
+        raise ValueError("atypical held-out selection must use prototype distance")
+    visual_dimensions = {row["id"] for row in dataset["visual_property_dimensions"]}
+    partial_dimensions = tuple(declaration["partial_visual_dimensions"])
+    if not partial_dimensions or not set(partial_dimensions) < visual_dimensions:
+        raise ValueError("partial visual dimensions must be a non-empty proper subset")
+    trajectory_observer = OrderedTrajectoryObserver(
+        sample_points=declaration["trajectory_sample_points"]
+    )
+    all_pseudowords = dataset["pseudowords"]
+    condition_order = tuple(declaration["conditions"])
+    completion_initial = []
+    completion_settled = []
+    completion_success = []
+    lexical_correct = []
+    lexical_controls = []
+    lexical_control_labels = []
+    lexical_visual_trajectories = []
+    lexical_correct_trajectories = []
+    lexical_control_trajectories = []
+    presentation_rows = []
+    arm_evidence = {}
+    durable_changes = 0
+    settling_failures = 0
+
+    for arm in arms:
+        before = _durable_state(arm.network)
+        labels = arm.network.column_labels()
+        trajectory_indices = np.asarray(
+            [
+                index
+                for index, label in enumerate(labels)
+                if any(
+                    label.startswith(f"{population_id}#")
+                    for population_id in declaration["trajectory_populations"]
+                )
+            ],
+            dtype=np.int64,
+        )
+        if trajectory_indices.size == 0:
+            raise ValueError("trajectory Populations select no Columns")
+        condition_records: dict[str, list[PresentationRecord]] = {
+            condition: [] for condition in condition_order
+        }
+        condition_rows = {condition: [] for condition in condition_order}
+        arm_initial = []
+        arm_settled = []
+        arm_success = []
+        for condition in condition_order:
+            condition_initial = []
+            condition_settled = []
+            condition_success = []
+            for index, category in enumerate(categories):
+                pseudoword = arm.pairing[index]
+                prototype = category["prototype"]["properties"]
+                visual_properties = prototype
+                visual_identifier = category["id"]
+                segments: tuple[str, ...] | list[str] = pseudoword["segments"]
+                if condition == "visual_only":
+                    segments = ()
+                elif condition == "pseudoword_only":
+                    visual_properties = None
+                    visual_identifier = "none"
+                elif condition == "partial_visual":
+                    visual_properties = [
+                        property_
+                        for property_ in prototype
+                        if property_["dimension"] in partial_dimensions
+                    ]
+                    segments = ()
+                elif condition == "atypical_held_out":
+                    atypical = max(
+                        category["splits"]["final_held_out"],
+                        key=lambda row: (row["prototype_distance"], row["id"]),
+                    )
+                    visual_properties = atypical["properties"]
+                    visual_identifier = atypical["id"]
+                identifier = f"{arm.identifier}-{condition}-{category['id']}"
+                record = arm.protocol.run_cue(
+                    presentation_id=identifier,
+                    category=category,
+                    pseudoword_id=pseudoword["id"],
+                    visual_properties=visual_properties,
+                    visual_identifier=visual_identifier,
+                    segments=segments,
+                    condition=condition,
+                )
+                settled_successfully = record.settling_failures == 0
+                initial = record.samples[0].settling.activity[1, :, 2]
+                settled = record.settled_states[-1, :, 2]
+                basin_evaluation = arm.frozen_basins.evaluate(
+                    expected_category=category["id"],
+                    initial_activity=initial,
+                    settled_activity=settled,
+                    settled_successfully=settled_successfully,
+                )
+                row = basin_evaluation.as_dict()
+                row.update(
+                    {
+                        "id": identifier,
+                        "arm_id": arm.identifier,
+                        "condition": condition,
+                        "category_id": category["id"],
+                        "pseudoword_id": pseudoword["id"],
+                        "visual_instance_id": visual_identifier,
+                        "segments": list(segments),
+                        "settling_failure": not settled_successfully,
+                        "correct_basin": basin_evaluation.correct_basin,
+                    }
+                )
+                settling_failures += int(not settled_successfully)
+                condition_records[condition].append(record)
+                condition_rows[condition].append(row)
+                condition_initial.append(initial)
+                condition_settled.append(settled)
+                condition_success.append(settled_successfully)
+                presentation_rows.append(
+                    _presentation_row(
+                        record,
+                        arm_id=arm.identifier,
+                        phase="frozen_evaluation",
+                        visual_instance_id=visual_identifier,
+                    )
+                )
+            arm_initial.append(np.stack(condition_initial))
+            arm_settled.append(np.stack(condition_settled))
+            arm_success.append(np.asarray(condition_success))
+
+        arm_lexical = []
+        arm_lexical_correct = []
+        arm_lexical_controls = []
+        arm_control_labels = []
+        arm_visual_trajectories = []
+        arm_correct_trajectories = []
+        arm_control_trajectories = []
+        for index, category in enumerate(categories):
+            pseudoword = arm.pairing[index]
+            visual_record = condition_records["visual_only"][index]
+            full_record = condition_records["full"][index]
+            visual_trajectory = _output_trajectory(
+                visual_record,
+                trajectory_indices,
+                auditory_only=False,
+            )
+            correct_trajectory = _output_trajectory(
+                full_record,
+                trajectory_indices,
+                auditory_only=True,
+            )
+            controls = {
+                "reversed": pseudoword["controls"]["reversed"],
+                "permuted": pseudoword["controls"]["permuted"],
+                "repeated_segment": pseudoword["controls"]["repeated_segment"],
+            }
+            controls.update(
+                {
+                    f"competing:{competitor['id']}": competitor["segments"]
+                    for competitor in all_pseudowords
+                    if competitor["id"] != pseudoword["id"]
+                }
+            )
+            control_trajectories = {}
+            control_failed = False
+            for control_name, control_segments in controls.items():
+                identifier = (
+                    f"{arm.identifier}-lexical-{control_name}-{category['id']}"
+                )
+                control_record = arm.protocol.run_cue(
+                    presentation_id=identifier,
+                    category=category,
+                    pseudoword_id=pseudoword["id"],
+                    visual_properties=category["prototype"]["properties"],
+                    visual_identifier=category["id"],
+                    segments=control_segments,
+                    condition=f"lexical_control:{control_name}",
+                )
+                failed = control_record.settling_failures > 0
+                control_failed = control_failed or failed
+                settling_failures += int(failed)
+                control_trajectories[control_name] = _output_trajectory(
+                    control_record,
+                    trajectory_indices,
+                    auditory_only=True,
+                )
+                presentation_rows.append(
+                    _presentation_row(
+                        control_record,
+                        arm_id=arm.identifier,
+                        phase="lexical_control",
+                        visual_instance_id=category["id"],
+                    )
+                )
+            lexical = trajectory_observer.evaluate(
+                visual_reactivation=visual_trajectory,
+                correct_trajectory=correct_trajectory,
+                control_trajectories=control_trajectories,
+            )
+            lexical_row = lexical.as_dict()
+            lexical_row.update(
+                {
+                    "arm_id": arm.identifier,
+                    "category_id": category["id"],
+                    "pseudoword_id": pseudoword["id"],
+                    "settling_failure": control_failed
+                    or visual_record.settling_failures > 0
+                    or full_record.settling_failures > 0,
+                    "correct_better_than_every_control": (
+                        lexical.correct_better_than_every_control
+                        and not control_failed
+                        and visual_record.settling_failures == 0
+                        and full_record.settling_failures == 0
+                    ),
+                }
+            )
+            arm_lexical.append(lexical_row)
+            arm_lexical_correct.append(lexical.correct_distance)
+            arm_lexical_controls.append(
+                [lexical.control_distances[name] for name in controls]
+            )
+            arm_control_labels.append(list(controls))
+            arm_visual_trajectories.append(
+                trajectory_observer.sample(visual_trajectory)
+            )
+            arm_correct_trajectories.append(
+                trajectory_observer.sample(correct_trajectory)
+            )
+            arm_control_trajectories.append(
+                np.stack(
+                    [
+                        trajectory_observer.sample(control_trajectories[name])
+                        for name in controls
+                    ]
+                )
+            )
+        after = _durable_state(arm.network)
+        durable_changed = any(
+            not np.array_equal(before[name], after[name]) for name in before
+        )
+        durable_changes += int(durable_changed)
+        arm_evidence[arm.identifier] = {
+            "durable_state_frozen": not durable_changed,
+            "durable_state_before_digest": _array_digest(before),
+            "durable_state_after_digest": _array_digest(after),
+            "conditions": condition_rows,
+            "lexical_reactivation": arm_lexical,
+        }
+        completion_initial.append(np.stack(arm_initial))
+        completion_settled.append(np.stack(arm_settled))
+        completion_success.append(np.stack(arm_success))
+        lexical_correct.append(np.asarray(arm_lexical_correct))
+        lexical_controls.append(np.asarray(arm_lexical_controls))
+        lexical_control_labels.append(np.asarray(arm_control_labels))
+        lexical_visual_trajectories.append(np.stack(arm_visual_trajectories))
+        lexical_correct_trajectories.append(np.stack(arm_correct_trajectories))
+        lexical_control_trajectories.append(np.stack(arm_control_trajectories))
+
+    condition_counts = {
+        condition: sum(
+            len(arm_evidence[arm_id]["conditions"][condition])
+            for arm_id in ARM_IDS
+        )
+        for condition in condition_order
+    }
+    correct_basin = {
+        arm_id: {
+            condition: sum(
+                row["correct_basin"]
+                for row in arm_evidence[arm_id]["conditions"][condition]
+            )
+            for condition in condition_order
+        }
+        for arm_id in ARM_IDS
+    }
+    reactivation_success = {
+        arm_id: sum(
+            row["correct_better_than_every_control"]
+            for row in arm_evidence[arm_id]["lexical_reactivation"]
+        )
+        for arm_id in ARM_IDS
+    }
+    evidence = {
+        "primary_distance": "standardized_euclidean",
+        "secondary_diagnostic": "cosine_distance",
+        "trajectory_distance": "resampled_root_mean_square",
+        "trajectory_sample_points": declaration["trajectory_sample_points"],
+        "partial_visual_dimensions": list(partial_dimensions),
+        "arms": arm_evidence,
+    }
+    arrays = {
+        "completion_condition_ids": np.asarray(condition_order),
+        "completion_initial_output": np.stack(completion_initial),
+        "completion_settled_output": np.stack(completion_settled),
+        "completion_settled": np.stack(completion_success),
+        "lexical_correct_distance": np.stack(lexical_correct),
+        "lexical_control_distances": np.stack(lexical_controls),
+        "lexical_control_labels": np.stack(lexical_control_labels),
+        "lexical_visual_trajectory": np.stack(lexical_visual_trajectories),
+        "lexical_correct_trajectory": np.stack(lexical_correct_trajectories),
+        "lexical_control_trajectories": np.stack(lexical_control_trajectories),
+    }
+    summary = {
+        "completion": {
+            "conditions": condition_counts,
+            "correct_basin_by_arm_and_condition": correct_basin,
+            "durable_changes_during_evaluation": durable_changes,
+            "settling_failures": settling_failures,
+        },
+        "reactivation": {
+            "correct_better_than_controls_by_arm": reactivation_success,
+            "trained_correct_better_than_controls": reactivation_success["trained"],
+        },
+    }
+    return evidence, arrays, presentation_rows, summary
+
+
 def run_matched_target_basins(definition: dict) -> dict:
     """Run matched arms, freeze adaptation, fit basins, then evaluate held-out data."""
     _validate_definition(definition)
@@ -359,6 +730,7 @@ def run_matched_target_basins(definition: dict) -> dict:
             "presentation": definition["presentation"],
             "acquisition": definition["acquisition"],
             "basins": definition["basins"],
+            "completion": definition.get("completion"),
         }
     )
     initial_ascending = np.stack([arm.initial_ascending for arm in arms])
@@ -462,7 +834,7 @@ def run_matched_target_basins(definition: dict) -> dict:
         and np.all(initial_descending == initial_descending[0])
         and np.all(initial_thresholds == initial_thresholds[0])
     )
-    return {
+    result = {
         "contract": "ncl-functional-web-v1",
         "dataset": dataset,
         "topology": topology,
@@ -546,3 +918,18 @@ def run_matched_target_basins(definition: dict) -> dict:
             **definition["basins"],
         },
     }
+    if "completion" in definition:
+        evidence, arrays, rows, summary = _completion_evidence(
+            definition,
+            dataset,
+            categories,
+            arms,
+        )
+        result["completion"] = evidence
+        result["activity_arrays"].update(arrays)
+        result["presentations"].extend(rows)
+        result["summary"].update(summary)
+        result["parameters"]["trajectory_sample_points"] = definition[
+            "completion"
+        ]["trajectory_sample_points"]
+    return result

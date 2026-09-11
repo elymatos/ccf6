@@ -160,35 +160,64 @@ class PresentationProtocol:
         """Reset once, present visual activity, then ordered auditory Samples."""
         if len(segments) != 3:
             raise ValueError("a pseudoword Presentation requires exactly three segments")
+        visual = visual_instance or category["prototype"]
+        return self.run_cue(
+            presentation_id=presentation_id,
+            category=category,
+            pseudoword_id=pseudoword_id,
+            visual_properties=visual["properties"],
+            visual_identifier=visual.get("id", category["id"]),
+            segments=segments,
+            condition=condition,
+            success_signal=success_signal,
+        )
+
+    def run_cue(
+        self,
+        *,
+        presentation_id: str,
+        category: dict,
+        pseudoword_id: str,
+        visual_properties: list[dict] | None,
+        segments: list[str] | tuple[str, ...],
+        condition: str,
+        success_signal: float = 0.0,
+        visual_identifier: str | None = None,
+    ) -> PresentationRecord:
+        """Run a frozen-evaluation cue with visual and/or auditory evidence."""
+        if len(segments) not in (0, 3):
+            raise ValueError("an auditory cue requires exactly three segments")
+        if visual_properties is None and not segments:
+            raise ValueError("a cue requires visual or auditory evidence")
         self.network.reset()
         samples = []
 
-        visual = visual_instance or category["prototype"]
-        visual_features = tuple(
-            f"{row['dimension']}={row['value']}"
-            for row in visual["properties"]
-        )
-        initial_eligibility = self.network.eligibility_matrix()
-        visual_result = self.network.settle(
-            self._visual_sensory(visual["properties"])
-        )
-        samples.append(
-            SampleRecord(
-                number=1,
-                kind="visual",
-                identifier=visual.get("id", category["id"]),
-                active_features=visual_features,
-                initial_eligibility=initial_eligibility,
-                settled_eligibility=self.network.eligibility_matrix(),
-                settling=visual_result,
+        if visual_properties is not None:
+            visual_features = tuple(
+                f"{row['dimension']}={row['value']}"
+                for row in visual_properties
             )
-        )
-        for number, segment in enumerate(segments, start=2):
+            initial_eligibility = self.network.eligibility_matrix()
+            visual_result = self.network.settle(
+                self._visual_sensory(visual_properties)
+            )
+            samples.append(
+                SampleRecord(
+                    number=1,
+                    kind="visual",
+                    identifier=visual_identifier or category["id"],
+                    active_features=visual_features,
+                    initial_eligibility=initial_eligibility,
+                    settled_eligibility=self.network.eligibility_matrix(),
+                    settling=visual_result,
+                )
+            )
+        for segment in segments:
             initial_eligibility = self.network.eligibility_matrix()
             auditory_result = self.network.settle(self._auditory_sensory(segment))
             samples.append(
                 SampleRecord(
-                    number=number,
+                    number=len(samples) + 1,
                     kind="auditory",
                     identifier=segment,
                     active_features=self.segment_features[segment],
@@ -205,6 +234,6 @@ class PresentationProtocol:
             condition=condition,
             segments=tuple(segments),
             success_signal=float(success_signal),
-            initial_activity=visual_result.activity[0],
+            initial_activity=samples[0].settling.activity[0],
             samples=tuple(samples),
         )

@@ -235,6 +235,28 @@ class WorkbenchTest extends TestCase
         }
     }
 
+    public function test_frozen_completion_and_ordered_reactivation_evidence_is_rendered(): void
+    {
+        [$root, $run] = $this->runExperiment('008-completion-reactivation.json');
+        $evaluation = json_decode(file_get_contents($root.'/'.$run.'/evaluation.json'), true);
+        $partial = $evaluation['arms']['trained']['conditions']['partial_visual'][0];
+        $lexical = $evaluation['arms']['trained']['lexical_reactivation'][0];
+
+        try {
+            config(['ccf6.artifact_root' => $root]);
+            $this->get('/runs/'.$run)
+                ->assertSee('Frozen cue completion')
+                ->assertSee('standardized_euclidean')
+                ->assertSee('cosine_distance')
+                ->assertSee($partial['id'])
+                ->assertSee('Ordered lexical reactivation')
+                ->assertSee($lexical['pseudoword_id'])
+                ->assertSee('Settling failures count as failures');
+        } finally {
+            $this->removeArtifactRoot($root, $run);
+        }
+    }
+
     public function test_zero_rest_network_identifies_a_max_tick_failure(): void
     {
         $definitionPath = sys_get_temp_dir().'/ccf6-failing-network-'.getmypid().'.json';

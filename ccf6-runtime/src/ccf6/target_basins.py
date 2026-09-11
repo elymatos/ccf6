@@ -28,9 +28,12 @@ class BasinEvaluation:
     settled_distance: float
     correct_distance: float
     competing_distances: dict[str, float]
+    correct_cosine_distance: float
+    competing_cosine_distances: dict[str, float]
     margin: float
     closer_after_settling: bool
     beats_every_competitor: bool
+    settling_failure: bool
     correct_basin: bool
 
     def as_dict(self) -> dict:
@@ -40,9 +43,12 @@ class BasinEvaluation:
             "settled_distance": self.settled_distance,
             "correct_distance": self.correct_distance,
             "competing_distances": dict(self.competing_distances),
+            "correct_cosine_distance": self.correct_cosine_distance,
+            "competing_cosine_distances": dict(self.competing_cosine_distances),
             "margin": self.margin,
             "closer_after_settling": self.closer_after_settling,
             "beats_every_competitor": self.beats_every_competitor,
+            "settling_failure": self.settling_failure,
             "correct_basin": self.correct_basin,
         }
 
@@ -79,12 +85,25 @@ class FrozenTargetBasins:
         ) / self.pooled_scale[basin.reliable_mask]
         return float(np.sqrt(np.mean(np.square(difference))))
 
+    @staticmethod
+    def _cosine_distance(
+        activity: np.ndarray,
+        basin: TargetBasin,
+    ) -> float:
+        left = np.asarray(activity, dtype=np.float64)[basin.reliable_mask]
+        right = basin.centroid[basin.reliable_mask]
+        denominator = float(np.linalg.norm(left) * np.linalg.norm(right))
+        if denominator == 0.0:
+            return 0.0 if np.array_equal(left, right) else 1.0
+        return float(1.0 - np.dot(left, right) / denominator)
+
     def evaluate(
         self,
         *,
         expected_category: str,
         initial_activity: np.ndarray,
         settled_activity: np.ndarray,
+        settled_successfully: bool = True,
     ) -> BasinEvaluation:
         if expected_category not in self.categories:
             raise ValueError(f"unknown Target Basin {expected_category!r}")
@@ -100,6 +119,12 @@ class FrozenTargetBasins:
             for category_id, basin in self.categories.items()
             if category_id != expected_category
         }
+        correct_cosine = self._cosine_distance(settled_activity, correct)
+        competing_cosine = {
+            category_id: self._cosine_distance(settled_activity, basin)
+            for category_id, basin in self.categories.items()
+            if category_id != expected_category
+        }
         beats_every = all(
             settled_distance + correct.margin < distance
             for distance in competing.values()
@@ -111,10 +136,13 @@ class FrozenTargetBasins:
             settled_distance=settled_distance,
             correct_distance=settled_distance,
             competing_distances=competing,
+            correct_cosine_distance=correct_cosine,
+            competing_cosine_distances=competing_cosine,
             margin=correct.margin,
             closer_after_settling=closer,
             beats_every_competitor=beats_every,
-            correct_basin=closer and beats_every,
+            settling_failure=not settled_successfully,
+            correct_basin=settled_successfully and closer and beats_every,
         )
 
     def as_dict(self) -> dict:

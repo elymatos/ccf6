@@ -1,0 +1,228 @@
+{
+  "number": "008",
+  "name": "Frozen completion and ordered lexical reactivation",
+  "kind": "completion_reactivation",
+  "question": "Do frozen partial cues complete toward Target Basins and visual cues reinstate learned ordered phonological activity?",
+  "seed": 20260910,
+  "presentation": {
+    "visual_populations": {
+      "contour": "visual-contour",
+      "surface": "visual-surface",
+      "marking": "visual-marking"
+    },
+    "auditory_population": "auditory-feature"
+  },
+  "network": {
+    "seed": 20260910,
+    "populations": [
+      {
+        "id": "visual-contour",
+        "columns": 4,
+        "provenance": "generated contour properties",
+        "wiring_role": "visual sensory input",
+        "inhibition": {
+          "radius": 1,
+          "strength": 0.1
+        }
+      },
+      {
+        "id": "visual-surface",
+        "columns": 4,
+        "provenance": "generated surface properties",
+        "wiring_role": "visual sensory input",
+        "inhibition": {
+          "radius": 1,
+          "strength": 0.1
+        }
+      },
+      {
+        "id": "visual-marking",
+        "columns": 4,
+        "provenance": "generated marking properties",
+        "wiring_role": "visual sensory input",
+        "inhibition": {
+          "radius": 1,
+          "strength": 0.1
+        }
+      },
+      {
+        "id": "visual-association",
+        "columns": 12,
+        "provenance": "latent visual conjunctions",
+        "wiring_role": "visual association",
+        "inhibition": {
+          "radius": 2,
+          "strength": 0.1
+        }
+      },
+      {
+        "id": "cross-domain-association",
+        "columns": 16,
+        "provenance": "latent cross-domain conjunctions",
+        "wiring_role": "cross-domain association",
+        "inhibition": {
+          "radius": 2,
+          "strength": 0.1
+        }
+      },
+      {
+        "id": "phonological-association",
+        "columns": 12,
+        "provenance": "latent ordered auditory conjunctions",
+        "wiring_role": "phonological association",
+        "inhibition": {
+          "radius": 2,
+          "strength": 0.1
+        }
+      },
+      {
+        "id": "auditory-feature",
+        "columns": 3,
+        "provenance": "generated reusable auditory features",
+        "wiring_role": "auditory sensory input",
+        "inhibition": {
+          "radius": 1,
+          "strength": 0.1
+        }
+      }
+    ],
+    "projections": [
+      {
+        "id": "contour-to-visual-association",
+        "source": "visual-contour",
+        "target": "visual-association",
+        "fan_in": 3,
+        "initialization": {
+          "distribution": "uniform",
+          "low": 0.1,
+          "high": 0.3
+        },
+        "incoming_norm": 0.4
+      },
+      {
+        "id": "surface-to-visual-association",
+        "source": "visual-surface",
+        "target": "visual-association",
+        "fan_in": 3,
+        "initialization": {
+          "distribution": "uniform",
+          "low": 0.1,
+          "high": 0.3
+        },
+        "incoming_norm": 0.4
+      },
+      {
+        "id": "marking-to-visual-association",
+        "source": "visual-marking",
+        "target": "visual-association",
+        "fan_in": 3,
+        "initialization": {
+          "distribution": "uniform",
+          "low": 0.1,
+          "high": 0.3
+        },
+        "incoming_norm": 0.4
+      },
+      {
+        "id": "visual-to-cross-domain-association",
+        "source": "visual-association",
+        "target": "cross-domain-association",
+        "fan_in": 6,
+        "initialization": {
+          "distribution": "uniform",
+          "low": 0.1,
+          "high": 0.3
+        },
+        "incoming_norm": 0.4
+      },
+      {
+        "id": "auditory-feature-to-phonological-association",
+        "source": "auditory-feature",
+        "target": "phonological-association",
+        "fan_in": 2,
+        "initialization": {
+          "distribution": "uniform",
+          "low": 0.1,
+          "high": 0.3
+        },
+        "incoming_norm": 0.4
+      },
+      {
+        "id": "phonological-to-cross-domain-association",
+        "source": "phonological-association",
+        "target": "cross-domain-association",
+        "fan_in": 6,
+        "initialization": {
+          "distribution": "uniform",
+          "low": 0.1,
+          "high": 0.3
+        },
+        "incoming_norm": 0.4
+      }
+    ],
+    "thresholds": {
+      "distribution": "uniform",
+      "low": 0.35,
+      "high": 0.55,
+      "minimum": 0.2,
+      "maximum": 0.8
+    },
+    "dynamics": {
+      "dt": 0.1,
+      "tau_input": 0.3,
+      "tau_integration": 0.4,
+      "tau_output": 0.5,
+      "recurrent_gain": 0.6,
+      "temperature": 0.1,
+      "transmission_cutoff": 0.05
+    },
+    "settling": {
+      "epsilon": 0.0001,
+      "stable_ticks": 3,
+      "max_ticks": 300
+    },
+    "plasticity": {
+      "eligibility_decay": 0.1,
+      "learning_rate": 0.05
+    },
+    "adaptation": {
+      "activity_average_rate": 0.2,
+      "threshold_rate": 0.01,
+      "target_activity": 0.4,
+      "recruitment_threshold": 2.0,
+      "minimum_presentations": 3
+    }
+  },
+  "acquisition": {
+    "epochs": 3,
+    "mismatch_rotation": 1
+  },
+  "arms": {
+    "shuffled_pairing_rotation": 1
+  },
+  "basins": {
+    "minimum_scale": 0.05,
+    "maximum_column_standard_deviation": 0.2,
+    "minimum_reliable_columns": 5,
+    "margin_quantile": 0.95
+  },
+  "completion": {
+    "conditions": [
+      "full",
+      "visual_only",
+      "pseudoword_only",
+      "partial_visual",
+      "atypical_held_out"
+    ],
+    "partial_visual_dimensions": [
+      "contour",
+      "surface"
+    ],
+    "atypical_selection": "maximum_prototype_distance",
+    "trajectory_sample_points": 12,
+    "trajectory_populations": [
+      "phonological-association",
+      "auditory-feature"
+    ]
+  }
+}

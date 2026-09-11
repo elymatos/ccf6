@@ -681,6 +681,7 @@ KINDS = {
     "success_gated_learning": run_success_gated_acquisition,
     "recruitment_homeostasis": run_success_gated_acquisition,
     "matched_target_basins": run_matched_target_basins,
+    "completion_reactivation": run_matched_target_basins,
 }
 
 
@@ -716,6 +717,8 @@ def execute(definition: dict, artifact_root: str | Path = "artifacts") -> Path:
         topology_files.extend(["activity.npz", "activity.json"])
         if "basins" in result:
             topology_files.append("basins.json")
+        if "completion" in result:
+            topology_files.append("evaluation.json")
         files[2:2] = topology_files
     elif "dataset" in result:
         files.insert(2, "dataset.json")
@@ -774,6 +777,10 @@ def execute(definition: dict, artifact_root: str | Path = "artifacts") -> Path:
         if "basins" in result:
             (output / "basins.json").write_text(
                 json.dumps(result["basins"], separators=(",", ":"))
+            )
+        if "completion" in result:
+            (output / "evaluation.json").write_text(
+                json.dumps(result["completion"], separators=(",", ":"))
             )
     (output / "summary.json").write_text(
         json.dumps(result["summary"], indent=2)
