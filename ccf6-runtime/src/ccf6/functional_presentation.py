@@ -127,9 +127,9 @@ class PresentationProtocol:
             for row in dataset["auditory_segments"]
         }
 
-    def _visual_sensory(self, category: dict) -> dict[str, np.ndarray]:
+    def _visual_sensory(self, properties: list[dict]) -> dict[str, np.ndarray]:
         sensory = {}
-        for property_ in category["prototype"]["properties"]:
+        for property_ in properties:
             dimension = property_["dimension"]
             values = self.visual_dimensions[dimension]
             activity = np.zeros(len(values))
@@ -155,6 +155,7 @@ class PresentationProtocol:
         segments: list[str] | tuple[str, ...],
         condition: str,
         success_signal: float,
+        visual_instance: dict | None = None,
     ) -> PresentationRecord:
         """Reset once, present visual activity, then ordered auditory Samples."""
         if len(segments) != 3:
@@ -162,17 +163,20 @@ class PresentationProtocol:
         self.network.reset()
         samples = []
 
+        visual = visual_instance or category["prototype"]
         visual_features = tuple(
             f"{row['dimension']}={row['value']}"
-            for row in category["prototype"]["properties"]
+            for row in visual["properties"]
         )
         initial_eligibility = self.network.eligibility_matrix()
-        visual_result = self.network.settle(self._visual_sensory(category))
+        visual_result = self.network.settle(
+            self._visual_sensory(visual["properties"])
+        )
         samples.append(
             SampleRecord(
                 number=1,
                 kind="visual",
-                identifier=category["id"],
+                identifier=visual.get("id", category["id"]),
                 active_features=visual_features,
                 initial_eligibility=initial_eligibility,
                 settled_eligibility=self.network.eligibility_matrix(),

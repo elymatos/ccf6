@@ -212,6 +212,29 @@ class WorkbenchTest extends TestCase
         }
     }
 
+    public function test_matched_arms_and_frozen_target_basins_are_comparable(): void
+    {
+        [$root, $run] = $this->runExperiment('007-matched-target-basins.json');
+        $arms = json_decode(file_get_contents($root.'/'.$run.'/arms.json'), true);
+        $basins = json_decode(file_get_contents($root.'/'.$run.'/basins.json'), true);
+        $category = array_key_first($basins['arms']['trained']['frozen']['categories']);
+
+        try {
+            config(['ccf6.artifact_root' => $root]);
+            $this->get('/runs/'.$run)
+                ->assertSee('Matched experimental arms')
+                ->assertSee($arms['arms'][0]['initial_topology_digest'])
+                ->assertSee('Frozen Target Basins')
+                ->assertSee($category)
+                ->assertSee('Reliable mask')
+                ->assertSee('Pooled scale')
+                ->assertSee('Frozen margin')
+                ->assertSee('Held-out basin evaluations');
+        } finally {
+            $this->removeArtifactRoot($root, $run);
+        }
+    }
+
     public function test_zero_rest_network_identifies_a_max_tick_failure(): void
     {
         $definitionPath = sys_get_temp_dir().'/ccf6-failing-network-'.getmypid().'.json';

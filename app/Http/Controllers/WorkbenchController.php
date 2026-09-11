@@ -76,6 +76,16 @@ class WorkbenchController extends Controller
                     'learning' => $this->json($dir.'/learning.json') ?? [],
                 ]);
             }
+
+            if (($manifest['kind'] ?? null) === 'matched_target_basins') {
+                return view('workbench.basins', [
+                    'run' => basename($run),
+                    'manifest' => $manifest,
+                    'summary' => $summary,
+                    'arms' => $this->json($dir.'/arms.json') ?? [],
+                    'basins' => $this->json($dir.'/basins.json') ?? [],
+                ]);
+            }
         }
 
         $wiring = $this->json($dir.'/connectivity.json') ?? ['connectivity' => [], 'palette' => []];
