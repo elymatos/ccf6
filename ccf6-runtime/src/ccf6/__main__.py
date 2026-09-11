@@ -6,13 +6,24 @@ import json
 import sys
 from pathlib import Path
 
+from ccf6.artifacts import validate_functional_web_artifact
 from ccf6.experiment import execute, load
 
 
 def main(argv: list[str]) -> int:
     if len(argv) < 2:
-        print("usage: python -m ccf6 <experiment.json> [artifact_root]", file=sys.stderr)
+        print(
+            "usage: python -m ccf6 <experiment.json> [artifact_root] | "
+            "--validate <artifact_directory>",
+            file=sys.stderr,
+        )
         return 2
+    if argv[1] == "--validate":
+        if len(argv) != 3:
+            print("usage: python -m ccf6 --validate <artifact_directory>", file=sys.stderr)
+            return 2
+        print(json.dumps(validate_functional_web_artifact(argv[2]), indent=2))
+        return 0
     definition = load(argv[1])
     root = argv[2] if len(argv) > 2 else "artifacts"
     out = execute(definition, root)

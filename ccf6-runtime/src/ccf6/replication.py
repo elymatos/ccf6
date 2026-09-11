@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 import copy
+import gzip
+import json
+import pickle
+import shutil
+import tempfile
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from itertools import combinations
+from pathlib import Path
 
 import numpy as np
 
@@ -207,28 +213,91 @@ def _run_seed(payload: tuple[dict, int]) -> dict:
     definition["seed"] = seed
     definition["network"]["seed"] = seed
     try:
-        return _seed_metrics(run_matched_target_basins(definition), seed)
+        result = run_matched_target_basins(definition)
+        metrics = _seed_metrics(result, seed)
+        path = Path(tempfile.mkdtemp(prefix=f"ccf6-seed-{seed}-")) / "result.pkl.gz"
+        with gzip.open(path, "wb") as artifact:
+            pickle.dump(result, artifact, protocol=pickle.HIGHEST_PROTOCOL)
+        return {"metrics": metrics, "result_path": str(path)}
     except Exception as error:
         return {
-            "seed": seed,
-            "replicate_unit": "seed",
-            "presentation_count": 0,
-            "arms": ["trained", "untrained", "shuffled"],
-            "conditions": {
-                "stimulation_executed": False,
-                "lesion_executed": False,
+            "metrics": {
+                "seed": seed,
+                "replicate_unit": "seed",
+                "presentation_count": 0,
+                "arms": ["trained", "untrained", "shuffled"],
+                "conditions": {
+                    "stimulation_executed": False,
+                    "lesion_executed": False,
+                },
+                "values": {},
+                "effects": {name: None for name in EFFECT_NAMES},
+                "criteria": {
+                    "correct_basins": False,
+                    "ordered_pseudowords": False,
+                    "web_overlap": False,
+                    "candidate_intervention": False,
+                },
+                "settling_failures": 0,
+                "seed_failures": [f"{type(error).__name__}: {error}"],
             },
-            "values": {},
-            "effects": {name: None for name in EFFECT_NAMES},
-            "criteria": {
-                "correct_basins": False,
-                "ordered_pseudowords": False,
-                "web_overlap": False,
-                "candidate_intervention": False,
-            },
-            "settling_failures": 0,
-            "seed_failures": [f"{type(error).__name__}: {error}"],
+            "result_path": None,
         }
+
+
+def _write_seed_json(path: Path, outcomes: tuple[dict, ...], field: str) -> None:
+    with path.open("w") as artifact:
+        artifact.write('{"seeds":{')
+        first = True
+        for outcome in outcomes:
+            result_path = outcome.get("result_path")
+            if result_path is None:
+                continue
+            with gzip.open(result_path, "rb") as source:
+                result = pickle.load(source)
+            if not first:
+                artifact.write(",")
+            first = False
+            artifact.write(json.dumps(str(outcome["metrics"]["seed"])))
+            artifact.write(":")
+            json.dump(result[field], artifact, separators=(",", ":"))
+        artifact.write("}}")
+
+
+def _stage_contract(outcomes: tuple[dict, ...]) -> str:
+    staging = Path(tempfile.mkdtemp(prefix="ccf6-milestone-contract-"))
+    for field in ("dataset", "basins", "webs", "cardinals"):
+        _write_seed_json(staging / f"{field}.json", outcomes, field)
+    topology_arrays = {}
+    learning_arrays = {}
+    activity_arrays = {}
+    with (staging / "presentations.jsonl").open("w") as presentations:
+        for outcome in outcomes:
+            result_path = outcome.get("result_path")
+            if result_path is None:
+                continue
+            seed = outcome["metrics"]["seed"]
+            with gzip.open(result_path, "rb") as source:
+                result = pickle.load(source)
+            for name, values in result["topology_arrays"].items():
+                topology_arrays[f"seed_{seed}__{name}"] = values
+            for name, values in result["learning_arrays"].items():
+                learning_arrays[f"seed_{seed}__{name}"] = values
+            for name, values in result["activity_arrays"].items():
+                activity_arrays[f"seed_{seed}__{name}"] = values
+            for row in result["presentations"]:
+                presentations.write(
+                    json.dumps({"seed": seed, **row}, separators=(",", ":"))
+                    + "\n"
+                )
+    np.savez_compressed(staging / "topology.npz", **topology_arrays)
+    np.savez_compressed(staging / "learning.npz", **learning_arrays)
+    np.savez_compressed(staging / "activity.npz", **activity_arrays)
+    for outcome in outcomes:
+        result_path = outcome.get("result_path")
+        if result_path is not None:
+            shutil.rmtree(Path(result_path).parent)
+    return str(staging)
 
 
 def run_replicated_milestone(definition: dict) -> dict:
@@ -257,7 +326,13 @@ def run_replicated_milestone(definition: dict) -> dict:
     template.pop("replication")
     template["kind"] = "cardinal_classification"
     with ProcessPoolExecutor(max_workers=workers) as executor:
-        rows = tuple(executor.map(_run_seed, ((template, seed) for seed in seeds)))
+        outcomes = tuple(
+            executor.map(_run_seed, ((template, seed) for seed in seeds))
+        )
+    rows = tuple(
+        outcome["metrics"] if "metrics" in outcome else outcome
+        for outcome in outcomes
+    )
     aggregate = MilestoneAggregator(
         bootstrap_resamples=declaration["bootstrap_resamples"],
         bootstrap_seed=declaration["bootstrap_seed"],
@@ -266,6 +341,11 @@ def run_replicated_milestone(definition: dict) -> dict:
         ],
     ).aggregate(rows)
     aggregate_dict = aggregate.as_dict()
+    staged_artifacts = (
+        _stage_contract(outcomes)
+        if all("metrics" in outcome for outcome in outcomes)
+        else None
+    )
     return {
         "contract": "ncl-functional-web-v1",
         "metrics": {
@@ -290,6 +370,7 @@ def run_replicated_milestone(definition: dict) -> dict:
             "arms": ["trained", "untrained", "shuffled"],
         },
         "parameters": dict(declaration),
+        "staged_artifacts": staged_artifacts,
     }
 
 

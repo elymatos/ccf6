@@ -31,6 +31,8 @@ def test_matched_arms_produce_complete_frozen_target_basins(tmp_path):
         "arms.npz",
         "arms.json",
         "presentations.jsonl",
+        "learning.npz",
+        "learning.json",
         "activity.npz",
         "activity.json",
         "basins.json",

@@ -10,13 +10,8 @@ use Tests\TestCase;
  * reader sees against real run directories rather than a hand-built fixture: a fixture
  * would let the page and the artifact contract drift apart without anything failing.
  *
- * Artifacts are not version-controlled, so the tests that need a current-contract run
- * skip when there is none rather than failing on a fresh clone. The tests that only
- * need the page not to fall over run against whatever is on disk.
- *
- * The superseded-architecture test builds its own old-contract artifact because no
- * future run will write one. The page must preserve such artifacts without interpreting
- * them through the current architecture.
+ * Unsupported and malformed artifacts are built as fixtures because the runtime must
+ * never emit them. The workbench preserves their files without inventing results.
  */
 class WorkbenchTest extends TestCase
 {
@@ -55,23 +50,6 @@ class WorkbenchTest extends TestCase
         rmdir($root);
     }
 
-    /** The newest run written against the current artifact contract, if any. */
-    private function currentRun(): ?string
-    {
-        foreach (array_reverse($this->runs()) as $run) {
-            $path = base_path('artifacts/'.$run.'/connectivity.json');
-            if (! file_exists($path)) {
-                continue;
-            }
-            $connectivity = json_decode(file_get_contents($path), true)['connectivity'] ?? [];
-            if (($connectivity['model'] ?? null) === 'ncl-column-network-v1') {
-                return $run;
-            }
-        }
-
-        return null;
-    }
-
     public function test_it_lists_every_run_on_disk(): void
     {
         $response = $this->get('/')->assertOk();
@@ -86,26 +64,6 @@ class WorkbenchTest extends TestCase
             $this->get('/runs/'.$run)->assertOk();
         }
         $this->addToAssertionCount(1);
-    }
-
-    public function test_a_run_page_shows_what_the_artifact_recorded(): void
-    {
-        $run = $this->currentRun();
-        if ($run === null) {
-            $this->markTestSkipped(
-                'no current-contract artifact on disk; run: PYTHONPATH=ccf6-runtime/src '
-                .'python3 -m ccf6 experiments/001-cardinal-recruitment.json artifacts'
-            );
-        }
-
-        $summary = json_decode(file_get_contents(base_path('artifacts/'.$run.'/summary.json')), true);
-        $this->get('/runs/'.$run)
-            ->assertOk()
-            ->assertSee('Recruitment and cardinal candidates')
-            ->assertSee('Partial cues and reciprocal reactivation')
-            ->assertSee(number_format($summary['overall']['columns']))
-            ->assertSee(number_format($summary['overall']['shape_selectivity_max'], 4))
-            ->assertSee(number_format($summary['completion']['shape_cue_concept_similarity'], 4));
     }
 
     public function test_the_generated_lexical_grounding_domain_is_rendered_without_recomputation(): void
@@ -306,12 +264,28 @@ class WorkbenchTest extends TestCase
         $root = sys_get_temp_dir().'/ccf6-replicated-'.getmypid();
         $run = '011-test-replicated';
         mkdir($root.'/'.$run, 0777, true);
+        $files = [
+            'definition.json', 'manifest.json', 'dataset.json', 'topology.npz',
+            'presentations.jsonl', 'learning.npz', 'activity.npz', 'basins.json',
+            'webs.json', 'cardinals.json', 'metrics.json', 'aggregate.json', 'summary.json',
+        ];
         file_put_contents($root.'/'.$run.'/manifest.json', json_encode([
             'contract' => 'ncl-functional-web-v1',
             'kind' => 'replicated_milestone',
             'name' => 'Replicated Functional Web milestone verdict',
             'question' => 'Does the milestone pass?',
+            'digest' => 'fixture-identity',
+            'software_version' => '0.2.0',
+            'status' => 'completed',
+            'files' => $files,
         ]));
+        foreach (['definition.json', 'dataset.json', 'basins.json', 'webs.json', 'cardinals.json'] as $file) {
+            file_put_contents($root.'/'.$run.'/'.$file, '{}');
+        }
+        foreach (['topology.npz', 'learning.npz', 'activity.npz'] as $file) {
+            file_put_contents($root.'/'.$run.'/'.$file, 'fixture');
+        }
+        file_put_contents($root.'/'.$run.'/presentations.jsonl', "{\"seed\":20260910}\n");
         file_put_contents($root.'/'.$run.'/summary.json', json_encode([
             'replication' => ['seeds' => 20, 'bootstrap_resamples' => 10000, 'failed_seeds' => 1, 'settling_failures' => 2],
             'milestone_verdict' => false,
@@ -331,12 +305,23 @@ class WorkbenchTest extends TestCase
             'criteria' => ['completion_improvement' => ['passed' => false, 'evidence' => 'interval']],
             'verdict' => false,
         ]));
+        $manifest = json_decode(file_get_contents($root.'/'.$run.'/manifest.json'), true);
+        $manifest['checksums'] = [];
+        foreach ($files as $file) {
+            if ($file !== 'manifest.json') {
+                $manifest['checksums'][$file] = hash_file('sha256', $root.'/'.$run.'/'.$file);
+            }
+        }
+        file_put_contents($root.'/'.$run.'/manifest.json', json_encode($manifest));
 
         try {
             config(['ccf6.artifact_root' => $root]);
             $this->get('/runs/'.$run)
                 ->assertSee('Replicated Functional Web milestone verdict')
                 ->assertSee('Milestone failed')
+                ->assertSee('Complete artifact contract')
+                ->assertSee('topology.npz')
+                ->assertSee('fixture-identity')
                 ->assertSee('completion_improvement')
                 ->assertSee('candidate_stimulation_and_lesion_not_executable')
                 ->assertSee('10,000 paired bootstrap resamples')
@@ -370,27 +355,63 @@ class WorkbenchTest extends TestCase
         }
     }
 
-    public function test_a_run_from_a_superseded_architecture_says_so_rather_than_failing(): void
+    public function test_an_unsupported_artifact_is_reported_without_interpretation(): void
     {
-        $root = sys_get_temp_dir().'/ccf6-superseded-'.getmypid();
+        $root = sys_get_temp_dir().'/ccf6-unsupported-'.getmypid();
         $run = '001-20260907T205400-7f76d3f788715d4d';
         mkdir($root.'/'.$run, 0777, true);
 
-        // Any connectivity record without the current model contract is historical.
-        file_put_contents($root.'/'.$run.'/connectivity.json', json_encode([
-            'connectivity' => ['areas' => ['colour' => ['levels' => 3]]],
-            'palette' => ['white', 'red'],
-        ]));
         file_put_contents($root.'/'.$run.'/manifest.json', json_encode([
-            'name' => 'Colour selectivity baseline',
-            'kind' => 'colour_selectivity_baseline',
+            'contract' => 'unknown-contract-v0',
+            'name' => 'External result',
+            'kind' => 'external_result',
             'started' => '2026-09-07T20:54:00+00:00',
+            'files' => ['manifest.json', 'payload.json'],
         ]));
-        file_put_contents($root.'/'.$run.'/summary.json', json_encode(['overall' => []]));
+        file_put_contents($root.'/'.$run.'/payload.json', '{}');
 
         try {
             config(['ccf6.artifact_root' => $root]);
-            $this->get('/runs/'.$run)->assertOk()->assertSee('predates the current architecture');
+            $this->get('/runs/'.$run)
+                ->assertOk()
+                ->assertSee('Unsupported or malformed artifact')
+                ->assertSee('contract is unsupported');
+        } finally {
+            array_map('unlink', glob($root.'/'.$run.'/*'));
+            rmdir($root.'/'.$run);
+            rmdir($root);
+        }
+    }
+
+    public function test_a_malformed_current_artifact_reports_the_missing_file(): void
+    {
+        $root = sys_get_temp_dir().'/ccf6-malformed-'.getmypid();
+        $run = '011-malformed';
+        mkdir($root.'/'.$run, 0777, true);
+        file_put_contents($root.'/'.$run.'/manifest.json', json_encode([
+            'contract' => 'ncl-functional-web-v1',
+            'kind' => 'replicated_milestone',
+            'digest' => 'malformed-fixture',
+            'software_version' => '0.2.0',
+            'status' => 'completed',
+            'files' => [
+                'definition.json', 'manifest.json', 'dataset.json', 'topology.npz',
+                'presentations.jsonl', 'learning.npz', 'activity.npz', 'basins.json',
+                'webs.json', 'cardinals.json', 'metrics.json', 'aggregate.json', 'summary.json',
+            ],
+            'checksums' => array_fill_keys([
+                'definition.json', 'dataset.json', 'topology.npz', 'presentations.jsonl',
+                'learning.npz', 'activity.npz', 'basins.json', 'webs.json',
+                'cardinals.json', 'metrics.json', 'aggregate.json', 'summary.json',
+            ], 'missing'),
+        ]));
+
+        try {
+            config(['ccf6.artifact_root' => $root]);
+            $this->get('/runs/'.$run)
+                ->assertOk()
+                ->assertSee('Unsupported or malformed artifact')
+                ->assertSee('definition.json is missing');
         } finally {
             array_map('unlink', glob($root.'/'.$run.'/*'));
             rmdir($root.'/'.$run);

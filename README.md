@@ -30,13 +30,11 @@ docker compose up -d
 
 The workbench is available on port 8002 and the Python runtime on port 8933.
 
-Run the paired baseline and recruitment arms of the first NCL experiment directly:
+Run the complete paired-seed Functional Web milestone directly:
 
 ```bash
 PYTHONPATH=ccf6-runtime/src python3 -m ccf6 \
-  experiments/001-cardinal-baseline.json artifacts
-PYTHONPATH=ccf6-runtime/src python3 -m ccf6 \
-  experiments/001-cardinal-recruitment.json artifacts
+  experiments/011-replicated-milestone.json artifacts
 ```
 
 Or through the runtime service:
@@ -44,10 +42,16 @@ Or through the runtime service:
 ```bash
 curl -X POST http://localhost:8933/run \
   -H 'Content-Type: application/json' \
-  --data-binary @experiments/001-cardinal-recruitment.json
+  --data-binary @experiments/011-replicated-milestone.json
 ```
 
-A run writes an artifact directory containing its definition, manifest, generated connectivity, summary, snapshots, and numerical responses. The workbench reads these files without recomputing results.
+The milestone writes one complete `ncl-functional-web-v1` artifact containing the exact definition and software identity, generated datasets and topology, Presentation records, learning and activity arrays, frozen Target Basins, Functional Web and cardinal evidence, seed-level metrics, aggregate intervals, failures, and verdict. The workbench reads these files without rerunning or recomputing the experiment.
+
+Validate every required file independently of the experiment runner:
+
+```bash
+PYTHONPATH=ccf6-runtime/src python3 -m ccf6 --validate artifacts/<run-directory>
+```
 
 ## Tests
 
@@ -58,4 +62,4 @@ php artisan test --compact
 
 ## Current scientific question
 
-Can repeated co-activation, local competition, reciprocal connectivity, and recruitment produce stable convergence populations that recognize varied or partial presentations and reactivate their supporting Functional Webs?
+Can repeated co-activation, local competition, reciprocal connectivity, and Recruitment produce stable Target Basins that recognize partial Presentations and reactivate their supporting Functional Webs? The accepted 20-seed milestone answers **no** for the declared apparatus: the negative verdict and all failures remain part of the durable artifact contract.

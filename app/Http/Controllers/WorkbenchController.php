@@ -13,6 +13,22 @@ use Illuminate\View\View;
  */
 class WorkbenchController extends Controller
 {
+    private const FUNCTIONAL_WEB_FILES = [
+        'definition.json',
+        'manifest.json',
+        'dataset.json',
+        'topology.npz',
+        'presentations.jsonl',
+        'learning.npz',
+        'activity.npz',
+        'basins.json',
+        'webs.json',
+        'cardinals.json',
+        'metrics.json',
+        'aggregate.json',
+        'summary.json',
+    ];
+
     private function root(): string
     {
         return rtrim(config('ccf6.artifact_root', base_path('artifacts')), '/');
@@ -36,6 +52,14 @@ class WorkbenchController extends Controller
         abort_unless(File::isDirectory($dir), 404);
 
         $manifest = $this->manifest($dir);
+        $problem = $this->artifactProblem($dir, $manifest);
+        if ($problem !== null) {
+            return view('workbench.unsupported', [
+                'run' => basename($run),
+                'manifest' => $manifest,
+                'problem' => $problem,
+            ]);
+        }
         $summary = $this->json($dir.'/summary.json') ?? [];
 
         if (($manifest['contract'] ?? null) === 'ncl-functional-web-v1') {
@@ -84,6 +108,11 @@ class WorkbenchController extends Controller
                     'summary' => $summary,
                     'metrics' => $this->json($dir.'/metrics.json') ?? [],
                     'aggregate' => $this->json($dir.'/aggregate.json') ?? [],
+                    'artifacts' => collect($manifest['files'])->map(fn (string $name): array => [
+                        'name' => $name,
+                        'bytes' => File::size($dir.'/'.$name),
+                        'checksum' => $manifest['checksums'][$name] ?? null,
+                    ]),
                 ]);
             }
 
@@ -101,27 +130,10 @@ class WorkbenchController extends Controller
             }
         }
 
-        $wiring = $this->json($dir.'/connectivity.json') ?? ['connectivity' => [], 'palette' => []];
-        $connectivity = $wiring['connectivity'] ?? [];
-
-        // Historical artifacts remain immutable. The current workbench recognizes its
-        // explicit contract and reports every older shape as superseded.
-        if (($connectivity['model'] ?? null) !== 'ncl-column-network-v1') {
-            return view('workbench.superseded', [
-                'run' => basename($run),
-                'manifest' => $manifest,
-                'summary' => $summary,
-            ]);
-        }
-
-        return view('workbench.run', [
+        return view('workbench.unsupported', [
             'run' => basename($run),
             'manifest' => $manifest,
-            'definition' => $this->json($dir.'/definition.json') ?? [],
-            'summary' => $summary,
-            'snapshots' => $this->json($dir.'/snapshots.json') ?? [],
-            'palette' => $wiring['palette'] ?? [],
-            'populations' => $connectivity['populations'] ?? [],
+            'problem' => 'The artifact kind is not supported by this workbench.',
         ]);
     }
 
@@ -137,16 +149,96 @@ class WorkbenchController extends Controller
         ]);
     }
 
-    private function manifest(string $dir): ?array
+    private function manifest(string $dir): array
     {
         $manifest = $this->json($dir.'/manifest.json');
 
-        return $manifest ? $manifest + ['run' => basename($dir)] : null;
+        return $manifest
+            ? $manifest + ['run' => basename($dir)]
+            : [
+                'run' => basename($dir),
+                'name' => 'Malformed artifact',
+                'started' => null,
+                'malformed' => true,
+            ];
+    }
+
+    private function artifactProblem(string $dir, array $manifest): ?string
+    {
+        if ($manifest['malformed'] ?? false) {
+            return 'manifest.json is missing or malformed.';
+        }
+        if (($manifest['contract'] ?? null) !== 'ncl-functional-web-v1') {
+            return 'The artifact contract is unsupported by the NCL-only workbench.';
+        }
+        if (! is_array($manifest['files'] ?? null)) {
+            return 'The manifest has no readable file inventory.';
+        }
+        if (($manifest['kind'] ?? null) === 'replicated_milestone') {
+            if ($manifest['files'] !== self::FUNCTIONAL_WEB_FILES) {
+                return 'The milestone artifact inventory is incomplete.';
+            }
+            foreach (['digest', 'software_version', 'status'] as $field) {
+                if (! is_string($manifest[$field] ?? null) || $manifest[$field] === '') {
+                    return 'The milestone manifest is missing '.$field.'.';
+                }
+            }
+            $expectedChecksums = array_values(array_diff(
+                self::FUNCTIONAL_WEB_FILES,
+                ['manifest.json'],
+            ));
+            if (
+                ! is_array($manifest['checksums'] ?? null)
+                || array_keys($manifest['checksums']) !== $expectedChecksums
+            ) {
+                return 'The milestone checksum inventory is incomplete.';
+            }
+        }
+        $readableJson = match ($manifest['kind'] ?? null) {
+            'synthetic_lexical_grounding' => ['summary.json', 'dataset.json'],
+            'zero_rest_network' => ['summary.json', 'topology.json', 'activity.json'],
+            'coordinated_presentation' => ['summary.json', 'topology.json'],
+            'success_gated_learning', 'recruitment_homeostasis' => ['summary.json', 'learning.json'],
+            'replicated_milestone' => ['summary.json', 'metrics.json', 'aggregate.json'],
+            'matched_target_basins', 'completion_reactivation',
+            'functional_web_detection', 'cardinal_classification' => [
+                'summary.json', 'arms.json', 'basins.json', 'evaluation.json',
+                'webs.json', 'cardinals.json',
+            ],
+            default => ['summary.json'],
+        };
+        foreach ($manifest['files'] as $name) {
+            if (! is_string($name) || basename($name) !== $name) {
+                return 'The manifest contains an invalid file name.';
+            }
+            $path = $dir.'/'.$name;
+            if (! File::isFile($path)) {
+                return $name.' is missing.';
+            }
+            if (
+                isset($manifest['checksums'][$name])
+                && hash_file('sha256', $path) !== $manifest['checksums'][$name]
+            ) {
+                return $name.' does not match its recorded checksum.';
+            }
+            if (in_array($name, $readableJson, true) && $this->json($path) === null) {
+                return $name.' is malformed.';
+            }
+        }
+
+        return null;
     }
 
     private function json(string $path): ?array
     {
-        return File::exists($path) ? json_decode(File::get($path), true) : null;
+        if (! File::exists($path)) {
+            return null;
+        }
+        $decoded = json_decode(File::get($path), true);
+
+        return is_array($decoded) && json_last_error() === JSON_ERROR_NONE
+            ? $decoded
+            : null;
     }
 
     /** @return list<array<string, mixed>> */
