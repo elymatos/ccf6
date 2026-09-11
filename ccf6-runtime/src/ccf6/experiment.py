@@ -26,6 +26,7 @@ from ccf6.metrics import (
     two_way_selectivity,
 )
 from ccf6.network import Architecture, Network
+from ccf6.replication import run_replicated_milestone
 from ccf6.thalamus import ENCODERS, Thalamus
 from ccf6.world import PALETTE, World
 
@@ -684,6 +685,7 @@ KINDS = {
     "completion_reactivation": run_matched_target_basins,
     "functional_web_detection": run_matched_target_basins,
     "cardinal_classification": run_matched_target_basins,
+    "replicated_milestone": run_replicated_milestone,
 }
 
 
@@ -704,7 +706,9 @@ def execute(definition: dict, artifact_root: str | Path = "artifacts") -> Path:
         json.dumps(definition, indent=2, sort_keys=True)
     )
     files = ["definition.json", "manifest.json", "summary.json"]
-    if "topology" in result:
+    if "aggregate" in result:
+        files[2:2] = ["metrics.json", "aggregate.json"]
+    elif "topology" in result:
         topology_files = [
             "dataset.json",
             "topology.npz",
@@ -750,6 +754,13 @@ def execute(definition: dict, artifact_root: str | Path = "artifacts") -> Path:
             indent=2,
         )
     )
+    if "metrics" in result:
+        (output / "metrics.json").write_text(
+            json.dumps(result["metrics"], separators=(",", ":"))
+        )
+        (output / "aggregate.json").write_text(
+            json.dumps(result["aggregate"], separators=(",", ":"))
+        )
     if "dataset" in result:
         (output / "dataset.json").write_text(
             json.dumps(result["dataset"], indent=2)

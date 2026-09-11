@@ -77,6 +77,16 @@ class WorkbenchController extends Controller
                 ]);
             }
 
+            if (($manifest['kind'] ?? null) === 'replicated_milestone') {
+                return view('workbench.aggregate', [
+                    'run' => basename($run),
+                    'manifest' => $manifest,
+                    'summary' => $summary,
+                    'metrics' => $this->json($dir.'/metrics.json') ?? [],
+                    'aggregate' => $this->json($dir.'/aggregate.json') ?? [],
+                ]);
+            }
+
             if (in_array($manifest['kind'] ?? null, ['matched_target_basins', 'completion_reactivation', 'functional_web_detection', 'cardinal_classification'], true)) {
                 return view('workbench.basins', [
                     'run' => basename($run),
