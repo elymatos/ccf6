@@ -37,6 +37,12 @@ def _flatten(result: LearningResult, attribute: str) -> np.ndarray:
     )
 
 
+def _flatten_populations(result: LearningResult, attribute: str) -> np.ndarray:
+    return np.concatenate(
+        [getattr(population, attribute) for population in result.populations]
+    )
+
+
 def _projection_learning_row(
     projection: ProjectionLearningResult,
     incoming_norm: float,
@@ -74,7 +80,7 @@ def _projection_learning_row(
 def _learning_row(
     record: PresentationRecord,
     result: LearningResult,
-    epoch: int,
+    epoch: int | None,
     network: Network,
 ) -> dict:
     projections = [
@@ -85,6 +91,34 @@ def _learning_row(
             strict=True,
         )
     ]
+    populations = []
+    for learned in result.populations:
+        population = network.populations[learned.identifier]
+        populations.append(
+            {
+                "id": learned.identifier,
+                "settled_output": learned.settled_output.tolist(),
+                "thresholds": {
+                    "pre": learned.pre_thresholds.tolist(),
+                    "post": learned.post_thresholds.tolist(),
+                },
+                "activity_average": {
+                    "pre": learned.pre_activity_average.tolist(),
+                    "post": learned.post_activity_average.tolist(),
+                },
+                "entrenchment": {
+                    "pre": learned.pre_entrenchment.tolist(),
+                    "post": learned.post_entrenchment.tolist(),
+                },
+                "contributor_counts": learned.post_contributor_counts.tolist(),
+                "contributing_presentations": [
+                    sorted(values)
+                    for values in population.contributing_presentations
+                ],
+                "recruited": learned.recruited.tolist(),
+                "recruited_columns": int(np.count_nonzero(learned.recruited)),
+            }
+        )
     changed = any(
         projection[direction]["changed_connections"] > 0
         for projection in projections
@@ -97,9 +131,36 @@ def _learning_row(
         "category_id": record.category_id,
         "pseudoword_id": record.pseudoword_id,
         "success_signal": result.success_signal,
+        "adaptation_applied": result.adaptation_applied,
         "durable_weights_changed": changed,
         "projections": projections,
+        "populations": populations,
     }
+
+
+def _has_durable_change(result: LearningResult) -> bool:
+    return any(
+        not np.array_equal(
+            projection.pre_ascending_weights,
+            projection.post_ascending_weights,
+        )
+        or not np.array_equal(
+            projection.pre_descending_weights,
+            projection.post_descending_weights,
+        )
+        for projection in result.projections
+    ) or any(
+        not np.array_equal(population.pre_thresholds, population.post_thresholds)
+        or not np.array_equal(
+            population.pre_activity_average,
+            population.post_activity_average,
+        )
+        or not np.array_equal(
+            population.pre_entrenchment,
+            population.post_entrenchment,
+        )
+        for population in result.populations
+    )
 
 
 def _normalization_error(
@@ -136,10 +197,28 @@ def _normalization_error(
 def run_success_gated_acquisition(definition: dict) -> dict:
     """Run frequency-balanced correct and mismatched acquisition Presentations."""
     epochs, rotation = _require_acquisition(definition)
+    evaluation_count = 0
+    if "evaluation" in definition:
+        evaluation = definition["evaluation"]
+        if set(evaluation) != {"full_pair_presentations_per_category"}:
+            raise ValueError(
+                "evaluation must declare full_pair_presentations_per_category"
+            )
+        evaluation_count = evaluation["full_pair_presentations_per_category"]
+        if (
+            isinstance(evaluation_count, bool)
+            or not isinstance(evaluation_count, int)
+            or evaluation_count < 1
+        ):
+            raise ValueError(
+                "evaluation full-pair Presentations must be a positive integer"
+            )
     dataset = generate_domain(int(definition["seed"]))
     network = Network(definition["network"])
     if network.plasticity is None:
         raise ValueError("success-gated acquisition requires Network plasticity")
+    if evaluation_count and network.adaptation is None:
+        raise ValueError("frozen evaluation requires Network adaptation")
     categories = dataset["categories"]
     if rotation % len(categories) == 0:
         raise ValueError("mismatch rotation must pair each category with another word")
@@ -180,7 +259,7 @@ def run_success_gated_acquisition(definition: dict) -> dict:
             raise RuntimeError(
                 f"{identifier}: cannot learn from a settling failure"
             )
-        learning = network.apply_success_signal(success_signal)
+        learning = network.apply_success_signal(success_signal, identifier)
         records.append(record)
         learning_results.append(learning)
         learning_rows.append(_learning_row(record, learning, epoch, network))
@@ -196,12 +275,41 @@ def run_success_gated_acquisition(definition: dict) -> dict:
                 0.0,
             )
 
+    evaluation_records: list[PresentationRecord] = []
+    evaluation_results: list[LearningResult] = []
+    evaluation_rows = []
+    if evaluation_count:
+        network.freeze_adaptation()
+        for repetition in range(1, evaluation_count + 1):
+            for index, category in enumerate(categories):
+                identifier = f"evaluation-{repetition}-{category['id']}"
+                pseudoword = ordered_pseudowords[index]
+                record = protocol.run(
+                    presentation_id=identifier,
+                    category=category,
+                    pseudoword_id=pseudoword["id"],
+                    segments=pseudoword["segments"],
+                    condition="evaluation",
+                    success_signal=1.0,
+                )
+                if record.settling_failures:
+                    raise RuntimeError(
+                        f"{identifier}: cannot evaluate a settling failure"
+                    )
+                result = network.apply_success_signal(1.0, identifier)
+                evaluation_records.append(record)
+                evaluation_results.append(result)
+                evaluation_rows.append(
+                    _learning_row(record, result, None, network)
+                )
+    all_records = records + evaluation_records
+
     projection_offsets = [0]
     for projection in network.projections:
         projection_offsets.append(projection_offsets[-1] + projection.sources.size)
     chunks = [
         sample.settling.activity
-        for record in records
+        for record in all_records
         for sample in record.samples
     ]
     trajectory_offsets = [0]
@@ -212,6 +320,7 @@ def run_success_gated_acquisition(definition: dict) -> dict:
         [result.success_signal for result in learning_results]
     )
     conditions = np.asarray([record.condition for record in records])
+    all_conditions = np.asarray([record.condition for record in all_records])
     pre_ascending = np.stack(
         [_flatten(result, "pre_ascending_weights") for result in learning_results]
     )
@@ -229,6 +338,39 @@ def run_success_gated_acquisition(definition: dict) -> dict:
     )
     descending_eligibility = np.stack(
         [_flatten(result, "descending_eligibility") for result in learning_results]
+    )
+    pre_thresholds = np.stack(
+        [_flatten_populations(result, "pre_thresholds") for result in learning_results]
+    )
+    post_thresholds = np.stack(
+        [_flatten_populations(result, "post_thresholds") for result in learning_results]
+    )
+    pre_activity_average = np.stack(
+        [
+            _flatten_populations(result, "pre_activity_average")
+            for result in learning_results
+        ]
+    )
+    post_activity_average = np.stack(
+        [
+            _flatten_populations(result, "post_activity_average")
+            for result in learning_results
+        ]
+    )
+    pre_entrenchment = np.stack(
+        [_flatten_populations(result, "pre_entrenchment") for result in learning_results]
+    )
+    post_entrenchment = np.stack(
+        [_flatten_populations(result, "post_entrenchment") for result in learning_results]
+    )
+    post_contributor_counts = np.stack(
+        [
+            _flatten_populations(result, "post_contributor_counts")
+            for result in learning_results
+        ]
+    )
+    recruited = np.stack(
+        [_flatten_populations(result, "recruited") for result in learning_results]
     )
     changed = np.any(pre_ascending != post_ascending, axis=1) | np.any(
         pre_descending != post_descending,
@@ -272,8 +414,32 @@ def run_success_gated_acquisition(definition: dict) -> dict:
             ),
         }
         presentation_rows.append(row)
-    failures = sum(record.settling_failures for record in records)
-    durations = np.stack([record.sample_durations for record in records])
+    for record, evaluation_row in zip(
+        evaluation_records,
+        evaluation_rows,
+        strict=True,
+    ):
+        row = record.as_dict()
+        row["evaluation"] = {
+            "adaptation_applied": evaluation_row["adaptation_applied"],
+            "durable_weights_changed": evaluation_row["durable_weights_changed"],
+        }
+        presentation_rows.append(row)
+    failures = sum(record.settling_failures for record in all_records)
+    durations = np.stack([record.sample_durations for record in all_records])
+    unsuccessful_threshold_updates = int(
+        np.count_nonzero(
+            np.any(pre_thresholds != post_thresholds, axis=1)
+            & (success_signals == 0.0)
+        )
+    )
+    final_recruited = {
+        population.identifier: int(np.count_nonzero(population.recruited))
+        for population in learning_results[-1].populations
+    }
+    evaluation_changes = sum(
+        _has_durable_change(result) for result in evaluation_results
+    )
 
     return {
         "contract": "ncl-functional-web-v1",
@@ -283,6 +449,9 @@ def run_success_gated_acquisition(definition: dict) -> dict:
         "presentations": presentation_rows,
         "learning": {
             "parameters": dict(network.plasticity),
+            "adaptation_parameters": (
+                dict(network.adaptation) if network.adaptation else None
+            ),
             "projection_ids": [
                 projection.identifier for projection in network.projections
             ],
@@ -294,6 +463,7 @@ def run_success_gated_acquisition(definition: dict) -> dict:
                 key: dict(value) for key, value in pseudoword_balance.items()
             },
             "presentations": learning_rows,
+            "evaluation": evaluation_rows,
         },
         "learning_arrays": {
             "presentation_ids": np.asarray([record.identifier for record in records]),
@@ -327,33 +497,45 @@ def run_success_gated_acquisition(definition: dict) -> dict:
             "post_ascending_weights": post_ascending,
             "pre_descending_weights": pre_descending,
             "post_descending_weights": post_descending,
+            "pre_thresholds": pre_thresholds,
+            "post_thresholds": post_thresholds,
+            "pre_activity_average": pre_activity_average,
+            "post_activity_average": post_activity_average,
+            "pre_entrenchment": pre_entrenchment,
+            "post_entrenchment": post_entrenchment,
+            "post_contributor_counts": post_contributor_counts,
+            "recruited": recruited,
         },
         "activity_arrays": {
             "initial_activity": np.stack(
-                [record.initial_activity for record in records]
+                [record.initial_activity for record in all_records]
             ),
             "settled_activity": np.stack(
-                [record.settled_states for record in records]
+                [record.settled_states for record in all_records]
             ),
             "sample_durations": durations,
             "sample_settled": np.asarray(
                 [
                     [sample.settling.success for sample in record.samples]
-                    for record in records
+                    for record in all_records
                 ]
             ),
             "trajectory": np.concatenate(chunks),
             "trajectory_offsets": np.asarray(trajectory_offsets, dtype=np.int64),
             "labels": labels,
             "compartments": np.asarray(["Input", "Integration", "Output"]),
-            "presentation_ids": np.asarray([record.identifier for record in records]),
-            "conditions": conditions,
+            "presentation_ids": np.asarray(
+                [record.identifier for record in all_records]
+            ),
+            "conditions": all_conditions,
         },
         "activity": {
             "labels": labels.tolist(),
             "compartments": ["Input", "Integration", "Output"],
-            "presentation_ids": [record.identifier for record in records],
-            "settled_states": [record.settled_states.tolist() for record in records],
+            "presentation_ids": [record.identifier for record in all_records],
+            "settled_states": [
+                record.settled_states.tolist() for record in all_records
+            ],
         },
         "summary": {
             "acquisition": {
@@ -384,6 +566,49 @@ def run_success_gated_acquisition(definition: dict) -> dict:
                     np.all((post_ascending >= 0.0) & (post_ascending <= 1.0))
                     and np.all((post_descending >= 0.0) & (post_descending <= 1.0))
                 ),
+            },
+            "recruitment": {
+                "threshold": (
+                    float(network.adaptation["recruitment_threshold"])
+                    if network.adaptation
+                    else None
+                ),
+                "minimum_presentations": (
+                    int(network.adaptation["minimum_presentations"])
+                    if network.adaptation
+                    else None
+                ),
+                "recruited_columns": sum(final_recruited.values()),
+                "recruited_by_population": final_recruited,
+                "recruited_after_first_presentation": int(
+                    np.count_nonzero(recruited[0])
+                ),
+                "cardinal_candidates_declared": False,
+            },
+            "homeostasis": {
+                "unsuccessful_presentations_updated": unsuccessful_threshold_updates,
+                "threshold_histories": len(records),
+                "thresholds_within_bounds": bool(
+                    np.all(
+                        post_thresholds
+                        >= float(definition["network"]["thresholds"]["minimum"])
+                    )
+                    and np.all(
+                        post_thresholds
+                        <= float(definition["network"]["thresholds"]["maximum"])
+                    )
+                ),
+            },
+            "evaluation": {
+                "presentations": len(evaluation_records),
+                "adaptation_frozen": bool(
+                    evaluation_results
+                    and all(
+                        not result.adaptation_applied
+                        for result in evaluation_results
+                    )
+                ),
+                "durable_changes": evaluation_changes,
             },
             "eligibility": {
                 "minimum": float(
@@ -430,5 +655,6 @@ def run_success_gated_acquisition(definition: dict) -> dict:
         "parameters": {
             **network.dynamics,
             **network.plasticity,
+            **(network.adaptation or {}),
         },
     }

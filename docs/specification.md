@@ -576,8 +576,9 @@ The table describes the repository at the time this specification was accepted.
 | Separate reciprocal weights | Recognition and reactivation need not be symmetric | Same endpoints, independent values | Conforming in Functional Web contract | `test_reciprocal_routes_have_independent_weights` |
 | Eligibility traces | Separate local credit from outcome | Trace evolution and reset | Conforming | `test_eligibility_follows_bounded_decay_and_endpoint_coactivity` |
 | Diffuse Success Signal | Confirm outcomes without per-weight labels | Correct/mismatch durable changes | Conforming | `test_only_success_confirms_eligible_connections` |
-| Presentation-level Recruitment | Repetition means distinct experiences | Contributing Presentation IDs | Nonconforming: repeated wins spend plasticity | `test_one_presentation_cannot_recruit_by_itself` |
-| Homeostatic thresholds | Prevent monopolies without semantic supervision | Local threshold histories | Unsupported | `test_homeostasis_is_independent_of_success` |
+| Presentation-level Recruitment | Repetition means distinct experiences | Contributing Presentation IDs | Conforming in Functional Web contract; prototype retirement pending | `test_one_presentation_cannot_recruit_by_itself` |
+| Homeostatic thresholds | Prevent monopolies without semantic supervision | Local threshold histories | Conforming | `test_homeostasis_is_local_and_independent_of_success` |
+| Frozen evaluation | Prevent evaluation from becoming further training | Exact durable pre/post state | Conforming | `test_evaluation_freezes_every_durable_adaptation` |
 | Structured synthetic domain | Test grounding and lexical routes | Validated dataset artifact | Conforming | `test_generated_domain_satisfies_constraints` |
 | Ordered pseudowords | Lexical form is relational and sequential | Sequence-control distances | Conforming | `test_presentations_preserve_order_and_reject_unordered_feature_bags` |
 | Target Basin distributions | Completion is attraction, not vector lookup | Frozen centroids, scales, margins | Unsupported | `test_held_out_data_cannot_shape_basins` |
@@ -587,6 +588,6 @@ The table describes the repository at the time this specification was accepted.
 | Lesion and stimulation | Establish causal role | Matched intervention effects | Unsupported | `test_lesion_preserves_incoming_activity` |
 | Paired controls and 20 seeds | Separate learning from arbitrary wiring | Per-seed paired metrics | Unsupported | `test_arms_share_initial_conditions` |
 | Seed-level bootstrap | Avoid pseudoreplication | Deterministic paired intervals | Unsupported | `test_bootstrap_resamples_seed_effects` |
-| `ncl-functional-web-v1` artifacts | Make claims reproducible and inspectable | Complete file inventory | Partial: dataset, topology, Presentations, learning, and activity slices exist | `test_balanced_acquisition_changes_weights_only_after_success` |
+| `ncl-functional-web-v1` artifacts | Make claims reproducible and inspectable | Complete file inventory | Partial: dataset, topology, Presentations, learning, Recruitment, homeostasis, and activity slices exist | `test_recruitment_requires_distinct_presentations_and_evaluation_is_frozen` |
 
 The implementation MUST update this matrix as requirements become conforming. A requirement may be marked conforming only when its implementing test and required artifact evidence both exist.

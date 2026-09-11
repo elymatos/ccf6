@@ -68,7 +68,7 @@ class WorkbenchController extends Controller
                 ]);
             }
 
-            if (($manifest['kind'] ?? null) === 'success_gated_learning') {
+            if (in_array($manifest['kind'] ?? null, ['success_gated_learning', 'recruitment_homeostasis'], true)) {
                 return view('workbench.learning', [
                     'run' => basename($run),
                     'manifest' => $manifest,

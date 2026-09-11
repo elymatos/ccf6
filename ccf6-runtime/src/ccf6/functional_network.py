@@ -15,6 +15,9 @@ class PopulationState:
     provenance: str
     wiring_role: str
     thresholds: np.ndarray
+    activity_average: np.ndarray
+    entrenchment: np.ndarray
+    contributing_presentations: list[set[str]]
     input: np.ndarray
     integration: np.ndarray
     output: np.ndarray
@@ -79,9 +82,26 @@ class ProjectionLearningResult:
 
 
 @dataclass(frozen=True)
+class PopulationLearningResult:
+    identifier: str
+    settled_output: np.ndarray
+    pre_thresholds: np.ndarray
+    post_thresholds: np.ndarray
+    pre_activity_average: np.ndarray
+    post_activity_average: np.ndarray
+    pre_entrenchment: np.ndarray
+    post_entrenchment: np.ndarray
+    post_contributor_counts: np.ndarray
+    recruited: np.ndarray
+
+
+@dataclass(frozen=True)
 class LearningResult:
     success_signal: float
+    presentation_id: str | None
+    adaptation_applied: bool
     projections: tuple[ProjectionLearningResult, ...]
+    populations: tuple[PopulationLearningResult, ...]
 
 
 def _require_keys(
@@ -159,6 +179,8 @@ class Network:
             if "plasticity" in definition
             else None
         )
+        self.adaptation = dict(definition["adaptation"]) if "adaptation" in definition else None
+        self.adaptation_frozen = False
         randomizer = np.random.default_rng(self.seed)
 
         threshold_declaration = definition["thresholds"]
@@ -180,6 +202,9 @@ class Network:
                 provenance=declaration["provenance"],
                 wiring_role=declaration["wiring_role"],
                 thresholds=thresholds,
+                activity_average=np.zeros(columns),
+                entrenchment=np.zeros(columns),
+                contributing_presentations=[set() for _ in range(columns)],
                 input=np.zeros(columns),
                 integration=np.zeros(columns),
                 output=np.zeros(columns),
@@ -209,7 +234,7 @@ class Network:
                 "settling",
             },
             "Network definition",
-            optional={"plasticity"},
+            optional={"plasticity", "adaptation"},
         )
         if isinstance(self.definition["seed"], bool) or not isinstance(
             self.definition["seed"], int
@@ -382,6 +407,42 @@ class Network:
             if not 0.0 <= decay <= 1.0:
                 raise ValueError("plasticity eligibility decay must be in [0,1]")
             _positive(plasticity["learning_rate"], "plasticity learning rate")
+
+        if "adaptation" in self.definition:
+            if "plasticity" not in self.definition:
+                raise ValueError("Column adaptation requires connection plasticity")
+            adaptation = self.definition["adaptation"]
+            _require_keys(
+                adaptation,
+                {
+                    "activity_average_rate",
+                    "threshold_rate",
+                    "target_activity",
+                    "recruitment_threshold",
+                    "minimum_presentations",
+                },
+                "adaptation declaration",
+            )
+            average_rate = _positive(
+                adaptation["activity_average_rate"],
+                "adaptation activity average rate",
+            )
+            if average_rate > 1.0:
+                raise ValueError("adaptation activity average rate must not exceed 1")
+            _positive(adaptation["threshold_rate"], "adaptation threshold rate")
+            target = _number(
+                adaptation["target_activity"],
+                "adaptation target activity",
+            )
+            if not 0.0 <= target <= 1.0:
+                raise ValueError("adaptation target activity must be in [0,1]")
+            _positive(
+                adaptation["recruitment_threshold"],
+                "adaptation recruitment threshold",
+            )
+            minimum = adaptation["minimum_presentations"]
+            if isinstance(minimum, bool) or not isinstance(minimum, int) or minimum < 2:
+                raise ValueError("adaptation minimum presentations must be at least 2")
 
     def _build_projection(
         self, declaration: dict, randomizer: np.random.Generator
@@ -647,8 +708,12 @@ class Network:
             activity=np.stack(trajectory),
         )
 
-    def apply_success_signal(self, success_signal: float) -> LearningResult:
-        """Apply one diffuse, success-gated durable update after settling."""
+    def apply_success_signal(
+        self,
+        success_signal: float,
+        presentation_id: str | None = None,
+    ) -> LearningResult:
+        """Apply one diffuse outcome and local adaptation after settling."""
         if self.plasticity is None:
             raise RuntimeError("Network has no plasticity declaration")
         signal = _number(success_signal, "Success Signal")
@@ -658,13 +723,17 @@ class Network:
             raise RuntimeError("Success Signal requires a successfully settled outcome")
         if self._outcome_applied:
             raise RuntimeError("Success Signal has already been applied")
+        if self.adaptation is not None and (
+            not isinstance(presentation_id, str) or not presentation_id
+        ):
+            raise ValueError("Column adaptation requires a Presentation identity")
 
         learning_rate = self.plasticity["learning_rate"]
         results = []
         for projection in self.projections:
             pre_ascending = projection.ascending_weights.copy()
             pre_descending = projection.descending_weights.copy()
-            if signal > 0.0:
+            if signal > 0.0 and not self.adaptation_frozen:
                 ascending = np.clip(
                     pre_ascending
                     + learning_rate
@@ -706,8 +775,111 @@ class Network:
                     post_descending_weights=projection.descending_weights.copy(),
                 )
             )
+        population_results = []
+        incoming_eligibility = {
+            identifier: np.zeros(population.columns)
+            for identifier, population in self.populations.items()
+        }
+        for projection in self.projections:
+            np.maximum.at(
+                incoming_eligibility[projection.target],
+                projection.targets,
+                projection.ascending_eligibility,
+            )
+            np.maximum.at(
+                incoming_eligibility[projection.source],
+                projection.sources,
+                projection.descending_eligibility,
+            )
+        for identifier in self.population_order:
+            population = self.populations[identifier]
+            pre_thresholds = population.thresholds.copy()
+            pre_average = population.activity_average.copy()
+            pre_entrenchment = population.entrenchment.copy()
+            if self.adaptation is not None and not self.adaptation_frozen:
+                if signal > 0.0:
+                    confirmed = signal * incoming_eligibility[identifier]
+                    for column in np.flatnonzero(confirmed > 0.0):
+                        contributors = population.contributing_presentations[column]
+                        if presentation_id not in contributors:
+                            population.entrenchment[column] += confirmed[column]
+                            contributors.add(presentation_id)
+                average_rate = float(self.adaptation["activity_average_rate"])
+                population.activity_average += average_rate * (
+                    population.output - population.activity_average
+                )
+                threshold_declaration = self.definition["thresholds"]
+                population.thresholds[:] = np.clip(
+                    population.thresholds
+                    + float(self.adaptation["threshold_rate"])
+                    * (
+                        population.activity_average
+                        - float(self.adaptation["target_activity"])
+                    ),
+                    threshold_declaration["minimum"],
+                    threshold_declaration["maximum"],
+                )
+            contributor_counts = np.asarray(
+                [len(values) for values in population.contributing_presentations],
+                dtype=np.int64,
+            )
+            recruited = self._recruited(population, contributor_counts)
+            population_results.append(
+                PopulationLearningResult(
+                    identifier=identifier,
+                    settled_output=population.output.copy(),
+                    pre_thresholds=pre_thresholds,
+                    post_thresholds=population.thresholds.copy(),
+                    pre_activity_average=pre_average,
+                    post_activity_average=population.activity_average.copy(),
+                    pre_entrenchment=pre_entrenchment,
+                    post_entrenchment=population.entrenchment.copy(),
+                    post_contributor_counts=contributor_counts,
+                    recruited=recruited,
+                )
+            )
         self._outcome_applied = True
-        return LearningResult(success_signal=signal, projections=tuple(results))
+        return LearningResult(
+            success_signal=signal,
+            presentation_id=presentation_id,
+            adaptation_applied=not self.adaptation_frozen,
+            projections=tuple(results),
+            populations=tuple(population_results),
+        )
+
+    def freeze_adaptation(self) -> None:
+        """Freeze all durable adaptation until explicitly re-enabled."""
+        self.adaptation_frozen = True
+
+    def enable_adaptation(self) -> None:
+        """Enable durable adaptation for acquisition Presentations."""
+        self.adaptation_frozen = False
+
+    def _recruited(
+        self,
+        population: PopulationState,
+        contributor_counts: np.ndarray | None = None,
+    ) -> np.ndarray:
+        if self.adaptation is None:
+            return np.zeros(population.columns, dtype=bool)
+        if contributor_counts is None:
+            contributor_counts = np.asarray(
+                [len(values) for values in population.contributing_presentations],
+                dtype=np.int64,
+            )
+        return (
+            population.entrenchment
+            >= float(self.adaptation["recruitment_threshold"])
+        ) & (
+            contributor_counts >= int(self.adaptation["minimum_presentations"])
+        )
+
+    def recruited_columns(self) -> dict[str, np.ndarray]:
+        """Classify Recruited Columns from durable evidence without semantics."""
+        return {
+            identifier: self._recruited(population)
+            for identifier, population in self.populations.items()
+        }
 
     def eligibility_matrix(self) -> np.ndarray:
         """Return directional Eligibility ordered by projection and endpoint."""
@@ -841,13 +1013,21 @@ class Network:
         return arrays
 
     def snapshot(self) -> dict:
-        """Return complete activity needed to inspect the current state."""
+        """Return complete observable Column state."""
+        recruited = self.recruited_columns()
         return {
             "populations": {
                 identifier: {
                     "provenance": population.provenance,
                     "wiring_role": population.wiring_role,
                     "thresholds": population.thresholds.tolist(),
+                    "activity_average": population.activity_average.tolist(),
+                    "entrenchment": population.entrenchment.tolist(),
+                    "contributing_presentations": [
+                        sorted(values)
+                        for values in population.contributing_presentations
+                    ],
+                    "recruited": recruited[identifier].tolist(),
                     "input": population.input.tolist(),
                     "integration": population.integration.tolist(),
                     "output": population.output.tolist(),
