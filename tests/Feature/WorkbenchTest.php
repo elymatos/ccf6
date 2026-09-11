@@ -257,6 +257,29 @@ class WorkbenchTest extends TestCase
         }
     }
 
+    public function test_functional_web_evidence_and_negative_result_are_rendered(): void
+    {
+        [$root, $run] = $this->runExperiment('009-functional-web-detection.json');
+        $webs = json_decode(file_get_contents($root.'/'.$run.'/webs.json'), true);
+        $category = array_key_first($webs['webs']);
+        $column = array_key_first($webs['webs'][$category]['columns']);
+
+        try {
+            config(['ccf6.artifact_root' => $root]);
+            $this->get('/runs/'.$run)
+                ->assertSee('Causal Functional Web detection')
+                ->assertSee($category)
+                ->assertSee($column)
+                ->assertSee('Reliability')
+                ->assertSee('Causal completion contribution')
+                ->assertSee('Reciprocal effective connectivity')
+                ->assertSee('No Functional Web detected')
+                ->assertSee('held-out used: no');
+        } finally {
+            $this->removeArtifactRoot($root, $run);
+        }
+    }
+
     public function test_zero_rest_network_identifies_a_max_tick_failure(): void
     {
         $definitionPath = sys_get_temp_dir().'/ccf6-failing-network-'.getmypid().'.json';

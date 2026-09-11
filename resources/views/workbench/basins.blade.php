@@ -184,4 +184,51 @@
     @endforeach
 </section>
 @endif
+
+@if ($webs)
+<section>
+    <h2>Causal Functional Web detection</h2>
+    <div class="panel">
+        @php($webSummary = $summary['web_detection'] ?? [])
+        <p class="lede">
+            {{ $webSummary['detected_webs'] ?? 0 }} detected webs ·
+            {{ $webSummary['selected_memberships'] ?? 0 }} selected memberships ·
+            {{ $webSummary['shared_columns'] ?? 0 }} shared Columns ·
+            held-out used: {{ ($webs['held_out_used'] ?? true) ? 'yes' : 'no' }}.
+        </p>
+        @if (($webSummary['detected_webs'] ?? 0) === 0)
+            <p><strong>No Functional Web detected.</strong> The negative result is retained rather than replaced by an activation-threshold set.</p>
+        @endif
+        <p class="muted">
+            Reliability, Causal completion contribution, and Reciprocal effective connectivity must each exceed the
+            {{ ($webs['detector']['control_quantile'] ?? 0) * 100 }}th-percentile control and pass FDR correction.
+            Higher association activity distinguishable: {{ ($webSummary['association_distinguishable'] ?? false) ? 'yes' : 'no' }}.
+        </p>
+        <p>Shared membership <code>{{ json_encode($webs['shared_columns'] ?? []) }}</code></p>
+        <p>Association distances <code>{{ json_encode($webs['association_distances'] ?? []) }}</code></p>
+    </div>
+
+    @foreach (($webs['webs'] ?? []) as $categoryId => $web)
+        <div class="panel" style="margin-top:16px">
+            <h3><code>{{ $categoryId }}</code> · {{ count($web['members']) }} members</h3>
+            <p>Selected membership <code>{{ json_encode($web['members']) }}</code></p>
+            @foreach ($web['columns'] as $label => $column)
+                <details style="margin-bottom:10px">
+                    <summary><code>{{ $label }}</code> · selected: {{ $column['selected'] ? 'yes' : 'no' }}</summary>
+                    @foreach (['reliability' => 'Reliability', 'causal' => 'Causal completion contribution', 'connectivity' => 'Reciprocal effective connectivity'] as $key => $title)
+                        @php($evidence = $column[$key])
+                        <p>
+                            <strong>{{ $title }}</strong> · score {{ $evidence['score'] }} ·
+                            control threshold {{ $evidence['control_threshold'] }} ·
+                            raw p {{ $evidence['raw_p_value'] }} · corrected p {{ $evidence['corrected_p_value'] }} ·
+                            passed: {{ $evidence['passed'] ? 'yes' : 'no' }}
+                        </p>
+                        <details><summary>Control distribution</summary><code>{{ json_encode($evidence['control_distribution']) }}</code></details>
+                    @endforeach
+                </details>
+            @endforeach
+        </div>
+    @endforeach
+</section>
+@endif
 @endsection

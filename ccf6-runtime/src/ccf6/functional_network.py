@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
+from typing import Iterator
 
 import numpy as np
 
@@ -221,6 +223,10 @@ class Network:
         ]
         self._last_settling_success = False
         self._outcome_applied = False
+        self._lesions = {
+            identifier: np.zeros(population.columns, dtype=bool)
+            for identifier, population in self.populations.items()
+        }
 
     def _validate_definition(self) -> None:
         _require_keys(
@@ -520,6 +526,30 @@ class Network:
         self._last_settling_success = False
         self._outcome_applied = False
 
+    @contextmanager
+    def lesion(self, column_labels: tuple[str, ...]) -> Iterator[None]:
+        """Clamp selected Outputs to zero while leaving incoming state observable."""
+        requested = tuple(column_labels)
+        known = {
+            f"{identifier}#{column}": (identifier, column)
+            for identifier in self.population_order
+            for column in range(self.populations[identifier].columns)
+        }
+        unknown = sorted(set(requested) - known.keys())
+        if unknown:
+            raise ValueError(f"Lesion names unknown Columns {unknown}")
+        previous = {
+            identifier: mask.copy() for identifier, mask in self._lesions.items()
+        }
+        try:
+            for label in requested:
+                identifier, column = known[label]
+                self._lesions[identifier][column] = True
+                self.populations[identifier].output[column] = 0.0
+            yield
+        finally:
+            self._lesions = previous
+
     def broadcast(self, population: PopulationState) -> np.ndarray:
         return np.where(
             population.output >= self.dynamics["transmission_cutoff"],
@@ -641,6 +671,7 @@ class Network:
                 self.dynamics["dt"],
                 self.dynamics["tau_output"],
             )
+            next_output[self._lesions[identifier]] = 0.0
             next_states[identifier] = (
                 next_input,
                 next_integration,

@@ -180,6 +180,23 @@ def test_transmission_cutoff_does_not_change_stored_output():
     np.testing.assert_array_equal(population.output, [0.049, 0.05])
 
 
+def test_lesion_suppresses_output_but_preserves_incoming_activity():
+    network = Network(one_population_definition())
+
+    with network.lesion(("visual-feature#0",)):
+        result = network.settle({"visual-feature": np.asarray([1.0, 0.0])})
+
+    assert result.success is True
+    assert result.activity[-1, 0, 0] > 0.0
+    assert result.activity[-1, 0, 1] > 0.0
+    assert result.activity[-1, 0, 2] == 0.0
+    assert result.activity[-1, 1, 2] > 0.0
+
+    network.reset()
+    unlesioned = network.settle({"visual-feature": np.asarray([1.0, 0.0])})
+    assert unlesioned.activity[-1, 0, 2] > 0.0
+
+
 def test_local_inhibition_uses_prior_output_in_the_integration_equation():
     declared = one_population_definition()
     declared["populations"][0]["inhibition"]["strength"] = 0.2

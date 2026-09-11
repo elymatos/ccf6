@@ -12,6 +12,10 @@ from ccf6.completion_evaluation import OrderedTrajectoryObserver
 from ccf6.domain import generate_domain
 from ccf6.functional_network import Network
 from ccf6.functional_presentation import PresentationProtocol, PresentationRecord
+from ccf6.functional_webs import (
+    FunctionalWebObserver,
+    build_functional_web_evidence,
+)
 from ccf6.target_basins import FrozenTargetBasins, TargetBasinObserver
 
 
@@ -673,6 +677,70 @@ def _completion_evidence(
     return evidence, arrays, presentation_rows, summary
 
 
+def _causal_completion_scores(
+    definition: dict,
+    categories: list[dict],
+    arm: ArmRun,
+) -> np.ndarray:
+    """Measure each Column's effect on frozen partial-cue completion."""
+    if "completion" not in definition:
+        raise ValueError("Functional Web detection requires completion cues")
+    partial_dimensions = set(
+        definition["completion"]["partial_visual_dimensions"]
+    )
+    labels = tuple(arm.network.column_labels())
+    scores = np.zeros((len(categories), len(labels)), dtype=np.float64)
+    counts = np.zeros_like(scores, dtype=np.int64)
+    for category_index, category in enumerate(categories):
+        pseudoword = arm.pairing[category_index]
+        for instance in category["splits"]["basin_estimation"]:
+            properties = [
+                property_
+                for property_ in instance["properties"]
+                if property_["dimension"] in partial_dimensions
+            ]
+            baseline = arm.protocol.run_cue(
+                presentation_id=f"web-baseline-{instance['id']}",
+                category=category,
+                pseudoword_id=pseudoword["id"],
+                visual_properties=properties,
+                visual_identifier=instance["id"],
+                segments=(),
+                condition="web_detection_baseline",
+            )
+            if baseline.settling_failures:
+                continue
+            baseline_distance = arm.frozen_basins.evaluate(
+                expected_category=category["id"],
+                initial_activity=baseline.samples[0].settling.activity[1, :, 2],
+                settled_activity=baseline.settled_states[-1, :, 2],
+            ).correct_distance
+            for column_index, label in enumerate(labels):
+                with arm.network.lesion((label,)):
+                    perturbed = arm.protocol.run_cue(
+                        presentation_id=f"web-lesion-{instance['id']}-{label}",
+                        category=category,
+                        pseudoword_id=pseudoword["id"],
+                        visual_properties=properties,
+                        visual_identifier=instance["id"],
+                        segments=(),
+                        condition="web_detection_lesion",
+                    )
+                if perturbed.settling_failures:
+                    continue
+                lesion_distance = arm.frozen_basins.evaluate(
+                    expected_category=category["id"],
+                    initial_activity=perturbed.samples[0].settling.activity[1, :, 2],
+                    settled_activity=perturbed.settled_states[-1, :, 2],
+                ).correct_distance
+                scores[category_index, column_index] += (
+                    lesion_distance - baseline_distance
+                )
+                counts[category_index, column_index] += 1
+    np.divide(scores, counts, out=scores, where=counts > 0)
+    return scores
+
+
 def run_matched_target_basins(definition: dict) -> dict:
     """Run matched arms, freeze adaptation, fit basins, then evaluate held-out data."""
     _validate_definition(definition)
@@ -932,4 +1000,78 @@ def run_matched_target_basins(definition: dict) -> dict:
         result["parameters"]["trajectory_sample_points"] = definition[
             "completion"
         ]["trajectory_sample_points"]
+    if "web_detection" in definition:
+        declaration = definition["web_detection"]
+        if set(declaration) != {
+            "control_quantile",
+            "fdr_alpha",
+            "control_resamples",
+            "minimum_association_distance",
+        }:
+            raise ValueError(
+                "web detection must declare controls, correction, and association distance"
+            )
+        durable_before = _durable_state(arms[0].network)
+        causal_scores = _causal_completion_scores(
+            definition,
+            categories,
+            arms[0],
+        )
+        durable_after = _durable_state(arms[0].network)
+        detector_inputs = build_functional_web_evidence(
+            network=arms[0].network,
+            category_ids=tuple(category["id"] for category in categories),
+            basin_activity=basin_array[0],
+            causal_scores=causal_scores,
+            control_resamples=declaration["control_resamples"],
+            seed=int(definition["seed"]),
+        )
+        detection = FunctionalWebObserver(
+            control_quantile=declaration["control_quantile"],
+            fdr_alpha=declaration["fdr_alpha"],
+            minimum_association_distance=declaration[
+                "minimum_association_distance"
+            ],
+        ).detect(**detector_inputs)
+        web_report = detection.as_dict()
+        web_report.update(
+            {
+                "data_scope": ["acquisition", "basin_estimation"],
+                "held_out_used": False,
+                "control_resamples": declaration["control_resamples"],
+                "arm": "trained",
+                "durable_state_frozen": all(
+                    np.array_equal(durable_before[name], durable_after[name])
+                    for name in durable_before
+                ),
+                "durable_state_before_digest": _array_digest(durable_before),
+                "durable_state_after_digest": _array_digest(durable_after),
+                "evidence_definitions": {
+                    "reliability": {
+                        "score": "category_mean_minus_pooled_other_category_mean",
+                        "control": "label_shuffle_preserving_category_counts",
+                    },
+                    "causal": {
+                        "score": "partial_cue_correct_basin_distance_increase_after_output_lesion",
+                        "control": "Population_degree_activity_matched_random_Column_lesions",
+                    },
+                    "connectivity": {
+                        "score": "sum_sqrt_directional_weight_product_times_minimum_endpoint_activity",
+                        "control": "within_Population_activity_shuffle_over_fixed_degree_topology",
+                    },
+                    "multiple_testing": "benjamini_hochberg_within_category_and_evidence",
+                },
+            }
+        )
+        result["webs"] = web_report
+        result["summary"]["web_detection"] = {
+            "detected_webs": sum(bool(web.members) for web in detection.webs.values()),
+            "selected_memberships": sum(
+                len(web.members) for web in detection.webs.values()
+            ),
+            "shared_columns": len(detection.shared_columns),
+            "association_distinguishable": detection.association_distinguishable,
+            "simple_activation_threshold_used": False,
+        }
+        result["parameters"].update(declaration)
     return result
