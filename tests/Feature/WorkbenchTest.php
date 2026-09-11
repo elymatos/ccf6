@@ -301,6 +301,51 @@ class WorkbenchTest extends TestCase
         }
     }
 
+    public function test_replicated_milestone_verdict_renders_every_seed_and_criterion(): void
+    {
+        $root = sys_get_temp_dir().'/ccf6-replicated-'.getmypid();
+        $run = '011-test-replicated';
+        mkdir($root.'/'.$run, 0777, true);
+        file_put_contents($root.'/'.$run.'/manifest.json', json_encode([
+            'contract' => 'ncl-functional-web-v1',
+            'kind' => 'replicated_milestone',
+            'name' => 'Replicated Functional Web milestone verdict',
+            'question' => 'Does the milestone pass?',
+        ]));
+        file_put_contents($root.'/'.$run.'/summary.json', json_encode([
+            'replication' => ['seeds' => 20, 'bootstrap_resamples' => 10000, 'failed_seeds' => 1, 'settling_failures' => 2],
+            'milestone_verdict' => false,
+        ]));
+        file_put_contents($root.'/'.$run.'/metrics.json', json_encode([
+            'replicate_unit' => 'seed',
+            'seeds' => [[
+                'seed' => 20260910,
+                'effects' => ['completion' => 0.0],
+                'settling_failures' => 2,
+                'seed_failures' => ['candidate_stimulation_and_lesion_not_executable'],
+            ]],
+        ]));
+        file_put_contents($root.'/'.$run.'/aggregate.json', json_encode([
+            'bootstrap' => ['resamples' => 10000, 'seed' => 20260910],
+            'effects' => ['completion' => ['median' => 0.0, 'interval_95' => [0.0, 0.0], 'expected_direction_proportion' => 0.0, 'failure_count' => 0]],
+            'criteria' => ['completion_improvement' => ['passed' => false, 'evidence' => 'interval']],
+            'verdict' => false,
+        ]));
+
+        try {
+            config(['ccf6.artifact_root' => $root]);
+            $this->get('/runs/'.$run)
+                ->assertSee('Replicated Functional Web milestone verdict')
+                ->assertSee('Milestone failed')
+                ->assertSee('completion_improvement')
+                ->assertSee('candidate_stimulation_and_lesion_not_executable')
+                ->assertSee('10,000 paired bootstrap resamples')
+                ->assertSee('Seed is the experimental replicate');
+        } finally {
+            $this->removeArtifactRoot($root, $run);
+        }
+    }
+
     public function test_zero_rest_network_identifies_a_max_tick_failure(): void
     {
         $definitionPath = sys_get_temp_dir().'/ccf6-failing-network-'.getmypid().'.json';
