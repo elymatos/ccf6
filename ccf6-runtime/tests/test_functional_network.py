@@ -197,6 +197,20 @@ def test_lesion_suppresses_output_but_preserves_incoming_activity():
     assert unlesioned.activity[-1, 0, 2] > 0.0
 
 
+def test_stimulation_clamps_declared_outputs_without_sensory_input():
+    network = Network(one_population_definition())
+    network.reset()
+
+    with network.stimulate({"visual-feature#0": 0.63}):
+        for _ in range(5):
+            network.tick()
+            assert network.populations["visual-feature"].output[0] == 0.63
+        assert network.populations["visual-feature"].input[0] == 0.0
+
+    network.tick()
+    assert network.populations["visual-feature"].output[0] != 0.63
+
+
 def test_local_inhibition_uses_prior_output_in_the_integration_equation():
     declared = one_population_definition()
     declared["populations"][0]["inhibition"]["strength"] = 0.2

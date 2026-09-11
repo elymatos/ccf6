@@ -231,4 +231,47 @@
     @endforeach
 </section>
 @endif
+
+@if ($cardinals)
+<section>
+    <h2>Cardinal Candidates and Cardinal Nodes</h2>
+    <div class="panel">
+        @php($cardinalSummary = $summary['cardinals'] ?? [])
+        <p class="lede">
+            {{ $cardinalSummary['candidates'] ?? 0 }} Cardinal Candidates ·
+            {{ $cardinalSummary['cardinal_nodes'] ?? 0 }} Cardinal Nodes ·
+            {{ $cardinalSummary['intervention_failures'] ?? 0 }} intervention failures.
+        </p>
+        @if (($cardinalSummary['candidates'] ?? 0) === 0)
+            <p><strong>No Cardinal Candidate classified.</strong> Recruitment, entrenchment, centrality, and activation alone are insufficient.</p>
+        @endif
+        <p>
+            Stimulation: <strong>Median full-presentation Output</strong> for
+            {{ $cardinals['stimulation_protocol']['pulse_ticks'] }} ticks with sensory input absent.
+            Individual and group Lesions clamp Output to zero while Input and Integration remain observable.
+        </p>
+        <p class="muted">Replication status <code>{{ $cardinals['replication_status'] }}</code> · observer-only classification: {{ $cardinals['observer_only'] ? 'yes' : 'no' }}</p>
+        <p>Control matching <code>{{ json_encode($cardinals['control_matching']) }}</code></p>
+    </div>
+
+    @foreach ($cardinals['categories'] as $categoryId => $category)
+        <div class="panel" style="margin-top:16px">
+            <h3><code>{{ $categoryId }}</code></h3>
+            <p>Candidate group intervention <code>{{ json_encode($category['candidate_group_intervention']) }}</code></p>
+            <p>Matched Recruited Columns <code>{{ json_encode($category['matched_recruited_controls']) }}</code></p>
+            <p>Matched random Columns <code>{{ json_encode($category['matched_random_controls']) }}</code></p>
+            <p>Failures <code>{{ json_encode($category['failures']) }}</code></p>
+            @foreach ($category['columns'] as $label => $column)
+                <details style="margin-bottom:10px">
+                    <summary><code>{{ $label }}</code> · Candidate {{ $column['candidate'] ? 'yes' : 'no' }} · Cardinal Node {{ $column['cardinal_node'] ? 'yes' : 'no' }}</summary>
+                    <p>Failed candidate criteria <code>{{ json_encode($column['failed_candidate_criteria']) }}</code></p>
+                    <p>Failed cardinal criteria <code>{{ json_encode($column['failed_cardinal_criteria']) }}</code></p>
+                    <p>Ignition, completion, feature accessibility, ordered phonological reactivation, and redundant recovery <code>{{ json_encode($column['measures']) }}</code></p>
+                    <p>Evidence and controls <code>{{ json_encode($column['evidence']) }}</code></p>
+                </details>
+            @endforeach
+        </div>
+    @endforeach
+</section>
+@endif
 @endsection

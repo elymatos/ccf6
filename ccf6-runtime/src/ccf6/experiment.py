@@ -683,6 +683,7 @@ KINDS = {
     "matched_target_basins": run_matched_target_basins,
     "completion_reactivation": run_matched_target_basins,
     "functional_web_detection": run_matched_target_basins,
+    "cardinal_classification": run_matched_target_basins,
 }
 
 
@@ -722,6 +723,8 @@ def execute(definition: dict, artifact_root: str | Path = "artifacts") -> Path:
             topology_files.append("evaluation.json")
         if "webs" in result:
             topology_files.append("webs.json")
+        if "cardinals" in result:
+            topology_files.append("cardinals.json")
         files[2:2] = topology_files
     elif "dataset" in result:
         files.insert(2, "dataset.json")
@@ -788,6 +791,10 @@ def execute(definition: dict, artifact_root: str | Path = "artifacts") -> Path:
         if "webs" in result:
             (output / "webs.json").write_text(
                 json.dumps(result["webs"], separators=(",", ":"))
+            )
+        if "cardinals" in result:
+            (output / "cardinals.json").write_text(
+                json.dumps(result["cardinals"], separators=(",", ":"))
             )
     (output / "summary.json").write_text(
         json.dumps(result["summary"], indent=2)

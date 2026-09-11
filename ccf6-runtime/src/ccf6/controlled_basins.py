@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from ccf6.cardinals import CardinalObserver
 from ccf6.completion_evaluation import OrderedTrajectoryObserver
 from ccf6.domain import generate_domain
 from ccf6.functional_network import Network
@@ -1000,6 +1001,8 @@ def run_matched_target_basins(definition: dict) -> dict:
         result["parameters"]["trajectory_sample_points"] = definition[
             "completion"
         ]["trajectory_sample_points"]
+    detection = None
+    detector_inputs = None
     if "web_detection" in definition:
         declaration = definition["web_detection"]
         if set(declaration) != {
@@ -1056,7 +1059,10 @@ def run_matched_target_basins(definition: dict) -> dict:
                         "control": "Population_degree_activity_matched_random_Column_lesions",
                     },
                     "connectivity": {
-                        "score": "sum_sqrt_directional_weight_product_times_minimum_endpoint_activity",
+                        "score": (
+                            "sum_sqrt_directional_weight_product_times_"
+                            "minimum_endpoint_activity"
+                        ),
                         "control": "within_Population_activity_shuffle_over_fixed_degree_topology",
                     },
                     "multiple_testing": "benjamini_hochberg_within_category_and_evidence",
@@ -1072,6 +1078,156 @@ def run_matched_target_basins(definition: dict) -> dict:
             "shared_columns": len(detection.shared_columns),
             "association_distinguishable": detection.association_distinguishable,
             "simple_activation_threshold_used": False,
+        }
+        result["parameters"].update(declaration)
+    if "cardinals" in definition:
+        if detection is None or detector_inputs is None:
+            raise ValueError("Cardinal classification requires Functional Web detection")
+        declaration = definition["cardinals"]
+        if set(declaration) != {
+            "entry_route_threshold",
+            "stability_threshold",
+            "control_quantile",
+            "stimulation_pulse_ticks",
+            "minimum_subwebs_reinstated",
+            "control_tolerances",
+        }:
+            raise ValueError(
+                "cardinals must declare lifecycle, intervention, and control parameters"
+            )
+        pulse_ticks = declaration["stimulation_pulse_ticks"]
+        if isinstance(pulse_ticks, bool) or not isinstance(pulse_ticks, int) or pulse_ticks < 1:
+            raise ValueError("stimulation pulse ticks must be a positive integer")
+        observer = CardinalObserver(
+            entry_route_threshold=declaration["entry_route_threshold"],
+            stability_threshold=declaration["stability_threshold"],
+            control_quantile=declaration["control_quantile"],
+            minimum_subwebs_reinstated=declaration[
+                "minimum_subwebs_reinstated"
+            ],
+        )
+        labels = tuple(arms[0].network.column_labels())
+        recruited = np.concatenate(list(arms[0].network.recruited_columns().values()))
+        condition_ids = list(result["activity_arrays"]["completion_condition_ids"])
+        completion_output = result["activity_arrays"]["completion_settled_output"][0]
+        visual_output = completion_output[condition_ids.index("visual_only")]
+        pseudoword_output = completion_output[condition_ids.index("pseudoword_only")]
+        full_medians = np.median(basin_array[0], axis=1)
+        held_out_stability = np.clip(
+            1.0 - np.std(held_settled_array[0], axis=1),
+            0.0,
+            1.0,
+        )
+        category_reports = {}
+        all_candidate_labels = []
+        all_cardinal_labels = []
+        for category_index, category in enumerate(categories):
+            category_id = category["id"]
+            web_members = set(detection.webs[category_id].members)
+            rows = []
+            for column_index, label in enumerate(labels):
+                row = {
+                    "label": label,
+                    "recruited": bool(recruited[column_index]),
+                    "functional_web_member": label in web_members,
+                    "entry_routes": {
+                        "visual": float(visual_output[category_index, column_index]),
+                        "pseudoword": float(
+                            pseudoword_output[category_index, column_index]
+                        ),
+                    },
+                    "held_out_stability": float(
+                        held_out_stability[category_index, column_index]
+                    ),
+                    "supporting_web_stimulation": 0.0,
+                    "matched_non_recruited_stimulation": [0.0],
+                    "stimulation_amplitude": float(
+                        full_medians[category_index, column_index]
+                    ),
+                    "interventions": {
+                        "status": "not_tested_without_candidate_evidence",
+                        "stimulation": {
+                            "subwebs_reinstated": 0,
+                            "ignition": 0.0,
+                            "completion": 0.0,
+                            "feature_accessibility": 0.0,
+                            "ordered_reactivation": 0.0,
+                        },
+                        "individual_lesion": {
+                            "ignition_impairment": 0.0,
+                            "completion_impairment": 0.0,
+                            "feature_accessibility": 0.0,
+                            "ordered_reactivation_impairment": 0.0,
+                        },
+                        "group_lesion": {
+                            "ignition_impairment": 0.0,
+                            "completion_impairment": 0.0,
+                            "feature_accessibility": 0.0,
+                            "ordered_reactivation_impairment": 0.0,
+                        },
+                        "matched_control_lesion_impairment": [0.0],
+                        "redundant_recovery": 0.0,
+                    },
+                    "replicated_across_seeds": False,
+                }
+                rows.append(row)
+            observation = observer.classify(tuple(rows))
+            report = observation.as_dict()
+            report.update(
+                {
+                    "candidate_group_intervention": {
+                        "status": "not_tested_no_candidates",
+                        "members": report["candidate_labels"],
+                    },
+                    "matched_recruited_controls": [],
+                    "matched_random_controls": [],
+                    "failures": [
+                        "no_causally_detected_Functional_Web"
+                    ]
+                    if not web_members
+                    else [],
+                }
+            )
+            category_reports[category_id] = report
+            all_candidate_labels.extend(report["candidate_labels"])
+            all_cardinal_labels.extend(report["cardinal_node_labels"])
+        result["cardinals"] = {
+            "observer_only": True,
+            "runtime_cardinal_flags": False,
+            "stimulation_protocol": {
+                "amplitude": "median_full_presentation_output",
+                "pulse_ticks": pulse_ticks,
+                "sensory_input": "absent",
+            },
+            "lesion_protocol": {
+                "output": "clamped_to_zero",
+                "input_observable": True,
+                "integration_observable": True,
+            },
+            "control_matching": {
+                "fields": [
+                    "Population",
+                    "Level",
+                    "activity",
+                    "incoming_degree",
+                    "outgoing_degree",
+                    "entrenchment",
+                    "baseline_perturbation_sensitivity",
+                ],
+                "tolerances": declaration["control_tolerances"],
+            },
+            "categories": category_reports,
+            "candidate_labels": all_candidate_labels,
+            "cardinal_node_labels": all_cardinal_labels,
+            "replication_status": "pending_multi_seed_experiment",
+        }
+        result["summary"]["cardinals"] = {
+            "candidates": len(all_candidate_labels),
+            "cardinal_nodes": len(all_cardinal_labels),
+            "negative_result": not all_candidate_labels,
+            "intervention_failures": sum(
+                len(report["failures"]) for report in category_reports.values()
+            ),
         }
         result["parameters"].update(declaration)
     return result
