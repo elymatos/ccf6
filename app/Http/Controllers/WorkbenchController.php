@@ -77,7 +77,7 @@ class WorkbenchController extends Controller
                 ]);
             }
 
-            if (in_array($manifest['kind'] ?? null, ['matched_target_basins', 'completion_reactivation'], true)) {
+            if (in_array($manifest['kind'] ?? null, ['matched_target_basins', 'completion_reactivation', 'functional_web_detection'], true)) {
                 return view('workbench.basins', [
                     'run' => basename($run),
                     'manifest' => $manifest,
@@ -85,6 +85,7 @@ class WorkbenchController extends Controller
                     'arms' => $this->json($dir.'/arms.json') ?? [],
                     'basins' => $this->json($dir.'/basins.json') ?? [],
                     'completion' => $this->json($dir.'/evaluation.json') ?? [],
+                    'webs' => $this->json($dir.'/webs.json') ?? [],
                 ]);
             }
         }
