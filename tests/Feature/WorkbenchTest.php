@@ -280,6 +280,27 @@ class WorkbenchTest extends TestCase
         }
     }
 
+    public function test_cardinal_evidence_controls_and_negative_result_are_rendered(): void
+    {
+        [$root, $run] = $this->runExperiment('010-cardinal-classification.json');
+        $cardinals = json_decode(file_get_contents($root.'/'.$run.'/cardinals.json'), true);
+        $category = array_key_first($cardinals['categories']);
+
+        try {
+            config(['ccf6.artifact_root' => $root]);
+            $this->get('/runs/'.$run)
+                ->assertSee('Cardinal causal classification')
+                ->assertSee($category)
+                ->assertSee('Cardinal Candidates')
+                ->assertSee('Median full-presentation Output')
+                ->assertSee('Individual and group Lesions')
+                ->assertSee('No Cardinal Candidate classified')
+                ->assertSee('pending_multi_seed_experiment');
+        } finally {
+            $this->removeArtifactRoot($root, $run);
+        }
+    }
+
     public function test_zero_rest_network_identifies_a_max_tick_failure(): void
     {
         $definitionPath = sys_get_temp_dir().'/ccf6-failing-network-'.getmypid().'.json';

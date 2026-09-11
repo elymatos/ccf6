@@ -227,6 +227,10 @@ class Network:
             identifier: np.zeros(population.columns, dtype=bool)
             for identifier, population in self.populations.items()
         }
+        self._stimulations = {
+            identifier: np.full(population.columns, np.nan)
+            for identifier, population in self.populations.items()
+        }
 
     def _validate_definition(self) -> None:
         _require_keys(
@@ -541,6 +545,11 @@ class Network:
         previous = {
             identifier: mask.copy() for identifier, mask in self._lesions.items()
         }
+        if any(
+            not np.isnan(self._stimulations[known[label][0]][known[label][1]])
+            for label in requested
+        ):
+            raise ValueError("a Column cannot be lesioned and stimulated together")
         try:
             for label in requested:
                 identifier, column = known[label]
@@ -549,6 +558,35 @@ class Network:
             yield
         finally:
             self._lesions = previous
+
+    @contextmanager
+    def stimulate(self, outputs: dict[str, float]) -> Iterator[None]:
+        """Clamp declared Outputs to graded values for an observer pulse."""
+        known = {
+            f"{identifier}#{column}": (identifier, column)
+            for identifier in self.population_order
+            for column in range(self.populations[identifier].columns)
+        }
+        unknown = sorted(set(outputs) - known.keys())
+        if unknown:
+            raise ValueError(f"Stimulation names unknown Columns {unknown}")
+        values = {label: _number(value, f"stimulation {label}") for label, value in outputs.items()}
+        if any(not 0.0 <= value <= 1.0 for value in values.values()):
+            raise ValueError("stimulation Output must be in [0,1]")
+        if any(self._lesions[known[label][0]][known[label][1]] for label in values):
+            raise ValueError("a Column cannot be lesioned and stimulated together")
+        previous = {
+            identifier: stimulation.copy()
+            for identifier, stimulation in self._stimulations.items()
+        }
+        try:
+            for label, value in values.items():
+                identifier, column = known[label]
+                self._stimulations[identifier][column] = value
+                self.populations[identifier].output[column] = value
+            yield
+        finally:
+            self._stimulations = previous
 
     def broadcast(self, population: PopulationState) -> np.ndarray:
         return np.where(
@@ -672,6 +710,8 @@ class Network:
                 self.dynamics["tau_output"],
             )
             next_output[self._lesions[identifier]] = 0.0
+            stimulated = ~np.isnan(self._stimulations[identifier])
+            next_output[stimulated] = self._stimulations[identifier][stimulated]
             next_states[identifier] = (
                 next_input,
                 next_integration,
