@@ -12,6 +12,7 @@ from pathlib import Path
 import numpy as np
 
 from ccf6 import figures, params
+from ccf6.controlled_basins import run_matched_target_basins
 from ccf6.domain import generate_domain
 from ccf6.ego import Presentation
 from ccf6.functional_acquisition import run_success_gated_acquisition
@@ -679,6 +680,7 @@ KINDS = {
     "coordinated_presentation": run_coordinated_presentation,
     "success_gated_learning": run_success_gated_acquisition,
     "recruitment_homeostasis": run_success_gated_acquisition,
+    "matched_target_basins": run_matched_target_basins,
 }
 
 
@@ -705,11 +707,15 @@ def execute(definition: dict, artifact_root: str | Path = "artifacts") -> Path:
             "topology.npz",
             "topology.json",
         ]
+        if "arms" in result:
+            topology_files.extend(["arms.npz", "arms.json"])
         if "presentations" in result:
             topology_files.append("presentations.jsonl")
         if "learning" in result:
             topology_files.extend(["learning.npz", "learning.json"])
         topology_files.extend(["activity.npz", "activity.json"])
+        if "basins" in result:
+            topology_files.append("basins.json")
         files[2:2] = topology_files
     elif "dataset" in result:
         files.insert(2, "dataset.json")
@@ -751,6 +757,11 @@ def execute(definition: dict, artifact_root: str | Path = "artifacts") -> Path:
                     for row in result["presentations"]
                 )
             )
+        if "arms" in result:
+            np.savez_compressed(output / "arms.npz", **result["arm_arrays"])
+            (output / "arms.json").write_text(
+                json.dumps(result["arms"], separators=(",", ":"))
+            )
         if "learning" in result:
             np.savez_compressed(output / "learning.npz", **result["learning_arrays"])
             (output / "learning.json").write_text(
@@ -760,6 +771,10 @@ def execute(definition: dict, artifact_root: str | Path = "artifacts") -> Path:
         (output / "activity.json").write_text(
             json.dumps(result["activity"], separators=(",", ":"))
         )
+        if "basins" in result:
+            (output / "basins.json").write_text(
+                json.dumps(result["basins"], separators=(",", ":"))
+            )
     (output / "summary.json").write_text(
         json.dumps(result["summary"], indent=2)
     )
