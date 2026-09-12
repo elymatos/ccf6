@@ -15,9 +15,11 @@ import numpy as np
 from ccf6 import __version__
 from ccf6.artifacts import (
     REQUIRED_FUNCTIONAL_WEB_FILES,
+    validate_cortical_circuit_artifact,
     validate_functional_web_artifact,
 )
 from ccf6.controlled_basins import run_matched_target_basins
+from ccf6.cortical_processes import run_cortical_process_suite
 from ccf6.domain import generate_domain
 from ccf6.functional_acquisition import run_success_gated_acquisition
 from ccf6.functional_network import Network
@@ -467,6 +469,7 @@ KINDS = {
     "functional_web_detection": run_matched_target_basins,
     "cardinal_classification": run_matched_target_basins,
     "replicated_milestone": run_replicated_milestone,
+    "cortical_process_suite": run_cortical_process_suite,
 }
 
 
@@ -610,4 +613,6 @@ def execute(definition: dict, artifact_root: str | Path = "artifacts") -> Path:
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2))
     if result.get("staged_artifacts"):
         validate_functional_web_artifact(output)
+    if result["contract"] == "ncl-cortical-circuit-v1":
+        validate_cortical_circuit_artifact(output)
     return output

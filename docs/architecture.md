@@ -135,3 +135,54 @@ At least 20 paired seeds determine the result. Seed-level effects, deterministic
 Passing the milestone would show that this declared local mechanism can produce the tested Functional Web and cardinal roles in a synthetic domain. It would not establish that the abstraction is anatomically exact, that every concept has one cardinal, that the mechanism scales to natural language, or that unimplemented forms of memory and reasoning follow automatically.
 
 Failure is also informative. Artifacts must distinguish failures of settling, recruitment, basin formation, sequence sensitivity, web detection, cardinal causality, redundancy, and statistical replication rather than collapsing them into one score.
+
+## 10. Detailed laminar experimental architecture
+
+The three-compartment Network remains the accepted milestone baseline. A separate detailed apparatus, with artifact contract `ncl-cortical-circuit-v1`, exposes circuitry that the baseline represents only numerically. The two implementations coexist so evidence can guide later abstraction rather than allowing a more detailed implementation to rewrite the accepted result.
+
+The detailed hierarchy currently contains:
+
+```text
+higher:  H1 H2
+           ↕
+middle:  M1 M2 M3
+           ↕
+lower:   A  B  C  D  E
+           ↕
+       thalamus / motor output
+```
+
+Every cortical Column is a composite laminar circuit with these named population-rate elements:
+
+- `L4Pyr`, `L23Pyr`, `L5Pyr`, and `L6Pyr` pyramidal populations;
+- `L23Tuft` and `L5Tuft` apical targets;
+- `PV4`, `PV23`, and `PV5` fast somatic inhibitory populations;
+- `SOM23` and `SOM5` dendritic inhibitory populations;
+- one `VIP` disinhibitory population.
+
+Global identifiers combine Column and population, such as `A.L4Pyr` and `M1.SOM23`. Lower Columns retain source-document aliases such as `A4`, `A23`, `APV4`, `ASOM`, and `AVIP` in topology artifacts.
+
+Explicit directed pathways represent:
+
+- thalamic input to lower L4, PV4, L2/3, and L6 populations;
+- intracolumnar L4 → L2/3 → L5 → L6 flow and L5 → L2/3 recurrence;
+- L5 motor output and L6 corticothalamic return;
+- ascending L2/3 and L5 routes to multiple Columns at the next level;
+- descending L2/3 and L5 routes to apical tufts and L6 at the preceding level;
+- pyramidal ↔ PV feedback and cross-layer somatic inhibition;
+- pyramidal → SOM recruitment and SOM → tuft dendritic inhibition;
+- VIP → SOM disinhibition;
+- neighboring L2/3 → PV/SOM recruitment for lateral competition;
+- attention, arousal, novelty, and reward modulation.
+
+Each neural population has one bounded rate-coded activity. Every tick snapshots all population activity, calculates signed flux over every enabled pathway, accumulates local Hebbian Eligibility, computes excitatory, inhibitory, and modulatory drives, and commits all leaky population updates synchronously. The seed introduces declared small initial pathway-strength variation while preserving exact reproducibility.
+
+Detailed Hebbian strengthening separates three physical contributions described by Lamb:
+
+1. presynaptic neurotransmitter-release facilitation;
+2. postsynaptic membrane receptiveness;
+3. structural growth of terminal boutons, axonal branches, and dendritic spines.
+
+These contributions remain bounded and independently inspectable. A diffuse Success Signal confirms local co-activity; it does not identify the connection to alter. STDP, spike-level timing, conductance dynamics, and inhibitory plasticity remain outside this iteration.
+
+Experiment `012-detailed-cortical-circuit.json` independently runs all documented pathway families and integrated process presets. It records complete population-activity and signed pathway-flux trajectories plus route-disabled causal controls. This detailed apparatus is a population-level experimental circuit, not a claim of literal cortical equivalence.

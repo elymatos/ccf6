@@ -2,7 +2,7 @@
 
 A minimal, inspectable framework for testing computational consequences of Neurocognitive Linguistics. Network mechanics are implemented in Python; a Laravel workbench renders experiment artifacts.
 
-CCF6 is a reference instrument rather than a product. Its current architecture is intentionally small enough for every connection rule, activation path, learning event, and measurement to remain inspectable.
+CCF6 is a reference instrument rather than a product. The accepted Functional Web baseline remains intentionally small, while a separate detailed laminar apparatus makes cortical population and pathway dynamics explicitly inspectable before later high-level abstraction.
 
 ## Reading order
 
@@ -46,6 +46,15 @@ curl -X POST http://localhost:8933/run \
 ```
 
 The milestone writes one complete `ncl-functional-web-v1` artifact containing the exact definition and software identity, generated datasets and topology, Presentation records, learning and activity arrays, frozen Target Basins, Functional Web and cardinal evidence, seed-level metrics, aggregate intervals, failures, and verdict. The workbench reads these files without rerunning or recomputing the experiment.
+
+Run the separate detailed laminar circuit and its 20 process simulations with:
+
+```bash
+PYTHONPATH=ccf6-runtime/src python3 -m ccf6 \
+  experiments/012-detailed-cortical-circuit.json artifacts
+```
+
+This produces an `ncl-cortical-circuit-v1` artifact with five lower, three middle, and two higher cortical Columns; named pyramidal, tuft, PV, SOM, and VIP populations; every directed pathway; population activity and signed pathway flux at every tick; causal route-disabled controls; and independently recorded Hebbian release, receptiveness, and structural-growth changes.
 
 Validate every required file independently of the experiment runner:
 

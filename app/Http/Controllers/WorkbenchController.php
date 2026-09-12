@@ -13,6 +13,17 @@ use Illuminate\View\View;
  */
 class WorkbenchController extends Controller
 {
+    private const CORTICAL_CIRCUIT_FILES = [
+        'definition.json',
+        'manifest.json',
+        'dataset.json',
+        'topology.npz',
+        'topology.json',
+        'activity.npz',
+        'activity.json',
+        'summary.json',
+    ];
+
     private const FUNCTIONAL_WEB_FILES = [
         'definition.json',
         'manifest.json',
@@ -61,6 +72,19 @@ class WorkbenchController extends Controller
             ]);
         }
         $summary = $this->json($dir.'/summary.json') ?? [];
+
+        if (
+            ($manifest['contract'] ?? null) === 'ncl-cortical-circuit-v1'
+            && ($manifest['kind'] ?? null) === 'cortical_process_suite'
+        ) {
+            return view('workbench.cortical', [
+                'run' => basename($run),
+                'manifest' => $manifest,
+                'summary' => $summary,
+                'topology' => $this->json($dir.'/topology.json') ?? [],
+                'activity' => $this->json($dir.'/activity.json') ?? [],
+            ]);
+        }
 
         if (($manifest['contract'] ?? null) === 'ncl-functional-web-v1') {
             if (($manifest['kind'] ?? null) === 'synthetic_lexical_grounding') {
@@ -168,11 +192,18 @@ class WorkbenchController extends Controller
         if ($manifest['malformed'] ?? false) {
             return 'manifest.json is missing or malformed.';
         }
-        if (($manifest['contract'] ?? null) !== 'ncl-functional-web-v1') {
+        $contract = $manifest['contract'] ?? null;
+        if (! in_array($contract, ['ncl-functional-web-v1', 'ncl-cortical-circuit-v1'], true)) {
             return 'The artifact contract is unsupported by the NCL-only workbench.';
         }
         if (! is_array($manifest['files'] ?? null)) {
             return 'The manifest has no readable file inventory.';
+        }
+        if (
+            ($manifest['kind'] ?? null) === 'cortical_process_suite'
+            && $manifest['files'] !== self::CORTICAL_CIRCUIT_FILES
+        ) {
+            return 'The cortical circuit artifact inventory is incomplete.';
         }
         if (($manifest['kind'] ?? null) === 'replicated_milestone') {
             if ($manifest['files'] !== self::FUNCTIONAL_WEB_FILES) {
@@ -204,6 +235,9 @@ class WorkbenchController extends Controller
             'functional_web_detection', 'cardinal_classification' => [
                 'summary.json', 'arms.json', 'basins.json', 'evaluation.json',
                 'webs.json', 'cardinals.json',
+            ],
+            'cortical_process_suite' => [
+                'summary.json', 'topology.json', 'activity.json',
             ],
             default => ['summary.json'],
         };

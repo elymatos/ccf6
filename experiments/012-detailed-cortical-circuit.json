@@ -1,0 +1,343 @@
+{
+  "number": "012",
+  "name": "Detailed laminar cortical-column process suite",
+  "kind": "cortical_process_suite",
+  "question": "Can explicit laminar pyramidal, PV, SOM, VIP, tuft, hierarchical, and behavioral-state pathways reproduce each documented circuit process numerically?",
+  "seed": 20260910,
+  "circuit": {
+    "seed": 20260910,
+    "hierarchy": {
+      "lower_columns": 5,
+      "middle_columns": 3,
+      "higher_columns": 2,
+      "lateral_radius": 1,
+      "ascending_fan_out": 2
+    },
+    "dynamics": {
+      "dt": 0.05,
+      "transmission_cutoff": 0.02,
+      "modulatory_scale": 0.5,
+      "time_constants": {
+        "relay": 0.12,
+        "state": 0.15,
+        "pyramidal": 0.2,
+        "tuft": 0.25,
+        "pv": 0.08,
+        "som": 0.24,
+        "vip": 0.15
+      },
+      "thresholds": {
+        "relay": 0.0,
+        "state": 0.0,
+        "pyramidal": 0.08,
+        "tuft": 0.05,
+        "pv": 0.04,
+        "som": 0.05,
+        "vip": 0.04
+      }
+    },
+    "pathway_initialization": {
+      "relative_variation": 0.05
+    },
+    "strengths": {
+      "thalamic_l4": 1.0,
+      "thalamic_pv4": 0.9,
+      "thalamic_direct": 0.18,
+      "l4_l23": 0.95,
+      "l23_l5": 0.8,
+      "l5_l6": 0.7,
+      "l5_motor": 0.35,
+      "l6_thalamus": 0.12,
+      "pyr_pv": 0.76,
+      "pv_pyr": 0.84,
+      "pv_cross_layer": 0.48,
+      "pyr_som": 0.44,
+      "som_tuft": 0.84,
+      "som_pv": 0.32,
+      "som_vip": 0.42,
+      "pv_som": 0.24,
+      "pv_vip": 0.14,
+      "vip_som": 0.9,
+      "tuft_soma": 0.65,
+      "recurrent_l5_l23": 0.46,
+      "ascending_l23": 0.58,
+      "ascending_l5": 0.34,
+      "topdown_l23_tuft": 0.68,
+      "topdown_l5_tuft": 0.72,
+      "topdown_l6": 0.3,
+      "lateral_pv": 0.72,
+      "lateral_som23": 0.56,
+      "lateral_som5": 0.42,
+      "attention_vip_selected": 0.96,
+      "attention_vip_unselected": 0.18,
+      "arousal_thalamus": 0.82,
+      "arousal_pv": 0.45,
+      "novelty_residual": 0.72,
+      "reward_higher": 0.68,
+      "reward_vip": 0.62
+    },
+    "plasticity": {
+      "eligibility_decay": 0.8,
+      "release_facilitation_rate": 0.03,
+      "postsynaptic_receptiveness_rate": 0.02,
+      "structural_credit_rate": 1.0,
+      "structural_growth_threshold": 0.5,
+      "initial_terminal_boutons": 4,
+      "initial_axonal_branches": 1,
+      "initial_dendritic_spines": 4,
+      "maximum_terminal_boutons": 12,
+      "maximum_axonal_branches": 4,
+      "maximum_dendritic_spines": 12,
+      "maximum_release_facilitation": 1.5,
+      "maximum_postsynaptic_receptiveness": 1.5,
+      "maximum_effective_strength": 3.0
+    }
+  },
+  "processes": [
+    {
+      "id": "all-circuits",
+      "process": "All",
+      "ticks": 60,
+      "external_drives": {
+        "thal": 0.8,
+        "attention": 0.35,
+        "arousal": 0.3,
+        "novelty": 0.25,
+        "reward": 0.25
+      }
+    },
+    {
+      "id": "thalamocortical-input",
+      "process": "Input",
+      "ticks": 50,
+      "external_drives": {
+        "thal": 1.0
+      },
+      "control_disabled_routes": [
+        "Pv"
+      ]
+    },
+    {
+      "id": "intracolumnar-flow",
+      "process": "Flow",
+      "ticks": 50,
+      "external_drives": {
+        "A.L4Pyr": 1.0
+      },
+      "control_disabled_routes": [
+        "Flow"
+      ]
+    },
+    {
+      "id": "ascending-residual",
+      "process": "Ascend",
+      "ticks": 50,
+      "external_drives": {
+        "A.L23Pyr": 1.0,
+        "A.L5Pyr": 0.5
+      },
+      "control_disabled_routes": [
+        "Ascend"
+      ]
+    },
+    {
+      "id": "top-down-prediction",
+      "process": "Topdown",
+      "ticks": 60,
+      "external_drives": {
+        "H1.L23Pyr": 1.0,
+        "H1.L5Pyr": 0.7
+      },
+      "control_disabled_routes": [
+        "Topdown"
+      ]
+    },
+    {
+      "id": "lateral-competition",
+      "process": "Lateral",
+      "ticks": 60,
+      "external_drives": {
+        "A.L23Pyr": 1.0,
+        "B.L23Pyr": 0.65
+      },
+      "control_disabled_routes": [
+        "Lateral"
+      ]
+    },
+    {
+      "id": "pv-fast-gain",
+      "process": "Pv",
+      "ticks": 50,
+      "external_drives": {
+        "thal": 1.0,
+        "A.L23Pyr": 0.8,
+        "A.L5Pyr": 0.6
+      },
+      "control_disabled_routes": [
+        "Pv"
+      ]
+    },
+    {
+      "id": "som-dendritic-gate",
+      "process": "Som",
+      "ticks": 60,
+      "external_drives": {
+        "A.L23Pyr": 0.9,
+        "A.L5Pyr": 0.7,
+        "M1.L23Pyr": 0.75
+      },
+      "control_disabled_routes": [
+        "Som"
+      ]
+    },
+    {
+      "id": "vip-disinhibition",
+      "process": "Vip",
+      "ticks": 60,
+      "external_drives": {
+        "attention": 1.0,
+        "M1.L23Pyr": 0.8,
+        "A.SOM23": 0.55
+      },
+      "control_disabled_routes": [
+        "Vip"
+      ]
+    },
+    {
+      "id": "sensory-integration",
+      "process": "Integration",
+      "ticks": 70,
+      "external_drives": {
+        "thal": 1.0,
+        "M1.L23Pyr": 0.45
+      },
+      "control_disabled_routes": [
+        "Topdown"
+      ]
+    },
+    {
+      "id": "predictive-coding-loop",
+      "process": "Predictive",
+      "ticks": 70,
+      "external_drives": {
+        "thal": 1.0,
+        "M1.L23Pyr": 0.65,
+        "H1.L23Pyr": 0.4
+      },
+      "control_disabled_routes": [
+        "Topdown"
+      ]
+    },
+    {
+      "id": "winner-takes-most",
+      "process": "Competition",
+      "ticks": 70,
+      "external_drives": {
+        "A.L23Pyr": 1.0,
+        "B.L23Pyr": 0.65
+      },
+      "control_disabled_routes": [
+        "Lateral"
+      ]
+    },
+    {
+      "id": "perisomatic-gain-control",
+      "process": "Gain",
+      "ticks": 60,
+      "external_drives": {
+        "thal": 1.0,
+        "A.L23Pyr": 0.7
+      },
+      "control_disabled_routes": [
+        "Pv"
+      ]
+    },
+    {
+      "id": "behavioral-state-ensemble",
+      "process": "Behavior",
+      "ticks": 70,
+      "external_drives": {
+        "thal": 0.75,
+        "attention": 0.65,
+        "arousal": 0.55,
+        "novelty": 0.45,
+        "reward": 0.4,
+        "M1.L23Pyr": 0.4
+      },
+      "control_disabled_routes": [
+        "Vip"
+      ]
+    },
+    {
+      "id": "attention",
+      "process": "Attention",
+      "ticks": 60,
+      "external_drives": {
+        "attention": 1.0,
+        "M1.L23Pyr": 0.75,
+        "A.SOM23": 0.5
+      },
+      "control_disabled_routes": [
+        "Vip"
+      ]
+    },
+    {
+      "id": "arousal",
+      "process": "Arousal",
+      "ticks": 60,
+      "external_drives": {
+        "arousal": 1.0
+      },
+      "control_disabled_routes": [
+        "Pv"
+      ]
+    },
+    {
+      "id": "novelty",
+      "process": "Novelty",
+      "ticks": 60,
+      "external_drives": {
+        "novelty": 1.0,
+        "thal": 0.65,
+        "M1.L23Pyr": 0.25
+      },
+      "control_disabled_routes": [
+        "Ascend"
+      ]
+    },
+    {
+      "id": "reward",
+      "process": "Reward",
+      "ticks": 60,
+      "external_drives": {
+        "reward": 1.0,
+        "H1.L23Pyr": 0.75
+      },
+      "control_disabled_routes": [
+        "Vip"
+      ]
+    },
+    {
+      "id": "sustained-pyramidal-activity",
+      "process": "Sustained",
+      "ticks": 70,
+      "drive_ticks": 12,
+      "external_drives": {
+        "A.L23Pyr": 1.0
+      },
+      "control_disabled_routes": [
+        "Flow"
+      ]
+    },
+    {
+      "id": "hebbian-strengthening",
+      "process": "Hebbian",
+      "ticks": 30,
+      "external_drives": {
+        "A.L4Pyr": 1.0,
+        "A.L23Pyr": 1.0
+      },
+      "success_signal": 1.0
+    }
+  ]
+}
