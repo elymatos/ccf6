@@ -19,6 +19,7 @@
                  display: flex; align-items: baseline; gap: 16px; }
         header h1 { font-size: 15px; margin: 0; letter-spacing: .07em; text-transform: uppercase; }
         header span { color: var(--dim); font-size: 14px; }
+        header nav { margin-left: auto; }
         main { padding: 28px; max-width: 1180px; }
         section { margin-bottom: 40px; }
         h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .1em;
@@ -50,6 +51,7 @@
 <header>
     <h1><a href="{{ route('runs.index') }}">CCF6</a></h1>
     <span>@yield('subtitle', 'Connectionist Cognitive Framework, version 6')</span>
+    <nav><a href="{{ url('/guide.html') }}">Guide</a></nav>
 </header>
 <main>@yield('content')</main>
 </body>
