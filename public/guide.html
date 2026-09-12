@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Comprehensive guide to running, inspecting, and extending CCF6 experiments.">
+    <title>CCF6 — Implementation and Usage Guide</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            --background: #f4f1e9;
+            --surface: #fffdf8;
+            --surface-strong: #ffffff;
+            --ink: #20231f;
+            --muted: #62685f;
+            --line: #d8d4c9;
+            --accent: #265d55;
+            --accent-soft: #dcebe6;
+            --warm: #9b5b24;
+            --warm-soft: #f6e6d7;
+            --danger: #8b3434;
+            --danger-soft: #f5dddd;
+            --code: #17201e;
+            --code-ink: #e7f1ed;
+            --shadow: 0 18px 45px rgba(38, 44, 38, 0.08);
+        }
+
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            margin: 0;
+            background: var(--background);
+            color: var(--ink);
+            font: 16px/1.65 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+        a { color: var(--accent); text-underline-offset: 0.18em; }
+        a:hover { text-decoration-thickness: 2px; }
+        code, pre { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
+        code { font-size: 0.88em; }
+        h1, h2, h3 { line-height: 1.16; text-wrap: balance; }
+        h1 { margin: 0; max-width: 820px; font-size: clamp(2.25rem, 7vw, 5.2rem); letter-spacing: -0.055em; }
+        h2 { margin: 0 0 1rem; font-size: clamp(1.65rem, 4vw, 2.6rem); letter-spacing: -0.035em; }
+        h3 { margin: 0 0 0.55rem; font-size: 1.05rem; }
+        p { margin: 0 0 1rem; }
+        ul, ol { margin: 0; padding-left: 1.25rem; }
+        li + li { margin-top: 0.4rem; }
+
+        .shell { width: min(1180px, calc(100% - 2rem)); margin-inline: auto; }
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            border-bottom: 1px solid color-mix(in srgb, var(--line), transparent 20%);
+            background: color-mix(in srgb, var(--background), transparent 8%);
+            backdrop-filter: blur(14px);
+        }
+        .topbar-inner { display: flex; min-height: 64px; align-items: center; justify-content: space-between; gap: 1rem; }
+        .brand { color: var(--ink); font-size: 0.83rem; font-weight: 800; letter-spacing: 0.13em; text-decoration: none; text-transform: uppercase; }
+        .topnav { display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; font-size: 0.86rem; }
+        .topnav a { color: var(--muted); text-decoration: none; }
+        .topnav a:hover { color: var(--ink); }
+
+        .hero { padding: clamp(4rem, 10vw, 8rem) 0 4rem; }
+        .eyebrow { margin-bottom: 1.2rem; color: var(--accent); font-size: 0.76rem; font-weight: 800; letter-spacing: 0.13em; text-transform: uppercase; }
+        .hero-copy { max-width: 760px; margin-top: 1.5rem; color: var(--muted); font-size: clamp(1.05rem, 2.5vw, 1.3rem); }
+        .actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 2rem; }
+        .button { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; padding: 0.65rem 1rem; border: 1px solid var(--accent); border-radius: 999px; background: var(--accent); color: white; font-size: 0.9rem; font-weight: 700; text-decoration: none; }
+        .button.secondary { background: transparent; color: var(--accent); }
+        .status-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin-top: 3rem; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--line); box-shadow: var(--shadow); }
+        .status-item { padding: 1.1rem; background: var(--surface); }
+        .status-item strong { display: block; font-size: 1.35rem; }
+        .status-item span { color: var(--muted); font-size: 0.8rem; }
+
+        main { padding-bottom: 7rem; }
+        .section { padding: 4.5rem 0 0; scroll-margin-top: 78px; }
+        .section-lede { max-width: 780px; margin-bottom: 1.5rem; color: var(--muted); font-size: 1.05rem; }
+        .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 1rem; }
+        .card { grid-column: span 4; padding: 1.3rem; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: 0 8px 24px rgba(38, 44, 38, 0.04); }
+        .card.wide { grid-column: span 6; }
+        .card.full { grid-column: 1 / -1; }
+        .card p:last-child, .card ul:last-child { margin-bottom: 0; }
+        .number { display: inline-grid; width: 2rem; height: 2rem; margin-bottom: 0.8rem; place-items: center; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: 0.78rem; font-weight: 800; }
+        .tag { display: inline-flex; padding: 0.18rem 0.55rem; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 0.74rem; font-weight: 750; }
+        .tag.negative { background: var(--danger-soft); color: var(--danger); }
+        .callout { padding: 1.25rem 1.4rem; border-left: 4px solid var(--warm); border-radius: 0 12px 12px 0; background: var(--warm-soft); }
+        .callout.danger { border-left-color: var(--danger); background: var(--danger-soft); }
+        .callout strong { display: block; margin-bottom: 0.3rem; }
+
+        .architecture { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; gap: 0.7rem; }
+        .architecture .node { display: grid; min-height: 145px; align-content: center; padding: 1.2rem; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+        .architecture .arrow { display: grid; place-items: center; color: var(--muted); font-size: 1.4rem; }
+        .architecture small { color: var(--muted); }
+
+        .code-block { position: relative; margin: 1rem 0 0; }
+        pre { margin: 0; overflow-x: auto; padding: 1.15rem 1.2rem; border-radius: 12px; background: var(--code); color: var(--code-ink); font-size: 0.82rem; line-height: 1.65; }
+        .copy { position: absolute; top: 0.65rem; right: 0.65rem; padding: 0.35rem 0.6rem; border: 1px solid #53615d; border-radius: 7px; background: #24302d; color: #dce9e4; cursor: pointer; font: inherit; font-size: 0.72rem; }
+        .copy:hover { background: #30403c; }
+        .steps { display: grid; gap: 1rem; counter-reset: steps; }
+        .step { position: relative; padding: 1.35rem 1.35rem 1.35rem 4rem; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); counter-increment: steps; }
+        .step::before { position: absolute; top: 1.15rem; left: 1.2rem; display: grid; width: 2rem; height: 2rem; place-items: center; border-radius: 50%; background: var(--accent); color: white; content: counter(steps); font-size: 0.78rem; font-weight: 800; }
+
+        .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+        table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+        th, td { padding: 0.85rem 1rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+        th { color: var(--muted); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; }
+        tbody tr:last-child td { border-bottom: 0; }
+        tbody tr:hover { background: color-mix(in srgb, var(--accent-soft), transparent 55%); }
+        td:first-child { white-space: nowrap; font-weight: 700; }
+        .result-fail { color: var(--danger); font-weight: 800; }
+        .result-pass { color: var(--accent); font-weight: 800; }
+
+        details { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+        details + details { margin-top: 0.7rem; }
+        summary { padding: 0.9rem 1rem; cursor: pointer; font-weight: 750; }
+        details > div { padding: 0 1rem 1rem; color: var(--muted); }
+        .mini-list { display: grid; gap: 0.65rem; }
+        .mini-list > div { padding: 0.8rem 0; border-bottom: 1px solid var(--line); }
+        .mini-list > div:last-child { border-bottom: 0; }
+        .mini-list strong { display: block; color: var(--ink); }
+        .glossary-tools { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; }
+        .glossary-tools label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+        .glossary-tools input { width: min(100%, 560px); min-height: 46px; padding: 0.7rem 0.9rem; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-strong); color: var(--ink); font: inherit; }
+        .glossary-tools input:focus { outline: 3px solid var(--accent-soft); border-color: var(--accent); }
+        .glossary-count { color: var(--muted); font-size: 0.82rem; white-space: nowrap; }
+        .glossary-group { margin-top: 1rem; padding: 1.3rem; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+        .glossary-group > p { color: var(--muted); }
+        .glossary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.4rem; margin: 0; }
+        .glossary-entry { padding: 0.9rem 0; border-top: 1px solid var(--line); }
+        .glossary-entry dt { margin-bottom: 0.18rem; font-weight: 800; }
+        .glossary-entry dd { margin: 0; color: var(--muted); }
+        .glossary-entry[hidden], .glossary-group[hidden] { display: none; }
+        .footer { padding: 2rem 0 4rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.86rem; }
+
+        @media (max-width: 820px) {
+            .topbar-inner { align-items: flex-start; flex-direction: column; padding: 0.8rem 0; }
+            .status-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .card, .card.wide { grid-column: 1 / -1; }
+            .architecture, .glossary-grid { grid-template-columns: 1fr; }
+            .architecture .arrow { transform: rotate(90deg); }
+        }
+        @media (max-width: 520px) {
+            .shell { width: min(100% - 1.2rem, 1180px); }
+            .topnav { gap: 0.25rem 0.7rem; }
+            .hero { padding-top: 3rem; }
+            .status-strip { grid-template-columns: 1fr; }
+            .step { padding-left: 3.5rem; }
+            th, td { padding: 0.7rem; }
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --background: #141816;
+                --surface: #1a201d;
+                --surface-strong: #202722;
+                --ink: #edf1ed;
+                --muted: #aeb7af;
+                --line: #343c36;
+                --accent: #7fc5b7;
+                --accent-soft: #243c36;
+                --warm: #d89a61;
+                --warm-soft: #3b2b1f;
+                --danger: #ee9999;
+                --danger-soft: #422626;
+                --shadow: none;
+            }
+            .button { color: #10201c; }
+            .button.secondary { color: var(--accent); }
+        }
+        @media print {
+            .topbar, .copy, .actions { display: none; }
+            body { background: white; color: black; }
+            .section { break-inside: avoid; }
+            .card, .step, .table-wrap, details { box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+<header class="topbar">
+    <div class="shell topbar-inner">
+        <a class="brand" href="/">CCF6 guide</a>
+        <nav class="topnav" aria-label="Guide sections">
+            <a href="#implemented">Implemented</a>
+            <a href="#quick-start">Quick start</a>
+            <a href="#experiments">Experiments</a>
+            <a href="#workbench">Workbench</a>
+            <a href="#artifacts">Artifacts</a>
+            <a href="#next-steps">Next steps</a>
+        </nav>
+    </div>
+</header>
+
+<div class="shell hero">
+    <p class="eyebrow">Connectionist Cognitive Framework · version 6</p>
+    <h1>Run the instrument. Inspect every claim.</h1>
+    <p class="hero-copy">This guide explains the NCL-only system that is implemented today, how to execute experiments from Docker or the command line, how to read the Laravel workbench, and how to extend the research without contaminating held-out evidence.</p>
+    <div class="actions">
+        <a class="button" href="/">Open the workbench</a>
+        <a class="button secondary" href="https://github.com/elymatos/ccf6/issues">GitHub issues</a>
+        <a class="button secondary" href="#quick-start">Start locally</a>
+    </div>
+    <div class="status-strip" aria-label="Current project status">
+        <div class="status-item"><strong>20</strong><span>paired deterministic seeds</span></div>
+        <div class="status-item"><strong>3</strong><span>matched arms per seed</span></div>
+        <div class="status-item"><strong>13</strong><span>files in the complete artifact</span></div>
+        <div class="status-item"><strong>Failed</strong><span>accepted milestone verdict</span></div>
+    </div>
+</div>
+
+<main class="shell">
+    <section class="section" id="orientation">
+        <p class="eyebrow">Orientation</p>
+        <h2>What CCF6 is</h2>
+        <p class="section-lede">CCF6 is a minimal, inspectable scientific instrument for testing computational consequences of Neurocognitive Linguistics. It is not a product, a natural-language system, or a claim of biological equivalence. The implementation sequence through GitHub issue #12 is complete; there are currently no open roadmap tickets.</p>
+        <div class="architecture" aria-label="System architecture">
+            <div class="node"><h3>Experiment definition</h3><small>JSON declares seeds, Populations, sparse topology, dynamics, learning, controls, and analysis.</small></div>
+            <div class="arrow" aria-hidden="true">→</div>
+            <div class="node"><h3>Python runtime</h3><small>Runs ordinary Columns, local Eligibility, frozen observers, matched controls, and replication.</small></div>
+            <div class="arrow" aria-hidden="true">→</div>
+            <div class="node"><h3>Artifact + workbench</h3><small>Writes durable evidence to disk; Laravel validates and renders it without recomputation.</small></div>
+        </div>
+        <div class="callout" style="margin-top: 1rem">
+            <strong>The workbench is read-only.</strong>
+            Experiments are launched through the Python CLI or the runtime HTTP endpoint. The UI discovers run directories under <code>artifacts/</code> and renders what the runtime already wrote.
+        </div>
+    </section>
+
+    <section class="section" id="implemented">
+        <p class="eyebrow">Implementation record</p>
+        <h2>What has been built</h2>
+        <p class="section-lede">Issues #2–#12 form one progressive implementation. Each later experiment reuses the same declared domain and Network mechanics while adding an observer or stronger experimental control.</p>
+        <div class="grid">
+            <article class="card"><span class="number">02</span><h3>Synthetic lexical grounding</h3><p>Four overlapping visual categories, reusable distributed auditory features, ordered three-segment pseudowords, balanced mismatches, deterministic generation, and isolated acquisition/basin/held-out splits.</p></article>
+            <article class="card"><span class="number">03</span><h3>Ordinary zero-rest Columns</h3><p>Synchronous Input, Integration, and Output dynamics; exact zero rest; graded thresholds; sparse reciprocal endpoints; independent directional weights and Eligibility; explicit settling failures.</p></article>
+            <article class="card"><span class="number">04</span><h3>Coordinated Presentations</h3><p>Visual activity first, then ordered auditory Samples. Activity persists within a Presentation and resets between Presentations. Reversed, permuted, repeated, and competing controls remain distinct.</p></article>
+            <article class="card"><span class="number">05</span><h3>Success-gated local learning</h3><p>Eligibility accumulates from endpoint co-activity. Durable directional weights change only after a diffuse positive Success Signal, with local incoming normalization.</p></article>
+            <article class="card"><span class="number">06</span><h3>Recruitment and homeostasis</h3><p>Entrenchment requires distinct successful Presentations. Threshold averages adapt locally and independently of success. Durable adaptation freezes for evaluation.</p></article>
+            <article class="card"><span class="number">07</span><h3>Matched Target Basins</h3><p>Trained, identical untrained, and shuffled-pairing arms share initial conditions. Basin centroids, reliable masks, scales, distributions, and margins are fit without final held-out leakage.</p></article>
+            <article class="card"><span class="number">08</span><h3>Completion and reactivation</h3><p>Full, visual-only, pseudoword-only, partial visual, and atypical cues are scored against frozen basins. Ordered trajectories are compared with every required sequence control.</p></article>
+            <article class="card"><span class="number">09</span><h3>Causal Functional Web observer</h3><p>Membership requires reliability, completion perturbation, and reciprocal connectivity above matched controls with false-discovery-rate correction. Runtime activity never stores membership.</p></article>
+            <article class="card"><span class="number">10</span><h3>Cardinal causal classification</h3><p>Observer-only Candidate and Cardinal Node gates, median-Output stimulation, Output Lesions preserving incoming observability, redundancy measures, and matched controls.</p></article>
+            <article class="card wide"><span class="number">11</span><h3>Replicated milestone</h3><p>Twenty paired seeds, three arms per seed, 10,000 deterministic paired bootstrap resamples, seed-level effects, explicit failures, non-inferiority analysis, and one criterion-by-criterion verdict.</p></article>
+            <article class="card wide"><span class="number">12</span><h3>Complete artifact contract</h3><p>The accepted <code>ncl-functional-web-v1</code> contract is the default. Every required file is checksum-protected and independently validatable; superseded prototype code and compatibility paths are retired.</p></article>
+        </div>
+    </section>
+
+    <section class="section" id="result">
+        <p class="eyebrow">Scientific status</p>
+        <h2>The implementation is complete; the hypothesis failed</h2>
+        <div class="callout danger">
+            <strong>Milestone failed scientifically; the software completed correctly.</strong>
+            The accepted experiment completed and preserved a negative scientific verdict. That is a valid result of the instrument.
+        </div>
+        <div class="table-wrap" style="margin-top: 1rem">
+            <table>
+                <thead><tr><th>Criterion</th><th>Accepted result</th><th>Interpretation</th></tr></thead>
+                <tbody>
+                    <tr><td>Completion improvement</td><td class="result-fail">Failed</td><td>Median paired effect 0.0; 95% interval [0.0, 0.0].</td></tr>
+                    <tr><td>Cross-route reactivation</td><td class="result-fail">Failed</td><td>Median paired effect 0.0; no positive interval.</td></tr>
+                    <tr><td>Correct pairing localization</td><td class="result-fail">Failed</td><td>Trained behavior did not reliably exceed shuffled pairings.</td></tr>
+                    <tr><td>Functional Web overlap</td><td class="result-fail">Failed</td><td>No causally qualified Functional Web was detected across the milestone.</td></tr>
+                    <tr><td>Cardinal interventions</td><td class="result-fail">Not executable</td><td>No causal Functional Web meant no valid Cardinal Candidate could be promoted.</td></tr>
+                    <tr><td>Settling</td><td class="result-fail">6 failures</td><td>Failures occurred across three seeds and were counted, never discarded.</td></tr>
+                    <tr><td>Held-out separation non-inferiority</td><td class="result-pass">Passed</td><td>The 95% lower bound remained above the declared −5% margin.</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="section-lede" style="margin-top: 1rem">The mechanism-level diagnosis is diffuse near-global activation: Eligibility saturates broadly, Recruitment becomes indiscriminate, and the current local rule does not preserve ordered conjunctions. The artifacts preserve that failure as the baseline for the next mechanism.</p>
+    </section>
+
+    <section class="section" id="quick-start">
+        <p class="eyebrow">Local operation</p>
+        <h2>Quick start with Docker Compose</h2>
+        <p class="section-lede">The default ports are read from <code>.env</code>: workbench <code>8002</code>, runtime API <code>8933</code>, and Redis <code>6380</code>. Internally, Laravel reaches the runtime at <code>runtime:8931</code>.</p>
+        <div class="steps">
+            <article class="step">
+                <h3>Prepare the application</h3>
+                <p>From the repository root, create the environment, install PHP dependencies, initialize SQLite, and generate the Laravel key.</p>
+                <div class="code-block"><button class="copy" type="button">Copy</button><pre><code>cp .env.example .env
+composer install
+touch database/database.sqlite
+docker compose run --rm --no-deps php php artisan key:generate
+docker compose run --rm --no-deps php php artisan migrate</code></pre></div>
+            </article>
+            <article class="step">
+                <h3>Build and start the services</h3>
+                <div class="code-block"><button class="copy" type="button">Copy</button><pre><code>docker compose up -d --build
+docker compose ps</code></pre></div>
+                <p style="margin-top: 0.8rem">The stack includes Caddy, PHP-FPM, the Python runtime, queue and schedule workers, and Redis.</p>
+            </article>
+            <article class="step">
+                <h3>Verify both interfaces</h3>
+                <div class="code-block"><button class="copy" type="button">Copy</button><pre><code>curl http://localhost:8933/health
+open http://localhost:8002</code></pre></div>
+                <p style="margin-top: 0.8rem">On Linux, replace <code>open</code> with <code>xdg-open</code>, or enter the URL manually.</p>
+            </article>
+            <article class="step">
+                <h3>Run a fast experiment first</h3>
+                <div class="code-block"><button class="copy" type="button">Copy</button><pre><code>curl -X POST http://localhost:8933/run \
+  -H 'Content-Type: application/json' \
+  --data-binary @experiments/002-synthetic-lexical-grounding.json</code></pre></div>
+                <p style="margin-top: 0.8rem">Reload the workbench. A new run appears automatically because the runtime and Laravel share <code>artifacts/</code>.</p>
+            </article>
+        </div>
+    </section>
+
+    <section class="section" id="running">
+        <p class="eyebrow">Execution paths</p>
+        <h2>Three ways to run an experiment</h2>
+        <div class="grid">
+            <article class="card wide">
+                <h3>1. Runtime HTTP API</h3>
+                <p>Best when the Docker stack is already running. <code>POST /run</code> is synchronous: the response arrives only after the artifact is complete.</p>
+                <div class="code-block"><button class="copy" type="button">Copy</button><pre><code>curl -X POST http://localhost:8933/run \
+  -H 'Content-Type: application/json' \
+  --data-binary @experiments/008-completion-reactivation.json</code></pre></div>
+                <p style="margin-top: 0.8rem">The JSON response includes <code>run</code>, <code>artifact</code>, and <code>summary</code>. Use <code>GET /health</code> to see the runtime version and supported experiment kinds.</p>
+            </article>
+            <article class="card wide">
+                <h3>2. Python CLI on the host</h3>
+                <p>Best for development and logs. The command prints the run directory and human-scale summary.</p>
+                <div class="code-block"><button class="copy" type="button">Copy</button><pre><code>PYTHONPATH=ccf6-runtime/src python3 -m ccf6 \
+  experiments/008-completion-reactivation.json artifacts</code></pre></div>
+                <p style="margin-top: 0.8rem">The host Python environment needs the runtime dependencies from <code>ccf6-runtime/pyproject.toml</code>, principally NumPy.</p>
+            </article>
+            <article class="card wide">
+                <h3>3. CLI inside the runtime container</h3>
+                <p>Useful when the host has no suitable Python environment.</p>
+                <div class="code-block"><button class="copy" type="button">Copy</button><pre><code>docker compose exec runtime python -m ccf6 \
+  experiments/008-completion-reactivation.json artifacts</code></pre></div>
+            </article>
+            <article class="card wide">
+                <h3>Validate without rerunning</h3>
+                <p>The complete replicated artifact can be audited independently. Replace the directory with the run printed by the CLI or shown in the workbench.</p>
+                <div class="code-block"><button class="copy" type="button">Copy</button><pre><code>PYTHONPATH=ccf6-runtime/src python3 -m ccf6 --validate \
+  artifacts/011-&lt;timestamp&gt;-&lt;digest&gt;</code></pre></div>
+            </article>
+        </div>
+        <div class="callout" style="margin-top: 1rem">
+            <strong>The replicated milestone is intentionally substantial.</strong>
+            Experiment 011 runs 20 seeds × 3 matched arms and stages thousands of Presentation records. Use experiments 002–010 for focused development before launching the complete run.
+        </div>
+    </section>
+
+    <section class="section" id="experiments">
+        <p class="eyebrow">Experiment catalogue</p>
+        <h2>Choose the smallest experiment that answers your question</h2>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Definition</th><th>Kind</th><th>Use it to inspect</th></tr></thead>
+                <tbody>
+                    <tr><td><code>002-synthetic-lexical-grounding.json</code></td><td><code>synthetic_lexical_grounding</code></td><td>Generated categories, splits, pseudowords, pairings, and constraint checks.</td></tr>
+                    <tr><td><code>003-zero-rest-network.json</code></td><td><code>zero_rest_network</code></td><td>Column equations, topology, reciprocal weights, activity, and settling.</td></tr>
+                    <tr><td><code>004-coordinated-presentation.json</code></td><td><code>coordinated_presentation</code></td><td>Visual-first Sample order, persistence, reset, and sequence controls.</td></tr>
+                    <tr><td><code>005-success-gated-learning.json</code></td><td><code>success_gated_learning</code></td><td>Eligibility and successful versus unsuccessful directional weight changes.</td></tr>
+                    <tr><td><code>006-recruitment-homeostasis.json</code></td><td><code>recruitment_homeostasis</code></td><td>Distinct-Presentation Recruitment, thresholds, entrenchment, and freezing.</td></tr>
+                    <tr><td><code>007-matched-target-basins.json</code></td><td><code>matched_target_basins</code></td><td>Matched arms, frozen scales, masks, centroids, margins, and held-out scoring.</td></tr>
+                    <tr><td><code>008-completion-reactivation.json</code></td><td><code>completion_reactivation</code></td><td>Partial cues, Entry Routes, basin movement, and ordered phonological trajectories.</td></tr>
+                    <tr><td><code>009-functional-web-detection.json</code></td><td><code>functional_web_detection</code></td><td>Reliability, causal perturbation, connectivity controls, FDR, and overlap.</td></tr>
+                    <tr><td><code>010-cardinal-classification.json</code></td><td><code>cardinal_classification</code></td><td>Candidate gates, stimulation, Lesion, redundancy, matching, and failures.</td></tr>
+                    <tr><td><code>011-replicated-milestone.json</code></td><td><code>replicated_milestone</code></td><td>The canonical 20-seed experiment, bootstrap inference, and final verdict.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="section" id="workbench">
+        <p class="eyebrow">User interface</p>
+        <h2>How to use the Laravel workbench</h2>
+        <div class="grid">
+            <article class="card wide"><h3>Runs index · <code>/</code></h3><p>Lists every artifact directory newest first, including experiment number, kind, status, duration, seed count, and digest. Select the experiment name to open its evidence.</p></article>
+            <article class="card wide"><h3>Run view · <code>/runs/{run}</code></h3><p>Chooses the correct evidence view from the artifact manifest. The replicated view shows the complete contract, criterion verdicts, effect intervals, every seed, and failures.</p></article>
+            <article class="card wide"><h3>Project documents · <code>/docs/{page}</code></h3><p>Renders root-level Markdown files in <code>docs/</code>. Examples: <a href="/docs/architecture">architecture</a>, <a href="/docs/specification">specification</a>, and <a href="/docs/neurocognitive_linguistics_summary">NCL summary</a>.</p></article>
+            <article class="card wide"><h3>Integrity behavior</h3><p>For milestone artifacts, the workbench verifies the exact file inventory and SHA-256 checksums. Missing, malformed, unsupported, or modified artifacts are reported instead of interpreted through the current architecture.</p></article>
+        </div>
+        <h3 style="margin-top: 1.5rem">What each focused view emphasizes</h3>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Experiment range</th><th>Workbench evidence</th></tr></thead>
+                <tbody>
+                    <tr><td>002</td><td>Domain constraints, category instances, pseudowords, and balanced pairings.</td></tr>
+                    <tr><td>003</td><td>Actual connectivity, Input/Integration/Output activity, and settling status.</td></tr>
+                    <tr><td>004</td><td>Presentation order, trajectories, durations, continuity, and failures.</td></tr>
+                    <tr><td>005–006</td><td>Success Signals, Eligibility, weights, Recruitment, threshold history, and frozen evaluation.</td></tr>
+                    <tr><td>007–010</td><td>Matched arms, Target Basins, completion, reactivation, Functional Web and cardinal evidence.</td></tr>
+                    <tr><td>011</td><td>Complete artifact inventory, checksums, seed audit, bootstrap effects, criteria, failures, and verdict.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="section" id="artifacts">
+        <p class="eyebrow">Durable evidence</p>
+        <h2>The complete artifact contract</h2>
+        <p class="section-lede">A canonical replicated run is one directory under <code>artifacts/</code>. JSON is for definitions and observer evidence, JSON Lines for Presentation records, and compressed NumPy archives for lossless numerical arrays.</p>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+                <tbody>
+                    <tr><td><code>definition.json</code></td><td>Exact experiment definition supplied to the runtime.</td></tr>
+                    <tr><td><code>manifest.json</code></td><td>Contract, software version, identity digest, timing, status, seed/arm inventory, ordered files, and checksums.</td></tr>
+                    <tr><td><code>dataset.json</code></td><td>Generated domain, immutable split membership, constraints, and pairings for every seed.</td></tr>
+                    <tr><td><code>topology.npz</code></td><td>Population labels, thresholds, directed endpoints, directional initial weights, and inhibition topology.</td></tr>
+                    <tr><td><code>presentations.jsonl</code></td><td>One auditable Presentation per line with seed, arm, condition, Samples, success, durations, and settling status.</td></tr>
+                    <tr><td><code>learning.npz</code></td><td>Eligibility, pre/post directional weights, thresholds, entrenchment, contributors, and Recruitment.</td></tr>
+                    <tr><td><code>activity.npz</code></td><td>Initial/settled activity and required ordered phonological trajectories.</td></tr>
+                    <tr><td><code>basins.json</code></td><td>Frozen centroids, pooled scales, reliable masks, margins, and distance distributions.</td></tr>
+                    <tr><td><code>webs.json</code></td><td>Raw web detector scores, matched controls, corrected values, membership, and overlap.</td></tr>
+                    <tr><td><code>cardinals.json</code></td><td>Candidate gates, matching, stimulation, Lesion, redundancy, classifications, and failures.</td></tr>
+                    <tr><td><code>metrics.json</code></td><td>Every ordered seed row and paired effect value; Presentations remain nested observations.</td></tr>
+                    <tr><td><code>aggregate.json</code></td><td>Bootstrap intervals, direction counts, failure counts, acceptance criteria, and verdict.</td></tr>
+                    <tr><td><code>summary.json</code></td><td>Compact human-scale replication status and verdict used by the workbench.</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="grid" style="margin-top: 1rem">
+            <article class="card wide"><h3>Artifact identity</h3><p>The digest changes when the definition, software version, generated dataset, or topology changes. Checksums detect any later file modification.</p></article>
+            <article class="card wide"><h3>Database boundary</h3><p>Numerical results never belong in SQLite. Artifacts are the source of truth; Laravel only reads them. The database is reserved for a catalogue if needed.</p></article>
+        </div>
+    </section>
+
+    <section class="section" id="customizing">
+        <p class="eyebrow">Safe experimentation</p>
+        <h2>How to create a new declared run</h2>
+        <div class="steps">
+            <article class="step"><h3>Copy the nearest experiment</h3><p>Start from the smallest definition with the behavior you need. Give it a new <code>number</code>, <code>name</code>, <code>question</code>, and—only if runtime dispatch changes—a supported <code>kind</code>.</p></article>
+            <article class="step"><h3>Declare every result-affecting value</h3><p>Seeds, topology, fan-in, initialization, dynamics, settling, learning, controls, observer thresholds, replication workers, bootstrap count, and non-inferiority margin belong in the definition. Unknown or malformed declarations should fail rather than silently default.</p></article>
+            <article class="step"><h3>Protect the evidence boundary</h3><p>Use acquisition and basin-estimation data to develop mechanisms and freeze observer definitions. Never select parameters by looking at final held-out performance. Preserve trained, identical untrained, and shuffled-pairing arms.</p></article>
+            <article class="step"><h3>Run focused, then replicated</h3><p>First verify mechanics and artifacts with one seed. Once the mechanism and analysis are fixed, execute at least 20 paired seeds and aggregate seed-level effects—not Presentations.</p></article>
+            <article class="step"><h3>Keep negative results</h3><p>Do not discard settling failures, seeds without Candidates, or hypotheses that fail. Record them in artifacts and let the workbench state the result plainly.</p></article>
+        </div>
+    </section>
+
+    <section class="section" id="development">
+        <p class="eyebrow">Development checks</p>
+        <h2>Tests and verification</h2>
+        <div class="grid">
+            <article class="card wide">
+                <h3>Python runtime</h3>
+                <div class="code-block"><button class="copy" type="button">Copy</button><pre><code>PYTHONPATH=ccf6-runtime/src python3 -m pytest ccf6-runtime/tests -q
+python3 -m compileall -q ccf6-runtime/src ccf6-runtime/tests</code></pre></div>
+            </article>
+            <article class="card wide">
+                <h3>Laravel workbench</h3>
+                <div class="code-block"><button class="copy" type="button">Copy</button><pre><code>php artisan test --compact
+vendor/bin/pint --dirty --format agent</code></pre></div>
+            </article>
+        </div>
+        <p class="section-lede" style="margin-top: 1rem">Prefer tests at the public scientific seams: declared experiment → artifact, normative Network behavior, frozen observer output, and artifact → rendered workbench. A test should catch a broken premise, not merely pin incidental implementation.</p>
+    </section>
+
+    <section class="section" id="troubleshooting">
+        <p class="eyebrow">Operations</p>
+        <h2>Troubleshooting</h2>
+        <details open><summary>The workbench shows no runs</summary><div>Run an experiment first and verify both services use the same artifact directory. Docker uses <code>/www/artifacts</code> in both containers. On the host, the default is the repository's <code>artifacts/</code>. Reload <code>http://localhost:8002</code> after the run completes.</div></details>
+        <details><summary>A run is “unsupported or malformed”</summary><div>Read the message on the page. The manifest may use a retired contract, omit a required file, contain malformed JSON, or have a checksum mismatch. Do not edit a completed artifact to make it render; rerun its recorded definition with the current software when comparison is scientifically valid.</div></details>
+        <details><summary>The runtime reports an unknown current experiment kind</summary><div>If <code>/health</code> reports version <code>0.1.0</code> or lists only the retired <code>colour_selectivity_baseline</code>, the runtime container predates the NCL Functional Web implementation. Rebuild and recreate it with <code>docker compose up -d --build --force-recreate runtime</code>, then verify <code>curl http://localhost:8933/health</code> reports version <code>0.2.0</code> and the current experiment kinds.</div></details>
+        <details><summary>The runtime health endpoint does not respond</summary><div>Run <code>docker compose ps</code> and <code>docker compose logs runtime</code>. Confirm <code>FORWARD_RUNTIME_PORT=8933</code> is free. Rebuild with <code>docker compose up -d --build runtime</code> after changing the image or package metadata.</div></details>
+        <details><summary>The UI does not respond</summary><div>Inspect <code>docker compose logs caddy php</code>. Confirm <code>FORWARD_PHP_PORT=8002</code> and that Composer dependencies exist in <code>vendor/</code>. The public URL is controlled by <code>APP_URL</code>.</div></details>
+        <details><summary>The runtime returns HTTP 500</summary><div>The response contains a traceback because a failed run must be diagnosable. Common causes are invalid experiment declarations, settling failures in phases that require success, artifact permissions, or insufficient resources. Keep the definition and failure evidence.</div></details>
+        <details><summary>Artifacts are owned by root or cannot be written</summary><div>Set <code>WWWUSER</code> and <code>WWWGROUP</code> in <code>.env</code> to your host user and group IDs, then rebuild the services. The runtime container deliberately runs as those IDs.</div></details>
+        <details><summary>The complete run is slow</summary><div>Experiment 011 executes substantial numerical work. Its <code>replication.workers</code> value is declared in the experiment. Change it only as part of a new definition; the changed definition must produce a new identity. Use focused experiments while iterating.</div></details>
+        <details><summary>Frontend changes are not visible</summary><div>The current workbench views mostly use inline styles and do not require Vite. If bundled assets are changed later, run <code>npm install</code> and <code>npm run build</code>, or keep <code>npm run dev</code> active.</div></details>
+    </section>
+
+    <section class="section" id="next-steps">
+        <p class="eyebrow">Forward path</p>
+        <h2>Recommended next steps</h2>
+        <div class="grid">
+            <article class="card wide">
+                <span class="tag">Scientific</span>
+                <h3 style="margin-top: 0.8rem">Decide the next local temporal mechanism</h3>
+                <p>The first milestone localized a failure: broad co-activity saturates Eligibility and loses ordered conjunctions. The next proposal should introduce an NCL-compatible temporal distinction—such as sequence-local Eligibility, a declared WAIT-like recurrent configuration, or another local mechanism—without installing symbolic order or semantic labels.</p>
+            </article>
+            <article class="card wide">
+                <span class="tag">Method</span>
+                <h3 style="margin-top: 0.8rem">Predeclare development and evaluation</h3>
+                <p>Write a new issue/specification before changing mechanics. Choose parameters using mechanics and development evidence only, freeze the decision, then rerun the same held-out cues, matched arms, web controls, cardinal interventions, and 20-seed inference.</p>
+            </article>
+            <article class="card wide">
+                <span class="tag">Comparison</span>
+                <h3 style="margin-top: 0.8rem">Treat the failed artifact as the baseline</h3>
+                <p>Compare a new mechanism against the accepted run on saturation, Recruitment selectivity, completion, ordered reactivation, pairing localization, web overlap, cardinal causality, separation, and failures. Do not overwrite or reinterpret the baseline.</p>
+            </article>
+            <article class="card wide">
+                <span class="tag">Usability</span>
+                <h3 style="margin-top: 0.8rem">Add run submission only if needed</h3>
+                <p>The current workbench intentionally reads artifacts and does not launch experiments. A future UI could submit an existing declared definition to the synchronous runtime endpoint while keeping experiment authoring and numerical computation out of Laravel.</p>
+            </article>
+        </div>
+        <div class="callout" style="margin-top: 1rem">
+            <strong>Project boundary</strong>
+            CCF6 remains a permanent minimal reference instrument developed independently. Do not consult or import CCF7 designs when choosing the next mechanism.
+        </div>
+    </section>
+
+    <section class="section" id="glossary">
+        <p class="eyebrow">Domain and experimental language</p>
+        <h2>Extensive glossary</h2>
+        <p class="section-lede">These definitions combine the canonical NCL vocabulary in <code>CONTEXT.md</code> with the measurement, control, inference, and artifact terms used by the implemented experiments. Capitalized domain terms retain their project-specific meanings.</p>
+        <div class="glossary-tools">
+            <label for="glossary-search">Search glossary terms</label>
+            <input id="glossary-search" type="search" placeholder="Search terms or definitions…" autocomplete="off">
+            <span class="glossary-count" aria-live="polite">94 terms</span>
+        </div>
+
+        <article class="glossary-group">
+            <h3>NCL network organization</h3>
+            <p>The entities and observer classifications used to describe the connected cognitive system.</p>
+            <dl class="glossary-grid">
+                <div class="glossary-entry"><dt>Network</dt><dd>The complete connected cognitive system in which local functions arise from connectivity and activity; not a symbolic processor.</dd></div>
+                <div class="glossary-entry"><dt>Column</dt><dd>The smallest addressable processing population. It stores no symbol or concept; its function comes from connectivity and activation history.</dd></div>
+                <div class="glossary-entry"><dt>Population</dt><dd>A group of ordinary Columns receiving a related class of evidence and participating in one or more distributed functions.</dd></div>
+                <div class="glossary-entry"><dt>Modality</dt><dd>The sensory or motor channel through which activity enters or leaves a Population, such as visual or auditory; not a cognitive function.</dd></div>
+                <div class="glossary-entry"><dt>Functional Web</dt><dd>A distributed, overlapping coalition demonstrated by reliable co-activation, effective connectivity, completion from independent Entry Routes, and causal evidence. It is an observer result, not a runtime container.</dd></div>
+                <div class="glossary-entry"><dt>Subweb</dt><dd>A functionally distinguishable part of a Functional Web that may also participate in other webs rather than being owned by one.</dd></div>
+                <div class="glossary-entry"><dt>Entry Route</dt><dd>A functionally independent sensory, linguistic, conceptual, or motor path capable of contributing to a Functional Web's Ignition.</dd></div>
+                <div class="glossary-entry"><dt>Available Column</dt><dd>A Column whose plasticity has not yet been committed to a recurring function.</dd></div>
+                <div class="glossary-entry"><dt>Recruited Column</dt><dd>A Column measurably entrenched by repeated successful participation across distinct Presentations.</dd></div>
+                <div class="glossary-entry"><dt>Cardinal Candidate</dt><dd>A Recruited Column or redundant population that passes independent-route, stability, stimulation, and matched-control gates. Recruitment alone is insufficient.</dd></div>
+                <div class="glossary-entry"><dt>Cardinal Node</dt><dd>A Cardinal Candidate that demonstrates stable access, partial-cue Ignition, supporting-Subweb reactivation, Lesion sensitivity, redundancy behavior, and cross-seed evidence.</dd></div>
+                <div class="glossary-entry"><dt>Reciprocal topology</dt><dd>Connected Population endpoints support both ascending and descending routes while each direction keeps independent weights and Eligibility.</dd></div>
+                <div class="glossary-entry"><dt>Fixed latent topology</dt><dd>Abundant sparse connections are created before learning. Learning may alter their strengths but cannot add, remove, or redirect them in milestone one.</dd></div>
+                <div class="glossary-entry"><dt>Input, Integration, Output</dt><dd>The three private functional compartments of every Column: incoming drive, recurrent/contextual competition, and graded broadcast response.</dd></div>
+            </dl>
+        </article>
+
+        <article class="glossary-group">
+            <h3>Activity, learning, and causal behavior</h3>
+            <p>Terms for what the Network does during a Presentation and what may change durably afterward.</p>
+            <dl class="glossary-grid">
+                <div class="glossary-entry"><dt>Activation</dt><dd>The graded current response of a Column or Population to excitation, inhibition, recurrence, threshold, and context; not a truth value.</dd></div>
+                <div class="glossary-entry"><dt>Broadcast</dt><dd>Output activity sent to connected Columns when it meets the declared transmission cutoff. The cutoff does not alter stored Output.</dd></div>
+                <div class="glossary-entry"><dt>Competition</dt><dd>Bounded local inhibition among alternatives that sharpens participation without imposing a global symbolic winner.</dd></div>
+                <div class="glossary-entry"><dt>Persistence</dt><dd>Temporary maintenance of activity through recurrent connectivity; not permanent memory.</dd></div>
+                <div class="glossary-entry"><dt>Eligibility</dt><dd>A bounded, decaying local trace on one directional connection. It marks co-activity that a later Success Signal may confirm.</dd></div>
+                <div class="glossary-entry"><dt>Success Signal</dt><dd>A diffuse modulatory value indicating an observable successful outcome without identifying a category, Column, Population, or connection.</dd></div>
+                <div class="glossary-entry"><dt>Recruitment</dt><dd>Experience-dependent commitment through eligible connections confirmed across distinct successful Presentations; never one tick or one Sample.</dd></div>
+                <div class="glossary-entry"><dt>Entrenchment</dt><dd>Accumulated evidence of repeated successful use that increases a pathway's stability and accessibility.</dd></div>
+                <div class="glossary-entry"><dt>Homeostasis</dt><dd>Local adaptation of each Column's activity average and threshold toward a declared target, independently of the Success Signal.</dd></div>
+                <div class="glossary-entry"><dt>Ignition</dt><dd>Coordinated activation of a Functional Web from a sufficiently informative partial Entry Route.</dd></div>
+                <div class="glossary-entry"><dt>Pattern Completion</dt><dd>Reactivation of absent parts of a learned Functional Web from partial evidence; not record retrieval.</dd></div>
+                <div class="glossary-entry"><dt>Stimulation</dt><dd>A causal intervention that clamps selected Output to a declared amplitude, here derived from median full-Presentation activity, with sensory input absent.</dd></div>
+                <div class="glossary-entry"><dt>Lesion</dt><dd>A causal intervention that clamps selected Output to zero while preserving observation of activity arriving at Input and Integration.</dd></div>
+                <div class="glossary-entry"><dt>Redundancy</dt><dd>Preservation or recovery of function through alternative Columns or routes when one Candidate or Candidate group is lesioned.</dd></div>
+            </dl>
+        </article>
+
+        <article class="glossary-group">
+            <h3>Experimental domain and protocol</h3>
+            <p>Terms that identify what is presented, when adaptation is allowed, and which evidence may be used.</p>
+            <dl class="glossary-grid">
+                <div class="glossary-entry"><dt>World</dt><dd>The external arrangement presented to the Network during an experiment; not an internal model.</dd></div>
+                <div class="glossary-entry"><dt>Object</dt><dd>A presentation target defined by externally observable parts or properties; not a stored concept.</dd></div>
+                <div class="glossary-entry"><dt>Presentation</dt><dd>One ordered exposure of an Object or cue to the Network. Activity and Eligibility reset between independent Presentations.</dd></div>
+                <div class="glossary-entry"><dt>Sample</dt><dd>One sensory observation within a Presentation. Activity and Eligibility persist from one Sample to the next.</dd></div>
+                <div class="glossary-entry"><dt>Sensory adapter</dt><dd>A stateless mapping from distributed physical features to sensory Population activity. It carries no category identity, history, or outcome.</dd></div>
+                <div class="glossary-entry"><dt>Acquisition</dt><dd>The phase in which balanced correct and mismatched visual–pseudoword Presentations may adapt weights, thresholds, entrenchment, and Recruitment.</dd></div>
+                <div class="glossary-entry"><dt>Correct pairing</dt><dd>A category's declared visual evidence paired with its pseudoword; after successful settling it receives Success Signal <code>1.0</code>.</dd></div>
+                <div class="glossary-entry"><dt>Mismatch</dt><dd>A balanced visual–pseudoword control Presentation that receives Success Signal <code>0.0</code>, showing that co-activity alone is insufficient.</dd></div>
+                <div class="glossary-entry"><dt>Ordered pseudoword</dt><dd>A three-segment lexical form assembled from shared distributed auditory features and distinguishable by temporal conjunction rather than a unique feature.</dd></div>
+                <div class="glossary-entry"><dt>Sequence control</dt><dd>A reversed, permuted, repeated-segment, or competing pseudoword trajectory used to test whether order—not only the feature bag—was learned.</dd></div>
+                <div class="glossary-entry"><dt>Basin-estimation split</dt><dd>Four disjoint instances per category used to fit frozen basin centroids, scales, reliable masks, distributions, and margins.</dd></div>
+                <div class="glossary-entry"><dt>Final held-out split</dt><dd>Four disjoint instances per category reserved for final evaluation and forbidden from influencing generation decisions, fitting, or parameter selection.</dd></div>
+                <div class="glossary-entry"><dt>Partial cue</dt><dd>An incomplete Entry Route, such as a subset of visual properties, used to test movement toward the correct Target Basin and Pattern Completion.</dd></div>
+                <div class="glossary-entry"><dt>Atypical held-out cue</dt><dd>A final held-out instance selected by the declared prototype-distance rule to test graded recognition away from the prototype.</dd></div>
+                <div class="glossary-entry"><dt>Settling</dt><dd>Recurrent execution until the maximum Output change remains below the declared epsilon for the declared consecutive stable ticks.</dd></div>
+                <div class="glossary-entry"><dt>Settling failure</dt><dd>Reaching <code>max_ticks</code> without stability. Recognition cannot be inferred, and the failure must be counted rather than discarded.</dd></div>
+                <div class="glossary-entry"><dt>Durable adaptive state</dt><dd>Weights, thresholds, activity averages, entrenchment, contributor identities, and Recruitment evidence that survive activity reset. Fixed topology is durable but not adaptive.</dd></div>
+                <div class="glossary-entry"><dt>Frozen evaluation</dt><dd>Basin estimation and final testing with every durable adaptive process disabled. Observation may not become additional training.</dd></div>
+            </dl>
+        </article>
+
+        <article class="glossary-group">
+            <h3>Plain-language experiment vocabulary</h3>
+            <p>Short definitions for recurring words that appear throughout run definitions, evidence tables, and result discussions.</p>
+            <dl class="glossary-grid">
+                <div class="glossary-entry"><dt>Basin</dt><dd>A region of Network activity toward which recurrent settling tends to converge. In these experiments, a category's measured and frozen region is its Target Basin.</dd></div>
+                <div class="glossary-entry"><dt>Trace</dt><dd>A value or sequence that preserves how something changed over time. An Eligibility trace is temporary local connection state; an activity trace records Column activity across ticks. A trace is evidence, not a symbolic memory record.</dd></div>
+                <div class="glossary-entry"><dt>Pseudoword</dt><dd>An invented, pronounceable experimental form with no pre-existing meaning. Here it is an ordered sequence of three reusable segments represented by distributed auditory features.</dd></div>
+                <div class="glossary-entry"><dt>Centroids</dt><dd>The category-level mean activity vectors calculated from basin-estimation instances. Each centroid summarizes the center of one fitted Target Basin without storing any one Presentation as the target.</dd></div>
+                <div class="glossary-entry"><dt>Scales</dt><dd>Per-Column variability values used to put activity differences on comparable units. The frozen pooled scales divide centroid differences in standardized Euclidean distance and cannot fall below <code>minimum_scale</code>.</dd></div>
+                <div class="glossary-entry"><dt>Reliable masks</dt><dd>Frozen Boolean selections identifying which Columns are stable enough across basin-estimation instances to contribute to a category's primary basin distance.</dd></div>
+                <div class="glossary-entry"><dt>Distributions</dt><dd>Recorded collections of observed or control values rather than one summary number—for example within-category distances, between-category distances, or random-coalition scores.</dd></div>
+                <div class="glossary-entry"><dt>Margins</dt><dd>Frozen separation allowances derived from basin-estimation distributions. A correct basin distance must beat every competing distance by more than the category's margin.</dd></div>
+                <div class="glossary-entry"><dt>Path</dt><dd>A concrete sequence of connected directional routes through which activity can propagate. A path is not itself an Entry Route: an Entry Route is a functionally independent source of access and may use several paths.</dd></div>
+                <div class="glossary-entry"><dt>Arm</dt><dd>One matched experimental condition run from controlled initial conditions. The milestone uses trained, untrained, and shuffled-pairing arms for every seed.</dd></div>
+            </dl>
+        </article>
+
+        <article class="glossary-group">
+            <h3>Target Basins, controls, and observer evidence</h3>
+            <p>Terms used to turn frozen Network activity into comparable recognition and causal measurements.</p>
+            <dl class="glossary-grid">
+                <div class="glossary-entry"><dt>Target Basin</dt><dd>The stable distributed activity region approached during a full learned Presentation and estimated from several instances, never one stored vector.</dd></div>
+                <div class="glossary-entry"><dt>Centroid</dt><dd>The mean settled activity vector of one category's basin-estimation instances.</dd></div>
+                <div class="glossary-entry"><dt>Reliable-Column mask</dt><dd>The frozen subset of Columns whose basin-estimation variability remains within the declared stability limit.</dd></div>
+                <div class="glossary-entry"><dt>Pooled scale</dt><dd>A per-Column variability estimate fitted from basin-estimation evidence and bounded below by <code>minimum_scale</code>.</dd></div>
+                <div class="glossary-entry"><dt>Standardized Euclidean distance</dt><dd>The primary basin metric: root-mean-square centroid difference after division by frozen pooled scales over reliable Columns.</dd></div>
+                <div class="glossary-entry"><dt>Cosine distance</dt><dd>A secondary directional-similarity diagnostic retained for inspection but never substituted for the primary standardized metric.</dd></div>
+                <div class="glossary-entry"><dt>Basin margin</dt><dd>A frozen threshold derived from within-category basin-estimation distances. Correct distance plus margin must beat every competitor.</dd></div>
+                <div class="glossary-entry"><dt>Trained arm</dt><dd>The matched arm that receives declared Success Signals and performs durable acquisition before evaluation is frozen.</dd></div>
+                <div class="glossary-entry"><dt>Untrained arm</dt><dd>An otherwise matched Network that performs no durable learning, establishing what initial wiring alone can do.</dd></div>
+                <div class="glossary-entry"><dt>Shuffled-pairing arm</dt><dd>A trained matched arm that changes only category–pseudoword pairings, testing whether effects localize to the correct arbitrary signs.</dd></div>
+                <div class="glossary-entry"><dt>Matched control</dt><dd>A comparison selected to share all relevant initial conditions or nuisance properties except the intervention or hypothesis-bearing factor.</dd></div>
+                <div class="glossary-entry"><dt>Pairing localization</dt><dd>The degree to which trained completion and reactivation exceed the shuffled-pairing arm rather than reflecting generic adaptation.</dd></div>
+                <div class="glossary-entry"><dt>Reliability evidence</dt><dd>Category-conditioned activation consistency compared with shuffled-label control distributions.</dd></div>
+                <div class="glossary-entry"><dt>Causal completion contribution</dt><dd>The change in completion caused by perturbing a Column, compared with matched random-Column perturbations.</dd></div>
+                <div class="glossary-entry"><dt>Reciprocal effective connectivity</dt><dd>Measured two-direction connectivity within a proposed coalition, compared with degree-matched random coalitions.</dd></div>
+                <div class="glossary-entry"><dt>False-discovery-rate correction</dt><dd>Benjamini–Hochberg correction across tested Columns that limits the expected proportion of false selections among discoveries.</dd></div>
+                <div class="glossary-entry"><dt>Observer</dt><dd>Offline analysis that classifies basins, Functional Webs, or cardinals from recorded evidence without changing Network activity or learning.</dd></div>
+            </dl>
+        </article>
+
+        <article class="glossary-group">
+            <h3>Replication, inference, and results</h3>
+            <p>Terms used by experiment 011 and the workbench to state what the evidence supports.</p>
+            <dl class="glossary-grid">
+                <div class="glossary-entry"><dt>Seed</dt><dd>An integer that deterministically controls generated data, topology, initial weights, and random controls for one paired replicate.</dd></div>
+                <div class="glossary-entry"><dt>Replicate unit</dt><dd>The independent unit used for inference. In the milestone it is the seed, never an individual Presentation.</dd></div>
+                <div class="glossary-entry"><dt>Nested observation</dt><dd>A Presentation measured within a seed. It contributes to that seed's value but is not counted as an independent replicate.</dd></div>
+                <div class="glossary-entry"><dt>Paired effect</dt><dd>A within-seed difference between matched arms or conditions, preserving shared data, topology, parameters, and initial state.</dd></div>
+                <div class="glossary-entry"><dt>Deterministic bootstrap</dt><dd>Seeded resampling of paired seed effects—10,000 times in the milestone—to estimate the sampling interval of the median.</dd></div>
+                <div class="glossary-entry"><dt>95% bootstrap interval</dt><dd>The 2.5th-to-97.5th percentile range of bootstrapped seed-level median effects. It is not computed over Presentations.</dd></div>
+                <div class="glossary-entry"><dt>Expected-direction proportion</dt><dd>The fraction of seed effects above the declared target: zero for improvement effects or the negative margin for non-inferiority.</dd></div>
+                <div class="glossary-entry"><dt>Failure count</dt><dd>The explicit number of unusable effects, settling failures, failed seeds, or non-executable required interventions associated with a result.</dd></div>
+                <div class="glossary-entry"><dt>Non-inferiority margin</dt><dd>The largest acceptable degradation. Held-out category separation must have a lower interval bound above the declared <code>−5%</code> relative margin.</dd></div>
+                <div class="glossary-entry"><dt>Criterion</dt><dd>One preregistered pass/fail condition in the milestone acceptance set, reported independently with its evidence.</dd></div>
+                <div class="glossary-entry"><dt>Milestone verdict</dt><dd>The conjunction of all required criteria. One failed criterion makes the overall verdict fail even when another criterion passes.</dd></div>
+                <div class="glossary-entry"><dt>Negative result</dt><dd>A completed, auditable experiment whose evidence does not support the tested hypothesis. It is not equivalent to a runtime error.</dd></div>
+                <div class="glossary-entry"><dt>Conformance</dt><dd>Evidence that the apparatus implements the accepted specification. Conformance does not imply a positive scientific verdict.</dd></div>
+            </dl>
+        </article>
+
+        <article class="glossary-group">
+            <h3>Artifacts and workbench</h3>
+            <p>Terms for reproducibility, identity, integrity, and display.</p>
+            <dl class="glossary-grid">
+                <div class="glossary-entry"><dt>Experiment definition</dt><dd>The exact JSON declaration of the question, mechanism, parameters, controls, seeds, and analysis used by a run.</dd></div>
+                <div class="glossary-entry"><dt>Run</dt><dd>One execution of an experiment definition, identified by experiment number, timestamp, and content-derived digest.</dd></div>
+                <div class="glossary-entry"><dt>Artifact</dt><dd>An on-disk, rerun-free record of definitions, numerical arrays, Presentations, observer evidence, failures, and results.</dd></div>
+                <div class="glossary-entry"><dt>Artifact contract</dt><dd>The required file inventory and field semantics. The accepted complete contract is <code>ncl-functional-web-v1</code>.</dd></div>
+                <div class="glossary-entry"><dt>Manifest</dt><dd>The artifact index recording contract, software version, identity, timing, status, stimuli, parameters, ordered files, and checksums.</dd></div>
+                <div class="glossary-entry"><dt>Digest</dt><dd>A compact content-derived identity that changes with result-affecting definitions, software, generated datasets, or topology.</dd></div>
+                <div class="glossary-entry"><dt>Checksum</dt><dd>A SHA-256 integrity value for one artifact file, used to detect modification or corruption after the run.</dd></div>
+                <div class="glossary-entry"><dt>Workbench</dt><dd>The read-only Laravel UI that validates and renders runtime-produced artifacts without rerunning experiments or recomputing scientific values.</dd></div>
+            </dl>
+        </article>
+    </section>
+
+    <section class="section" id="references">
+        <p class="eyebrow">Sources of truth</p>
+        <h2>Read next</h2>
+        <div class="mini-list card full">
+            <div><strong><a href="/docs/specification">Normative specification</a></strong>Equations, experimental protocol, controls, artifacts, acceptance criteria, and current conformance.</div>
+            <div><strong><a href="/docs/architecture">Architecture</a></strong>The deep Network seam, scientific boundaries, topology, learning, observers, and accepted negative result.</div>
+            <div><strong><a href="/docs/neurocognitive_linguistics_summary">NCL summary</a></strong>The theoretical source, evidential distinctions, and scientific cautions.</div>
+            <div><strong><a href="https://github.com/elymatos/ccf6/issues">Implementation issues #1–#12</a></strong>The build sequence, acceptance criteria, verification, diagnoses, and recorded outcomes.</div>
+        </div>
+    </section>
+</main>
+
+<footer class="footer">
+    <div class="shell">CCF6 implementation and usage guide · The artifact is the result; the workbench is its reader.</div>
+</footer>
+
+<script>
+    document.querySelectorAll('.copy').forEach((button) => {
+        button.addEventListener('click', async () => {
+            const text = button.nextElementSibling.innerText;
+            await navigator.clipboard.writeText(text);
+            const original = button.textContent;
+            button.textContent = 'Copied';
+            window.setTimeout(() => { button.textContent = original; }, 1200);
+        });
+    });
+
+    const glossarySearch = document.querySelector('#glossary-search');
+    const glossaryEntries = [...document.querySelectorAll('.glossary-entry')];
+    const glossaryCount = document.querySelector('.glossary-count');
+    glossarySearch.addEventListener('input', () => {
+        const query = glossarySearch.value.trim().toLocaleLowerCase();
+        let visible = 0;
+        glossaryEntries.forEach((entry) => {
+            const matches = entry.textContent.toLocaleLowerCase().includes(query);
+            entry.hidden = !matches;
+            visible += Number(matches);
+        });
+        document.querySelectorAll('.glossary-group').forEach((group) => {
+            group.hidden = !group.querySelector('.glossary-entry:not([hidden])');
+        });
+        glossaryCount.textContent = `${visible} ${visible === 1 ? 'term' : 'terms'}`;
+    });
+</script>
+</body>
+</html>
