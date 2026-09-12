@@ -6,7 +6,10 @@ import json
 import sys
 from pathlib import Path
 
-from ccf6.artifacts import validate_functional_web_artifact
+from ccf6.artifacts import (
+    validate_cortical_circuit_artifact,
+    validate_functional_web_artifact,
+)
 from ccf6.experiment import execute, load
 
 
@@ -22,7 +25,14 @@ def main(argv: list[str]) -> int:
         if len(argv) != 3:
             print("usage: python -m ccf6 --validate <artifact_directory>", file=sys.stderr)
             return 2
-        print(json.dumps(validate_functional_web_artifact(argv[2]), indent=2))
+        artifact = Path(argv[2])
+        manifest = json.loads((artifact / "manifest.json").read_text())
+        validator = (
+            validate_cortical_circuit_artifact
+            if manifest.get("contract") == "ncl-cortical-circuit-v1"
+            else validate_functional_web_artifact
+        )
+        print(json.dumps(validator(artifact), indent=2))
         return 0
     definition = load(argv[1])
     root = argv[2] if len(argv) > 2 else "artifacts"

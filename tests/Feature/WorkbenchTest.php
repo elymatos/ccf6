@@ -36,7 +36,7 @@ class WorkbenchTest extends TestCase
             base_path(),
             ['PYTHONPATH' => base_path('ccf6-runtime/src')],
         );
-        $process->mustRun();
+        $process->setTimeout(300)->mustRun();
 
         return [$root, basename(glob($root.'/*', GLOB_ONLYDIR)[0])];
     }
@@ -254,6 +254,27 @@ class WorkbenchTest extends TestCase
                 ->assertSee('Individual and group Lesions')
                 ->assertSee('No Cardinal Candidate classified')
                 ->assertSee('pending_multi_seed_experiment');
+        } finally {
+            $this->removeArtifactRoot($root, $run);
+        }
+    }
+
+    public function test_detailed_cortical_processes_render_actual_population_and_pathway_trajectories(): void
+    {
+        [$root, $run] = $this->runExperiment('012-detailed-cortical-circuit.json');
+        $topology = json_decode(file_get_contents($root.'/'.$run.'/topology.json'), true);
+        $activity = json_decode(file_get_contents($root.'/'.$run.'/activity.json'), true);
+
+        try {
+            config(['ccf6.artifact_root' => $root]);
+            $this->get('/runs/'.$run)
+                ->assertSee('Explicit laminar cortical circuit')
+                ->assertSee('Actual runtime trajectories')
+                ->assertSee($topology['populations']['A.L4Pyr']['legacy_name'])
+                ->assertSee($topology['pathways'][0]['id'])
+                ->assertSee(array_key_first($activity['processes']))
+                ->assertSee('Release facilitation')
+                ->assertSee('STDP postponed');
         } finally {
             $this->removeArtifactRoot($root, $run);
         }
